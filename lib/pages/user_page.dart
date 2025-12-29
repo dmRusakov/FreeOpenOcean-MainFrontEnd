@@ -5,8 +5,6 @@ import 'package:grpc/grpc.dart';
 import 'package:free_open_ocean/src/grpc/status/v1/status.pbgrpc.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class UserPage extends StatefulWidget {
   final Map<String, String>? params;
@@ -27,8 +25,12 @@ class _UserPageState extends State<UserPage> {
   }
 
   Future<void> _callStatus() async {
+    // check is web (wep get http 1.1 / other get grpc)
+    print("55555555555555");
+    print(kIsWeb);
+
+
     try {
-      print(Platform.isAndroid);
       final host = Platform.isAndroid || Platform.isIOS ? '10.0.2.2' : 'localhost';
       final channel = ClientChannel(
         host,

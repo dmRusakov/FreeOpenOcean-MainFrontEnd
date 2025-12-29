@@ -1,0 +1,7 @@
+targets:
+  $default:
+    builders:
+      protoc_builder:
+        options:
+          protoc_options:
+            - --dart_out=grpc:lib/src/grpc

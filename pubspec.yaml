@@ -6,6 +6,7 @@ version: 0.1.1
 
 environment:
   sdk: ^3.10.1
+  flutter: '>=3.10.0'
 
 dependencies:
   flutter:
@@ -24,6 +25,12 @@ dependencies:
   protobuf: ^6.0.0
   http: ^1.2.1
   go_router: ^17.0.1
+  free_open_ocean_grpc:
+    git:
+      url: git@github.com:dmRusakov/FreeOpenOcean-GRPC.git
+      ref: main
+      path: grpc-contracts/dart
+    version: ^0.1.4
 
 dev_dependencies:
   flutter_test:

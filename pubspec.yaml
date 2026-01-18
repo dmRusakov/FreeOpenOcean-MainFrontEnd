@@ -30,7 +30,7 @@ dependencies:
       url: git@github.com:dmRusakov/FreeOpenOcean-GRPC.git
       ref: main
       path: grpc-contracts/dart
-    version: ^0.1.4
+    version: ^0.1.6
 
 dev_dependencies:
   flutter_test:

@@ -92,4 +92,10 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_selectedEndpointKey);
   }
+
+  /// Clear the saved selected endpoint name.
+  Future<void> clearSelectedEndpointName() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_selectedEndpointKey);
+  }
 }

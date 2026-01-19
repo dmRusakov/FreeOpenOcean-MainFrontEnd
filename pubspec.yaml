@@ -2,7 +2,7 @@ name: free_open_ocean
 description: "Free Open Ocean"
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 0.1.1
+version: 0.1.2
 
 environment:
   sdk: ^3.10.1

@@ -66,7 +66,6 @@ class _StatusIndicatorState extends State<StatusIndicator> {
 
     final displayName = _info.serverName.isNotEmpty ? _info.serverName : _info.message;
 
-    // Make icon 40% smaller => scale to 60% of default (default ~24.0)
     final baseSize = IconTheme.of(context).size ?? 24.0;
     final iconSize = baseSize * 0.6;
 

@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:free_open_ocean/services/api.dart';
-import '../core/theme/AppTheme.dart';
+import 'package:free_open_ocean/services/status_info.dart';
+import 'package:free_open_ocean/services/settings_service.dart';
 
 class StatusIndicator extends StatefulWidget {
   final Duration pollInterval;
@@ -13,7 +14,7 @@ class StatusIndicator extends StatefulWidget {
 }
 
 class _StatusIndicatorState extends State<StatusIndicator> {
-  final Api _api = Api();
+  final Api _api = Api(settingsService: SettingsService());
   late Timer _timer;
   StatusInfo _info = const StatusInfo(ok: false, serverName: '', message: 'Not checked');
   // states: 0 = initial (yellow), 1 = ok (green), 2 = error (red)

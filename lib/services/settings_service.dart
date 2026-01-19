@@ -8,6 +8,7 @@ class SettingsService {
   static const String _localeKey = 'locale';
   static const String _deviceTypeOverrideKey = 'deviceTypeOverride';
   static const String _countryKey = 'country';
+  static const String _selectedEndpointKey = 'selectedEndpoint';
 
   Future<void> saveAppTheme(AppThemeEnum theme) async {
     final prefs = await SharedPreferences.getInstance();
@@ -78,5 +79,17 @@ class SettingsService {
   Future<String> loadCountry() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_countryKey) ?? 'USA';
+  }
+
+  /// Save the selected endpoint name into preferences.
+  Future<void> saveSelectedEndpointName(String endpointName) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_selectedEndpointKey, endpointName);
+  }
+
+  /// Load the saved endpoint name, or null if not saved.
+  Future<String?> loadSelectedEndpointName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_selectedEndpointKey);
   }
 }

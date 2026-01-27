@@ -30,4 +30,6 @@ const Map<String, String> enTranslations = {
   'french': 'French (Français)',
   'portuguese': 'Portuguese (Português)',
   'russian': 'Russian (Русский)',
+  'settings_page_title': 'Settings - Free Open Ocean',
+  'settings_page_description': 'Customize your experience with Free Open Ocean settings. Manage themes, languages, and more.',
 };

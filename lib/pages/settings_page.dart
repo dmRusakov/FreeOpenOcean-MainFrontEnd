@@ -132,8 +132,12 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildSectionContent(theme_interface.AppThemeProvider themeProvider) {
     final localizations = AppLocalizations.of(context)!;
     switch (_selectedSection) {
+
+      // general settings
       case SettingSection.general:
         return const Text('General settings placeholder');
+
+      // theme settings
       case SettingSection.theme:
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -166,6 +170,8 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ],
         );
+
+      // language settings
       case SettingSection.language:
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -189,6 +195,8 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ],
         );
+
+      // typography
       case SettingSection.typography:
         return const Text('Typography settings placeholder');
     }

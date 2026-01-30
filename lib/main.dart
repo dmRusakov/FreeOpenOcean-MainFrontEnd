@@ -8,6 +8,7 @@ import 'core/theme/AppTheme.dart' as theme_interface;
 import 'core/theme/theme-data/MainThemeData.dart';
 import 'core/theme/theme-data/MinimalisticThemeData.dart';
 import 'services/settings_service.dart';
+import 'services/api.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,6 +59,7 @@ class _MyAppState extends State<MyApp> {
   late theme_interface.DeviceTypeOverride _deviceTypeOverride;
   late String _country;
   late AppRouter _appRouter;
+  late Api _api;
   bool _isChangingFromDropdown = false;
 
   @override
@@ -68,6 +70,7 @@ class _MyAppState extends State<MyApp> {
     _locale = widget.initialLocale;
     _deviceTypeOverride = widget.initialDeviceTypeOverride;
     _country = widget.initialCountry;
+    _api = Api(settingsService: widget.settingsService);
     _appRouter = AppRouter(onLocaleChanged: _changeLanguage);
   }
 
@@ -210,6 +213,7 @@ class _MyAppState extends State<MyApp> {
           onLocaleChanged: _changeLanguage,
           country: _country,
           onCountryChanged: _changeCountry,
+          api: _api,
           child: child!,
         );
       },

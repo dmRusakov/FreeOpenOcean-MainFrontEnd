@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:free_open_ocean/core/router/app_router.dart';
 import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
+import 'package:free_open_ocean/services/api.dart';
 
 enum AppThemeEnum { main_theme, /*minimalistic_theme*/ }
 
@@ -90,6 +91,8 @@ class AppThemeProvider extends InheritedWidget {
   final String country;
   final void Function(String?) onCountryChanged;
 
+  final Api api;
+
   const AppThemeProvider({
     super.key,
     required this.theme,
@@ -103,6 +106,7 @@ class AppThemeProvider extends InheritedWidget {
     required this.onLocaleChanged,
     required this.country,
     required this.onCountryChanged,
+    required this.api,
     required super.child,
   });
 

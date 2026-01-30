@@ -5,6 +5,9 @@ import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import 'package:free_open_ocean/common/element/appButon.dart';
 import 'package:flutter/foundation.dart';
 import 'package:universal_html/html.dart' as html;
+import 'package:free_open_ocean/services/page_service.dart';
+import 'package:free_open_ocean_grpc/src/grpc/pages/v1/pages.pb.dart' as pages_pb;
+import 'package:go_router/go_router.dart';
 
 enum SettingSection { general, theme, language, typography }
 
@@ -20,6 +23,38 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   SettingSection _selectedSection = SettingSection.general;
   bool _seoSet = false;
+  Future<pages_pb.Page>? _typographyFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.params != null && widget.params!.containsKey('section')) {
+      String section = widget.params!['section']!;
+      switch (section) {
+        case 'general':
+          _selectedSection = SettingSection.general;
+          break;
+        case 'theme':
+          _selectedSection = SettingSection.theme;
+          break;
+        case 'language':
+          _selectedSection = SettingSection.language;
+          break;
+        case 'typography':
+          _selectedSection = SettingSection.typography;
+          break;
+        default:
+          _selectedSection = SettingSection.general;
+      }
+    }
+  }
+
+  void _selectSection(SettingSection section) {
+    final currentUri = GoRouter.of(context).routerDelegate.currentConfiguration.uri;
+    final newUri = currentUri.replace(queryParameters: {'section': section.name});
+    GoRouter.of(context).go(newUri.toString());
+    setState(() => _selectedSection = section);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +90,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     AppButton(
                       icon: Icons.settings,
                       text: 'General',
-                      onPressed: () => setState(() => _selectedSection = SettingSection.general),
+                      onPressed: () => _selectSection(SettingSection.general),
                       theme: _selectedSection == SettingSection.general ? 'primary' : 'secondary',
                       showTextAlways: true,
                     ),
@@ -63,7 +98,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     AppButton(
                       icon: Icons.palette,
                       text: 'Theme',
-                      onPressed: () => setState(() => _selectedSection = SettingSection.theme),
+                      onPressed: () => _selectSection(SettingSection.theme),
                       theme: _selectedSection == SettingSection.theme ? 'primary' : 'secondary',
                       showTextAlways: true,
                     ),
@@ -71,7 +106,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     AppButton(
                       icon: Icons.language,
                       text: 'Language',
-                      onPressed: () => setState(() => _selectedSection = SettingSection.language),
+                      onPressed: () => _selectSection(SettingSection.language),
                       theme: _selectedSection == SettingSection.language ? 'primary' : 'secondary',
                       showTextAlways: true,
                     ),
@@ -79,7 +114,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     AppButton(
                       icon: Icons.text_fields,
                       text: 'Typography',
-                      onPressed: () => setState(() => _selectedSection = SettingSection.typography),
+                      onPressed: () => _selectSection(SettingSection.typography),
                       theme: _selectedSection == SettingSection.typography ? 'primary' : 'secondary',
                       showTextAlways: true,
                     ),

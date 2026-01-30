@@ -5,8 +5,6 @@ import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import 'package:free_open_ocean/common/element/appButon.dart';
 import 'package:flutter/foundation.dart';
 import 'package:universal_html/html.dart' as html;
-import 'package:free_open_ocean/services/page_service.dart';
-import 'package:free_open_ocean_grpc/src/grpc/pages/v1/pages.pb.dart' as pages_pb;
 import 'package:go_router/go_router.dart';
 
 enum SettingSection { general, theme, language, typography }
@@ -22,8 +20,6 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   SettingSection _selectedSection = SettingSection.general;
-  bool _seoSet = false;
-  Future<pages_pb.Page>? _typographyFuture;
 
   @override
   void initState() {
@@ -59,7 +55,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = theme_interface.AppThemeProvider.of(context)!;
-    if (!_seoSet && kIsWeb) {
+    if (kIsWeb) {
       final localizations = AppLocalizations.of(context)!;
       html.document.title = localizations.translate('settings_page_title');
       html.document.head?.querySelectorAll('meta[name="description"]').forEach((element) => element.remove());
@@ -67,7 +63,6 @@ class _SettingsPageState extends State<SettingsPage> {
         ..name = 'description'
         ..content = localizations.translate('settings_page_description');
       html.document.head?.append(meta);
-      _seoSet = true;
     }
     return PageTemplate(
       body: Column(
@@ -135,6 +130,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildSectionContent(theme_interface.AppThemeProvider themeProvider) {
+    final localizations = AppLocalizations.of(context)!;
     switch (_selectedSection) {
       case SettingSection.general:
         return const Text('General settings placeholder');
@@ -142,17 +138,55 @@ class _SettingsPageState extends State<SettingsPage> {
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            theme_interface.AppThemeProvider.buildAppThemeDropdown(context, themeProvider.appTheme, themeProvider.onAppThemeChanged),
-            theme_interface.AppThemeProvider.buildThemeModeDropdown(context, themeProvider.themeMode, themeProvider.onThemeModeChanged),
-            theme_interface.AppThemeProvider.buildDeviceTypeOverrideDropdown(context, themeProvider.deviceTypeOverride, themeProvider.onDeviceTypeOverrideChanged),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(localizations.translate('app_theme_label'), style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(width: 16),
+                theme_interface.AppThemeProvider.buildAppThemeDropdown(context, themeProvider.appTheme, themeProvider.onAppThemeChanged),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(localizations.translate('theme_mode_label'), style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(width: 16),
+                theme_interface.AppThemeProvider.buildThemeModeDropdown(context, themeProvider.themeMode, themeProvider.onThemeModeChanged),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(localizations.translate('device_type_override_label'), style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(width: 16),
+                theme_interface.AppThemeProvider.buildDeviceTypeOverrideDropdown(context, themeProvider.deviceTypeOverride, themeProvider.onDeviceTypeOverrideChanged),
+              ],
+            ),
           ],
         );
       case SettingSection.language:
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AppLocalizations.buildLanguageDropdown(context, themeProvider.locale, (locale) => themeProvider.onLocaleChanged(locale, true)),
-            AppLocalizations.buildCountryDropdown(context, themeProvider.country, themeProvider.onCountryChanged),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(localizations.translate('language_label'), style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(width: 16),
+                AppLocalizations.buildLanguageDropdown(context, themeProvider.locale, (locale) => themeProvider.onLocaleChanged(locale, true)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(localizations.translate('country_label'), style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(width: 16),
+                AppLocalizations.buildCountryDropdown(context, themeProvider.country, themeProvider.onCountryChanged),
+              ],
+            ),
           ],
         );
       case SettingSection.typography:

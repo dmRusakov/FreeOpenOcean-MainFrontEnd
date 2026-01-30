@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:free_open_ocean/core/router/app_router.dart';
 import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import 'package:free_open_ocean/services/api.dart';
+import 'package:free_open_ocean/common/element/appDropdown.dart';
 
 enum AppThemeEnum { main_theme, /*minimalistic_theme*/ }
 
@@ -135,25 +136,13 @@ class AppThemeProvider extends InheritedWidget {
   }
 
   static Widget buildAppThemeDropdown(BuildContext context, AppThemeEnum currentTheme, void Function(AppThemeEnum?) onChanged) {
-    final theme = context.getTheme('dropdown');
     final localizations = AppLocalizations.of(context)!;
 
-    return InkWell(
-      onTap: () => _showAppThemeSearchDialog(context, currentTheme, onChanged),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(localizations.translate(currentTheme.name)),
-            const Icon(Icons.arrow_drop_down),
-          ],
-        ),
-      ),
+    return AppDropdown<AppThemeEnum>(
+      text: localizations.translate(currentTheme.name),
+      onPressed: () => _showAppThemeSearchDialog(context, currentTheme, onChanged),
+      theme: 'secondary',
+      showTextAlways: true,
     );
   }
 
@@ -164,7 +153,6 @@ class AppThemeProvider extends InheritedWidget {
       context: context,
       builder: (context) {
         final localizations = AppLocalizations.of(context)!;
-        final theme = context.getTheme('dropdown');
         return StatefulBuilder(
           builder: (context, setState) {
             final filteredThemes = AppThemeEnum.values.where((theme) => theme.name.toLowerCase().contains(searchQuery.toLowerCase())).toList();
@@ -206,22 +194,11 @@ class AppThemeProvider extends InheritedWidget {
   static Widget buildThemeModeDropdown(BuildContext context, ThemeModeOptionEnum currentMode, void Function(ThemeModeOptionEnum?) onChanged) {
     final localizations = AppLocalizations.of(context)!;
 
-    return InkWell(
-      onTap: () => _showThemeModeSearchDialog(context, currentMode, onChanged),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(localizations.translate('${currentMode.name}_theme')),
-            const Icon(Icons.arrow_drop_down),
-          ],
-        ),
-      ),
+    return AppDropdown<ThemeModeOptionEnum>(
+      text: localizations.translate('${currentMode.name}_theme'),
+      onPressed: () => _showThemeModeSearchDialog(context, currentMode, onChanged),
+      theme: 'secondary',
+      showTextAlways: true,
     );
   }
 
@@ -273,22 +250,11 @@ class AppThemeProvider extends InheritedWidget {
   static Widget buildDeviceTypeOverrideDropdown(BuildContext context, DeviceTypeOverride currentOverride, void Function(DeviceTypeOverride?) onChanged) {
     final localizations = AppLocalizations.of(context)!;
 
-    return InkWell(
-      onTap: () => _showDeviceTypeOverrideSearchDialog(context, currentOverride, onChanged),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(localizations.translate(currentOverride.name)),
-            const Icon(Icons.arrow_drop_down),
-          ],
-        ),
-      ),
+    return AppDropdown<DeviceTypeOverride>(
+      text: localizations.translate(currentOverride.name),
+      onPressed: () => _showDeviceTypeOverrideSearchDialog(context, currentOverride, onChanged),
+      theme: 'secondary',
+      showTextAlways: true,
     );
   }
 

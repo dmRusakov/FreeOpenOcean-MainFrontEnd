@@ -32,4 +32,9 @@ const Map<String, String> frTranslations = {
   'russian': 'Russe (Русский)',
   'settings_page_title': 'Paramètres - Free Open Ocean',
   'settings_page_description': 'Personnalisez votre expérience avec les paramètres de Free Open Ocean. Gérez les thèmes, les langues et plus encore.',
+  'app_theme_label': 'Thème de l\'App',
+  'theme_mode_label': 'Mode de Thème',
+  'device_type_override_label': 'Substitution de Type d\'Appareil',
+  'language_label': 'Langue',
+  'country_label': 'Pays',
 };

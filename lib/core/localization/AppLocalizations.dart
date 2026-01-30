@@ -9,6 +9,7 @@ import 'languages/es.dart';
 import 'languages/fr.dart';
 import 'languages/pt.dart';
 import 'languages/ru.dart';
+import 'package:free_open_ocean/common/element/appDropdown.dart';
 
 class AppLocalizations {
   final Locale locale;
@@ -44,22 +45,11 @@ class AppLocalizations {
       'pt': localizations.translate('portuguese'),
       'ru': localizations.translate('russian'),
     };
-    return InkWell(
-      onTap: () => _showLanguageSearchDialog(context, currentLocale, onChanged),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(languageMap[currentLocale.languageCode] ?? currentLocale.languageCode),
-            const Icon(Icons.arrow_drop_down),
-          ],
-        ),
-      ),
+    return AppDropdown<Locale>(
+      text: languageMap[currentLocale.languageCode] ?? currentLocale.languageCode,
+      onPressed: () => _showLanguageSearchDialog(context, currentLocale, onChanged),
+      theme: 'secondary',
+      showTextAlways: true,
     );
   }
 
@@ -122,22 +112,11 @@ class AppLocalizations {
   }
 
   static Widget buildCountryDropdown(BuildContext context, String currentCountry, void Function(String?) onChanged) {
-    return InkWell(
-      onTap: () => _showCountrySearchDialog(context, currentCountry, onChanged),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(countries[currentCountry] ?? currentCountry),
-            const Icon(Icons.arrow_drop_down),
-          ],
-        ),
-      ),
+    return AppDropdown<String>(
+      text: countries[currentCountry] ?? currentCountry,
+      onPressed: () => _showCountrySearchDialog(context, currentCountry, onChanged),
+      theme: 'secondary',
+      showTextAlways: true,
     );
   }
 

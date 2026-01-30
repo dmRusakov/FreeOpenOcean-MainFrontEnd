@@ -5,7 +5,7 @@ const Map<String, String> esTranslations = {
   'about_page': 'Página Acerca de',
   'ocean_map': 'Mapa del Océano',
   'donations': 'Donaciones',
-  'footer_text': '© 2024 FreeOpenOcean.com o sus afiliados. Todos los derechos reservados.',
+  'footer_text': 'FreeOpenOcean.com o sus afiliados. Todos los derechos reservados.',
   'user': 'Usuario',
   'made_in_usa': 'Hecho en EE.UU.',
   'user_page': 'Página de usuario',

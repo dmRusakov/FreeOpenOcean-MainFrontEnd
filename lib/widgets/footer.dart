@@ -40,7 +40,7 @@ class _FooterState extends State<Footer> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            '${localizations.translate('footer_text')} (v$_version)',
+            '@2024 - ${DateTime.now().year} ${localizations.translate('footer_text')} (v$_version)',
             style: TextStyle(
               fontSize: theme.sizes['fontSize'],
               color: theme.color['text'],

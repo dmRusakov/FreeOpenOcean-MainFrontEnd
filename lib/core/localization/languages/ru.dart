@@ -5,7 +5,7 @@ const Map<String, String> ruTranslations = {
   'about_page': 'Страница о нас',
   'ocean_map': 'Карта океана',
   'donations': 'Пожертвования',
-  'footer_text': '© 2024 FreeOpenOcean.com или её аффилиаты. Все права защищены.',
+  'footer_text': 'FreeOpenOcean.com или её аффилиаты. Все права защищены.',
   'user': 'Пользователь',
   'made_in_usa': 'Сделано в США',
   'user_page': 'Страница пользователя',

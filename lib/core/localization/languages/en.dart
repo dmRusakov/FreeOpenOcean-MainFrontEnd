@@ -5,7 +5,7 @@ const Map<String, String> enTranslations = {
   'about_page': 'About Page',
   'ocean_map': 'Ocean Map',
   'donations': 'Donations',
-  'footer_text': '© 2024 FreeOpenOcean.com or its affiliates. All Rights Reserved.',
+  'footer_text': 'FreeOpenOcean.com or its affiliates. All Rights Reserved.',
   'user': 'User',
   'made_in_usa': 'Made in USA',
   'user_page': 'User page',

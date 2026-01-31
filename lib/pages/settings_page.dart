@@ -6,6 +6,8 @@ import 'package:free_open_ocean/common/element/appButon.dart';
 import 'package:flutter/foundation.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:go_router/go_router.dart';
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart' as html_widget;
+import 'package:free_open_ocean/services/page_service.dart';
 
 enum SettingSection { general, theme, language, typography }
 
@@ -198,7 +200,26 @@ class _SettingsPageState extends State<SettingsPage> {
 
       // typography
       case SettingSection.typography:
-        return const Text('Typography settings placeholder');
+        return FutureBuilder(
+          future: PageService(themeProvider.api).get('typography-patterns', themeProvider.locale.languageCode, themeProvider.country),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator();
+            } else if (snapshot.hasError) {
+              return Text('Error: ${snapshot.error}');
+            } else if (snapshot.hasData) {
+              final page = snapshot.data!;
+              return SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: html_widget.HtmlWidget(page.content),
+                ),
+              );
+            } else {
+              return const Text('No data');
+            }
+          },
+        );
     }
   }
 }

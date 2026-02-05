@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../AppTheme.dart';
+import 'package:flutter_html/flutter_html.dart';
 
 class MainThemeData extends AppTheme {
 
@@ -119,16 +120,16 @@ class MainThemeData extends AppTheme {
     },
 
     // main
-    'primary': const Color(0xFF3E1C87),
-    'secondary': const Color(0xFF007A5E),
+    'primary': const Color(0xff3d1e82),
+    'secondary': const Color(0xff446155),
     'success': const Color(0xFF1F3284),
     'error': const Color(0xFF8F3000),
     'warning': const Color(0xFFA2762A),
     'info': const Color(0xFF141515),
 
     // buttons
-    'btn_primary': <String, dynamic>{'background': const Color(0xFF3E1C87), 'text': Colors.white},
-    'btn_secondary': <String, dynamic>{'background': const Color(0xFF007A5E), 'text': Colors.white},
+    'btn_primary': <String, dynamic>{'background': const Color(0xff3d1e82), 'text': Colors.white},
+    'btn_secondary': <String, dynamic>{'background': const Color(0xff446155), 'text': Colors.white},
     'btn_success': <String, dynamic>{'background': const Color(0xFF1F3284), 'text': Colors.white},
     'btn_warning': <String, dynamic>{'background': const Color(0xFFA2762A), 'text': Colors.white},
     'btn_error': <String, dynamic>{'background': const Color(0xFF8F3000), 'text': Colors.white},
@@ -138,7 +139,7 @@ class MainThemeData extends AppTheme {
   Map<String, dynamic> get lightColors => {
     'text': Colors.black,
     'background': Colors.white,
-    'info': const Color(0xFF333333),
+    'info': const Color(0xFF5b5b5b),
     'topHeader': <String, dynamic>{'background': Colors.transparent, 'text': Colors.white},
     'btn_info': <String, dynamic>{'background': const Color(0xFF4E4E4E), 'text': Colors.white},
     'btn_logo': <String, dynamic>{'background': const Color(0xFF6532C2), 'text': Colors.white},

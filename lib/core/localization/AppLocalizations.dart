@@ -10,6 +10,7 @@ import 'languages/fr.dart';
 import 'languages/pt.dart';
 import 'languages/ru.dart';
 import 'package:free_open_ocean/common/element/appDropdown.dart';
+import 'package:free_open_ocean/core/theme/AppTheme.dart';
 
 class AppLocalizations {
   final Locale locale;
@@ -181,4 +182,11 @@ class _AppLocalizationsDelegate
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
+}
+
+extension AppLocalizationsExtension on BuildContext {
+  String getCountry() {
+    final provider = AppThemeProvider.of(this);
+    return provider?.country ?? 'USA';
+  }
 }

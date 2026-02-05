@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:free_open_ocean/core/theme/AppTheme.dart';
+import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import 'package:free_open_ocean/pages/about_page.dart';
 import 'package:free_open_ocean/pages/main_page.dart';
 import 'package:free_open_ocean/pages/map_page.dart';

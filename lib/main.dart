@@ -12,7 +12,9 @@ import 'services/api.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (kIsWeb) web_setup.setupWeb();
+  if (kIsWeb) {
+    web_setup.setupWeb();
+  }
   final settingsService = SettingsService();
   final appTheme = await settingsService.loadAppTheme();
   final themeModeOption = await settingsService.loadThemeModeOption();

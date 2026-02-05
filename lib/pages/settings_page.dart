@@ -6,10 +6,11 @@ import 'package:free_open_ocean/common/element/appButon.dart';
 import 'package:flutter/foundation.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:go_router/go_router.dart';
-import 'package:flutter_widget_from_html/flutter_widget_from_html.dart' as html_widget;
+import 'package:flutter_html/flutter_html.dart';
 import 'package:free_open_ocean/services/page_service.dart';
+import 'dart:convert';
 
-enum SettingSection { general, theme, language, typography }
+enum SettingSection { general, theme, language, style }
 
 class SettingsPage extends StatefulWidget {
   final Map<String, String>? params;
@@ -38,8 +39,8 @@ class _SettingsPageState extends State<SettingsPage> {
         case 'language':
           _selectedSection = SettingSection.language;
           break;
-        case 'typography':
-          _selectedSection = SettingSection.typography;
+        case 'style':
+          _selectedSection = SettingSection.style;
           break;
         default:
           _selectedSection = SettingSection.general;
@@ -89,7 +90,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       text: 'General',
                       onPressed: () => _selectSection(SettingSection.general),
                       theme: _selectedSection == SettingSection.general ? 'primary' : 'secondary',
-                      showTextAlways: true,
+                      showTextOnBigScreen: true,
                     ),
                     const SizedBox(width: 8.0),
                     AppButton(
@@ -97,7 +98,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       text: 'Theme',
                       onPressed: () => _selectSection(SettingSection.theme),
                       theme: _selectedSection == SettingSection.theme ? 'primary' : 'secondary',
-                      showTextAlways: true,
+                      showTextOnBigScreen: true,
                     ),
                     const SizedBox(width: 8.0),
                     AppButton(
@@ -105,15 +106,15 @@ class _SettingsPageState extends State<SettingsPage> {
                       text: 'Language',
                       onPressed: () => _selectSection(SettingSection.language),
                       theme: _selectedSection == SettingSection.language ? 'primary' : 'secondary',
-                      showTextAlways: true,
+                      showTextOnBigScreen: true,
                     ),
                     const SizedBox(width: 8.0),
                     AppButton(
                       icon: Icons.text_fields,
-                      text: 'Typography',
-                      onPressed: () => _selectSection(SettingSection.typography),
-                      theme: _selectedSection == SettingSection.typography ? 'primary' : 'secondary',
-                      showTextAlways: true,
+                      text: 'Style Guide',
+                      onPressed: () => _selectSection(SettingSection.style),
+                      theme: _selectedSection == SettingSection.style ? 'primary' : 'secondary',
+                      showTextOnBigScreen: true,
                     ),
                   ],
                 ),
@@ -122,7 +123,8 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           // Content area
           Expanded(
-            child: Center(
+            child: Align(
+              alignment: Alignment.topCenter,
               child: _buildSectionContent(themeProvider),
             ),
           ),
@@ -135,11 +137,11 @@ class _SettingsPageState extends State<SettingsPage> {
     final localizations = AppLocalizations.of(context)!;
     switch (_selectedSection) {
 
-      // general settings
+    // general settings
       case SettingSection.general:
         return const Text('General settings placeholder');
 
-      // theme settings
+    // theme settings
       case SettingSection.theme:
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -173,7 +175,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         );
 
-      // language settings
+    // language settings
       case SettingSection.language:
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -198,21 +200,50 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         );
 
-      // typography
-      case SettingSection.typography:
+    // typography
+      case SettingSection.style:
         return FutureBuilder(
-          future: PageService(themeProvider.api).get('typography-patterns', themeProvider.locale.languageCode, themeProvider.country),
+          future: PageService(themeProvider.api).get('style-guide', themeProvider.locale.languageCode, themeProvider.country),
           builder: (context, snapshot) {
+
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const CircularProgressIndicator();
             } else if (snapshot.hasError) {
               return Text('Error: ${snapshot.error}');
             } else if (snapshot.hasData) {
               final page = snapshot.data!;
+
+              // test seo title and description of the page by page.seoTitle and page.seoDescription
+              if (kIsWeb) {
+                html.document.title = page.seoTitle ?? page.title;
+                html.document.head?.querySelectorAll('meta[name="description"]').forEach((element) => element.remove());
+                var meta = html.MetaElement()
+                  ..name = 'description'
+                  ..content = page.seoDescription ?? 'Description for ${page.title}';
+                html.document.head?.append(meta);
+              }
+
               return SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: html_widget.HtmlWidget(page.content),
+                child: Container(
+                  constraints: BoxConstraints(maxWidth: 1000),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 10),
+                        Text(page.title, style: Theme.of(context).textTheme.headlineLarge),
+                        const SizedBox(height: 20),
+                        Html(
+                          data: page.content,
+                          style: {
+                            "p": Style(textAlign: TextAlign.justify),
+                            "li": Style(textAlign: TextAlign.justify),
+                            "div": Style(textAlign: TextAlign.justify),
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               );
             } else {

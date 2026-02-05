@@ -4,6 +4,7 @@ import 'package:free_open_ocean/core/router/app_router.dart';
 import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import 'package:free_open_ocean/services/api.dart';
 import 'package:free_open_ocean/common/element/appDropdown.dart';
+import 'package:flutter_html/flutter_html.dart';
 
 enum AppThemeEnum { main_theme, /*minimalistic_theme*/ }
 
@@ -373,8 +374,44 @@ extension AppThemeExtension on BuildContext {
     AppRouter.goTo(this, pageName);
   }
 
-  String getCountry() {
-    final provider = AppThemeProvider.of(this);
-    return provider?.country ?? 'USA';
+  dynamic getPageTheme() {
+    final style = {
+      "body": Style(
+        // fontSize: FontSize(16),
+        lineHeight: LineHeight(1.5),
+        padding: HtmlPaddings.all(32),
+        margin: Margins.zero,
+      ),
+
+      "p": Style(margin: Margins.only(bottom: 16)),
+      "hr": Style(
+        border: Border(top: BorderSide(color: Color(0xFFDEE2E6), width: 1)),
+        margin: Margins.symmetric(vertical: 32),
+      ),
+      ".btn": Style(
+        display: Display.inlineBlock,
+        padding: HtmlPaddings.symmetric(horizontal: 16, vertical: 8),
+        textAlign: TextAlign.center,
+        fontWeight: FontWeight.w500,
+      ),
+      ".btn-primary": Style(
+        backgroundColor: Color(0xFF0D6EFD),
+        color: Colors.white,
+      ),
+      ".btn-outline": Style(
+        backgroundColor: Colors.transparent,
+        color: Color(0xFF212529),
+        border: Border.all(color: Color(0xFF6C757D)),
+      ),
+      ".text-primary": Style(color: Color(0xFF0D6EFD)),
+      ".bg-primary": Style(backgroundColor: Color(0xFF0D6EFD)),
+      ".bg-success": Style(backgroundColor: Color(0xFF198754)),
+      ".bg-danger": Style(backgroundColor: Color(0xFFDC3545)),
+      ".bg-warning": Style(backgroundColor: Color(0xFFFFC107)),
+      ".bg-info": Style(backgroundColor: Color(0xFF0DCAF0)),
+    };
+
+    return style;
   }
+
 }

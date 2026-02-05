@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../AppTheme.dart';
+import 'package:flutter_html/flutter_html.dart';
 
 class MinimalisticThemeData extends AppTheme {
   @override
@@ -106,5 +107,15 @@ class MinimalisticThemeData extends AppTheme {
         bodyLarge: TextStyle(color: colors['text']),
       ),
     );
+  }
+
+  @override
+  Map<String, Style> getPageStyles(bool isDark) {
+    return {
+      ".text-primary": Style(color: isDark ? Colors.purple : Colors.red),
+      "h1": Style(fontSize: FontSize(24), color: Colors.blue),
+      ".highlight": Style(backgroundColor: Colors.yellow),
+      "p.important": Style(fontWeight: FontWeight.bold),
+    };
   }
 }

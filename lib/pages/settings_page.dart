@@ -6,9 +6,7 @@ import 'package:free_open_ocean/common/element/appButon.dart';
 import 'package:flutter/foundation.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:go_router/go_router.dart';
-import 'package:flutter_html/flutter_html.dart';
-import 'package:free_open_ocean/services/page_service.dart';
-import 'dart:convert';
+import 'package:free_open_ocean/pages/page_content.dart';
 
 enum SettingSection { general, theme, language, style }
 
@@ -202,55 +200,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     // typography
       case SettingSection.style:
-        return FutureBuilder(
-          future: PageService(themeProvider.api).get('style-guide', themeProvider.locale.languageCode, themeProvider.country),
-          builder: (context, snapshot) {
-
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const CircularProgressIndicator();
-            } else if (snapshot.hasError) {
-              return Text('Error: ${snapshot.error}');
-            } else if (snapshot.hasData) {
-              final page = snapshot.data!;
-
-              // test seo title and description of the page by page.seoTitle and page.seoDescription
-              if (kIsWeb) {
-                html.document.title = page.seoTitle ?? page.title;
-                html.document.head?.querySelectorAll('meta[name="description"]').forEach((element) => element.remove());
-                var meta = html.MetaElement()
-                  ..name = 'description'
-                  ..content = page.seoDescription ?? 'Description for ${page.title}';
-                html.document.head?.append(meta);
-              }
-
-              return SingleChildScrollView(
-                child: Container(
-                  constraints: BoxConstraints(maxWidth: 1000),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 10),
-                        Text(page.title, style: Theme.of(context).textTheme.headlineLarge),
-                        const SizedBox(height: 20),
-                        Html(
-                          data: page.content,
-                          style: {
-                            "p": Style(textAlign: TextAlign.justify),
-                            "li": Style(textAlign: TextAlign.justify),
-                            "div": Style(textAlign: TextAlign.justify),
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            } else {
-              return const Text('No data');
-            }
-          },
-        );
+        return PageContent(slug: 'style-guide');
     }
   }
 }

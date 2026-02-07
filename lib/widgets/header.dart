@@ -42,7 +42,7 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         AppButton(
           onPressed: () {
-            context.routerGoTo('map');
+            context.routerGoTo('ocean_map');
           },
           icon: Icons.map,
           text: localizations.translate('ocean_map'),

@@ -13,7 +13,7 @@ class MapPage extends StatelessWidget {
 
     return PageTemplate(
       body: Center(
-        child: Text(localizations.translate('about_page')),
+        child: Text(localizations.translate('Ocean map is under development, stay tuned!')),
       ),
     );
   }

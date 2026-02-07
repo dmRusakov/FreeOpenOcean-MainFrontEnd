@@ -3,7 +3,7 @@ const Map<String, String> frTranslations = {
   'settings': 'Paramètres',
   'home_page': 'Page d\'accueil',
   'about_page': 'Page À propos',
-  'ocean_map': 'Carte de l\'océan',
+  'ocean_charts': 'Carte de l\'océan',
   'donations': 'Dons',
   'footer_text': 'FreeOpenOcean.com ou ses affiliés. Tous droits réservés.',
   'user': 'Utilisateur',

@@ -33,6 +33,8 @@ dependencies:
     version: ^0.1.28
   universal_html: ^2.2.4
   flutter_html: ^3.0.0
+  flutter_map: ^8.2.2
+  latlng: ^2.0.7
 
 dev_dependencies:
   flutter_test:

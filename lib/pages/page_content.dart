@@ -4,6 +4,7 @@ import 'package:universal_html/html.dart' as html;
 import 'package:flutter_html/flutter_html.dart';
 import 'package:free_open_ocean/core/theme/AppTheme.dart' as theme_interface;
 import 'package:free_open_ocean/services/page_service.dart';
+import 'package:free_open_ocean_grpc/src/grpc/pages/v1/pages.pb.dart' as pages_pb;
 
 class PageContent extends StatelessWidget {
   final String slug;
@@ -16,6 +17,35 @@ class PageContent extends StatelessWidget {
     this.language,
     this.country,
   });
+
+  List<Widget> _buildContent(pages_pb.Page page, double maxWidth, BuildContext context) {
+    List<Widget> content = [
+      const SizedBox(height: 10),
+    ];
+
+    // add title and short description if available
+    if (page.title != '') {
+      content.add(Text(page.title, style: Theme.of(context).textTheme.headlineLarge));
+
+      if (page.shortDescription != '') {
+        content.add(const SizedBox(height: 10));
+        content.add(Container(
+          constraints: BoxConstraints(maxWidth: maxWidth * 0.50),
+          child: Text(page.shortDescription, style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center),
+        ));
+      }
+
+      content.add(const SizedBox(height: 30));
+    }
+
+    // add content
+    content.add(Html(
+      data: page.content,
+      style: theme_interface.AppThemeProvider.of(context)!.theme.pageStyles,
+    ));
+
+    return content;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,8 +62,6 @@ class PageContent extends StatelessWidget {
           return Text('Error: ${snapshot.error}');
         } else if (snapshot.hasData) {
           final page = snapshot.data!;
-
-          print(page.shortDescription);
 
           // Make content visible for Google checks, bots, and analytics
           if (kIsWeb) {
@@ -53,36 +81,9 @@ class PageContent extends StatelessWidget {
             html.document.head?.append(meta);
           }
 
-          final maxWidth = 1000.0;
+          final maxWidth = themeProvider.theme.maxWidth;
 
-          List<Widget> content = [
-            const SizedBox(height: 10),
-          ];
-
-          // add title and short description if available
-          if (page.title != '') {
-            content.add(Text(page.title, style: Theme.of(context).textTheme.headlineLarge));
-
-            if (page.shortDescription != '') {
-              content.add(const SizedBox(height: 10));
-              content.add(Container(
-                constraints: BoxConstraints(maxWidth: maxWidth * 0.50),
-                child: Text(page.shortDescription, style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center),
-              ));
-            }
-
-            content.add(const SizedBox(height: 30));
-          }
-
-          // add content
-          content.add(Html(
-            data: page.content,
-            style: {
-              "p": Style(textAlign: TextAlign.justify),
-              "li": Style(textAlign: TextAlign.justify),
-              "div": Style(textAlign: TextAlign.justify),
-            },
-          ));
+          List<Widget> content = _buildContent(page, maxWidth, context);
 
           return SingleChildScrollView(
             child: Container(

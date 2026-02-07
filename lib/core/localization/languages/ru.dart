@@ -3,7 +3,7 @@ const Map<String, String> ruTranslations = {
   'settings': 'Настройки',
   'home_page': 'Главная страница',
   'about_page': 'Страница о нас',
-  'ocean_map': 'Карта океана',
+  'ocean_charts': 'Карта океана',
   'donations': 'Пожертвования',
   'footer_text': 'FreeOpenOcean.com или её аффилиаты. Все права защищены.',
   'user': 'Пользователь',

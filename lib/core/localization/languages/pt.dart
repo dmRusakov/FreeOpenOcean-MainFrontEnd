@@ -3,7 +3,7 @@ const Map<String, String> ptTranslations = {
   'settings': 'Configurações',
   'home_page': 'Página Inicial',
   'about_page': 'Página Sobre',
-  'ocean_map': 'Mapa do Oceano',
+  'ocean_charts': 'Mapa do Oceano',
   'donations': 'Doações',
   'footer_text': 'FreeOpenOcean.com ou seus afiliados. Todos os direitos reservados.',
   'user': 'Usuário',

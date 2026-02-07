@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import 'package:free_open_ocean/pages/about_page.dart';
 import 'package:free_open_ocean/pages/main_page.dart';
-import 'package:free_open_ocean/pages/map_page.dart';
+import 'package:free_open_ocean/pages/ocean_charts.dart';
 import 'package:free_open_ocean/pages/settings_page.dart';
 import 'package:free_open_ocean/pages/user_page.dart';
 
@@ -20,7 +20,7 @@ class AppRouter {
       _buildRoute('/:country/:language', (params) => MainPage(params: params)),
       _buildRoute('/:country/:language/user', (params) => UserPage(params: params)),
       _buildRoute('/:country/:language/settings', (params) => SettingsPage(params: params)),
-      _buildRoute('/:country/:language/ocean_map', (params) => MapPage(params: params)),
+      _buildRoute('/:country/:language/ocean_charts', (params) => OceanCharts(params: params)),
       _buildRoute('/:country/:language/about', (params) => AboutPage(params: params)),
     ],
     redirect: (context, state) {

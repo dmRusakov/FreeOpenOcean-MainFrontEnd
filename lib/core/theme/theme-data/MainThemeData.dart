@@ -155,6 +155,16 @@ class MainThemeData extends AppTheme {
     'btn_info': <String, dynamic>{'background': const Color(0x45877F7F), 'text': Colors.white},
   };
 
+  @override
+  double get maxWidth => 1000.0;
+
+  @override
+  Map<String, Style> get pageStyles => {
+    "p": Style(textAlign: TextAlign.justify),
+    "li": Style(textAlign: TextAlign.justify),
+    "div": Style(textAlign: TextAlign.justify),
+  };
+
   static ThemeData buildThemeData(bool isDark) {
     final appTheme = MainThemeData();
     final colors = isDark ? appTheme.darkColors : appTheme.lightColors;

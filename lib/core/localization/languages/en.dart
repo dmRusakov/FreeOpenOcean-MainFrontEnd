@@ -3,7 +3,7 @@ const Map<String, String> enTranslations = {
   'settings': 'Settings',
   'home_page': 'Home Page',
   'about_page': 'About Page',
-  'ocean_map': 'Ocean Map',
+  'ocean_charts': 'Ocean Charts',
   'donations': 'Donations',
   'footer_text': 'FreeOpenOcean.com or its affiliates. All Rights Reserved.',
   'user': 'User',

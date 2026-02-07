@@ -25,6 +25,9 @@ abstract class AppTheme {
   Map<String, dynamic> get lightColors;
   Map<String, dynamic> get darkColors;
 
+  double get maxWidth;
+  Map<String, Style> get pageStyles;
+
   dynamic getColor(String key, Brightness brightness) {
     final baseColor = colors[key];
     final modeColor = (brightness == Brightness.dark) ? darkColors[key] : lightColors[key];

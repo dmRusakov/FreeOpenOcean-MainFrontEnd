@@ -91,6 +91,16 @@ class MinimalisticThemeData extends AppTheme {
         },
       };
 
+  @override
+  double get maxWidth => 1000.0;
+
+  @override
+  Map<String, Style> get pageStyles => {
+    "p": Style(textAlign: TextAlign.justify),
+    "li": Style(textAlign: TextAlign.justify),
+    "div": Style(textAlign: TextAlign.justify),
+  };
+
   // Helper method to build ThemeData based on mode
   static ThemeData buildThemeData(bool isDark) {
     final appTheme = MinimalisticThemeData();
@@ -107,15 +117,5 @@ class MinimalisticThemeData extends AppTheme {
         bodyLarge: TextStyle(color: colors['text']),
       ),
     );
-  }
-
-  @override
-  Map<String, Style> getPageStyles(bool isDark) {
-    return {
-      ".text-primary": Style(color: isDark ? Colors.purple : Colors.red),
-      "h1": Style(fontSize: FontSize(24), color: Colors.blue),
-      ".highlight": Style(backgroundColor: Colors.yellow),
-      "p.important": Style(fontWeight: FontWeight.bold),
-    };
   }
 }

@@ -19,6 +19,7 @@ class _StatusIndicatorState extends State<StatusIndicator> {
   StatusInfo _info = const StatusInfo(ok: false, serverName: '', message: 'Not checked');
   // states: 0 = initial (yellow), 1 = ok (green), 2 = error (red)
   int _state = 0;
+  OverlayEntry? _overlayEntry;
 
   @override
   void initState() {
@@ -43,6 +44,10 @@ class _StatusIndicatorState extends State<StatusIndicator> {
   @override
   void dispose() {
     _timer.cancel();
+    if (_overlayEntry != null) {
+      _overlayEntry!.remove();
+      _overlayEntry = null;
+    }
     super.dispose();
   }
 
@@ -67,8 +72,7 @@ class _StatusIndicatorState extends State<StatusIndicator> {
 
     final displayName = _info.serverName.isNotEmpty ? _info.serverName : _info.message;
 
-    final baseSize = IconTheme.of(context).size ?? 24.0;
-    final iconSize = baseSize * 0.6;
+    final iconSize = IconTheme.of(context).size ?? 24.0 * 0.6;
 
     // Align to the right and shift up by 3px (negative top margin)
     return Align(
@@ -91,13 +95,32 @@ class _StatusIndicatorState extends State<StatusIndicator> {
               onPressed: () {
                 // Show server name on click, do not reload status
                 final name = "Server: $displayName";
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(name, style: const TextStyle(color: Colors.white)),
-                    duration: const Duration(seconds: 2),
-                    backgroundColor: Colors.grey[800],
+                if (_overlayEntry != null) {
+                  _overlayEntry!.remove();
+                  _overlayEntry = null;
+                }
+                _overlayEntry = OverlayEntry(
+                  builder: (context) => Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: MouseRegion(
+                      onExit: (event) {
+                        _overlayEntry?.remove();
+                        _overlayEntry = null;
+                      },
+                      child: Material(
+                        elevation: 6,
+                        color: Colors.grey[800],
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(name, style: const TextStyle(color: Colors.white)),
+                        ),
+                      ),
+                    ),
                   ),
                 );
+                Overlay.of(context).insert(_overlayEntry!);
               },
             ),
           ),

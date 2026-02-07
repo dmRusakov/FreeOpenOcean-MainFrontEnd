@@ -42,22 +42,12 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         AppButton(
           onPressed: () {
-            context.routerGoTo('ocean_map');
-          },
-          icon: Icons.map,
-          text: localizations.translate('ocean_map'),
-          size: "l",
-          showTextOnBigScreen: true,
-        ),
-        const SizedBox(width: 8),
-        AppButton(
-          onPressed: () {
             context.routerGoTo('about');
           },
           svgIconPath: 'assets/icons/donate.svg',
           text: localizations.translate('donations'),
           size: "l",
-          showTextOnBigScreen: true,
+          theme: "warning",
         ),
       ],
     );

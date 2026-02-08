@@ -36,7 +36,7 @@ class AppLocalizations {
     return _localizedValues[locale.languageCode]?[key] ?? key;
   }
 
-  static Widget buildLanguageDropdown(BuildContext context, Locale currentLocale, void Function(Locale?) onChanged) {
+  static Widget buildLanguageDropdown(BuildContext context, Locale currentLocale, void Function(Locale?) onChanged, {String color = 'secondary', String size = 'm'}) {
     final localizations = AppLocalizations.of(context)!;
 
     final Map<String, String> languageMap = {
@@ -49,7 +49,8 @@ class AppLocalizations {
     return AppDropdown<Locale>(
       text: languageMap[currentLocale.languageCode] ?? currentLocale.languageCode,
       onPressed: () => _showLanguageSearchDialog(context, currentLocale, onChanged),
-      theme: 'secondary',
+      theme: color,
+      size: size,
       showTextAlways: true,
     );
   }

@@ -42,7 +42,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isConstrained = constraints.maxWidth < 100.0; // Threshold to detect constrained width
-        final sizes = context.getThemeSizes('btn_${widget.size}');
+        final sizes = context.getThemeSizes('dd_${widget.size}');
         final color = context.getThemeColor('btn_${widget.theme}');
         final hoverBackground = Color.lerp(color?['background'], Colors.black, 0.2);
         final deviceType = context.getDeviceType();
@@ -62,7 +62,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
           iconWidget = Icon(
             widget.icon,
             color: color['text'],
-            size: sizes['fontSize'] + 2 ?? 16.0,
+            size: sizes['fontSize'] ?? 16.0,
           );
         } else {
           iconWidget = const SizedBox.shrink();

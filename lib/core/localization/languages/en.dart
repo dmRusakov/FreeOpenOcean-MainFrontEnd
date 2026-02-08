@@ -13,7 +13,7 @@ const Map<String, String> enTranslations = {
   'minimalistic_theme': 'Minimalistic Theme',
   'select_theme': 'Select Theme',
   'search_theme': 'Search themes',
-  'auto_theme': 'Auto (by device)',
+  'auto_theme': 'Device Color Theme',
   'light_theme': 'Light Theme',
   'dark_theme': 'Dark Theme',
   'select_theme_mode': 'Select Theme Mode',

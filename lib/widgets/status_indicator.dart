@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:free_open_ocean/services/api.dart';
 import 'package:free_open_ocean/services/status_info.dart';
 import 'package:free_open_ocean/services/settings_service.dart';
+import 'package:free_open_ocean/core/theme/AppTheme.dart' as theme_interface;
+import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 
 class StatusIndicator extends StatefulWidget {
   final Duration pollInterval;
@@ -72,8 +74,6 @@ class _StatusIndicatorState extends State<StatusIndicator> {
 
     final displayName = _info.serverName.isNotEmpty ? _info.serverName : _info.message;
 
-    final iconSize = IconTheme.of(context).size ?? 24.0 * 0.6;
-
     // Align to the right and shift up by 3px (negative top margin)
     return Align(
       alignment: Alignment.centerRight,
@@ -84,41 +84,60 @@ class _StatusIndicatorState extends State<StatusIndicator> {
           child: Tooltip(
             message: "",
             child: IconButton(
-              iconSize: iconSize,
-              splashRadius: iconSize + 6,
               splashColor: Colors.transparent,
               hoverColor: Colors.transparent,
               highlightColor: Colors.transparent,
               focusColor: Colors.transparent,
               padding: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 1.0),
-              icon: Icon(icon, color: color, size: iconSize),
+              icon: Icon(icon, color: color, size: (IconTheme.of(context).size ?? 16.0) * 0.6),
               onPressed: () {
-                // Show server name on click, do not reload status
-                final name = "Server: $displayName";
                 if (_overlayEntry != null) {
                   _overlayEntry!.remove();
                   _overlayEntry = null;
                 }
                 _overlayEntry = OverlayEntry(
-                  builder: (context) => Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: MouseRegion(
-                      onExit: (event) {
-                        _overlayEntry?.remove();
-                        _overlayEntry = null;
-                      },
-                      child: Material(
-                        elevation: 6,
-                        color: Colors.grey[800],
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text(name, style: const TextStyle(color: Colors.white)),
+                  builder: (context) {
+                    final localizations = AppLocalizations.of(context)!;
+                    final themeProvider = theme_interface.AppThemeProvider.of(context)!;
+                    final name = "Server: $displayName";
+                    return Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: MouseRegion(
+                        onExit: (event) {
+                          _overlayEntry?.remove();
+                          _overlayEntry = null;
+                        },
+                        child: Material(
+                          elevation: 6,
+                          color: Colors.grey[800],
+                          child: Padding(
+                            padding: const EdgeInsets.all(5),
+                            child: Row(
+                              children: [
+                                Text(name, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white)),
+                                const Spacer(),
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    AppLocalizations.buildLanguageDropdown(context, themeProvider.locale, (locale) => themeProvider.onLocaleChanged(locale, true), size: 's', color: "info"),
+                                  ],
+                                ),
+                                const SizedBox(width: 16),
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    theme_interface.AppThemeProvider.buildThemeModeDropdown(context, themeProvider.themeMode, themeProvider.onThemeModeChanged, size: 's', color: "info"),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 );
                 Overlay.of(context).insert(_overlayEntry!);
               },

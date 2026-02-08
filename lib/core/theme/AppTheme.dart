@@ -139,13 +139,14 @@ class AppThemeProvider extends InheritedWidget {
     properties.add(DiagnosticsProperty<String>('country', country));
   }
 
-  static Widget buildAppThemeDropdown(BuildContext context, AppThemeEnum currentTheme, void Function(AppThemeEnum?) onChanged) {
+  static Widget buildAppThemeDropdown(BuildContext context, AppThemeEnum currentTheme, void Function(AppThemeEnum?) onChanged, {String color = 'secondary', String size = 'm'}) {
     final localizations = AppLocalizations.of(context)!;
 
     return AppDropdown<AppThemeEnum>(
       text: localizations.translate(currentTheme.name),
       onPressed: () => _showAppThemeSearchDialog(context, currentTheme, onChanged),
-      theme: 'secondary',
+      theme: color,
+      size: size,
       showTextAlways: true,
     );
   }
@@ -195,13 +196,14 @@ class AppThemeProvider extends InheritedWidget {
     );
   }
 
-  static Widget buildThemeModeDropdown(BuildContext context, ThemeModeOptionEnum currentMode, void Function(ThemeModeOptionEnum?) onChanged) {
+  static Widget buildThemeModeDropdown(BuildContext context, ThemeModeOptionEnum currentMode, void Function(ThemeModeOptionEnum?) onChanged, {String color = 'secondary', String size = 'm'}) {
     final localizations = AppLocalizations.of(context)!;
 
     return AppDropdown<ThemeModeOptionEnum>(
       text: localizations.translate('${currentMode.name}_theme'),
       onPressed: () => _showThemeModeSearchDialog(context, currentMode, onChanged),
-      theme: 'secondary',
+      theme: color,
+      size: size,
       showTextAlways: true,
     );
   }
@@ -251,13 +253,14 @@ class AppThemeProvider extends InheritedWidget {
     );
   }
 
-  static Widget buildDeviceTypeOverrideDropdown(BuildContext context, DeviceTypeOverride currentOverride, void Function(DeviceTypeOverride?) onChanged) {
+  static Widget buildDeviceTypeOverrideDropdown(BuildContext context, DeviceTypeOverride currentOverride, void Function(DeviceTypeOverride?) onChanged, {String color = 'secondary', String size = 'm'}) {
     final localizations = AppLocalizations.of(context)!;
 
     return AppDropdown<DeviceTypeOverride>(
       text: localizations.translate(currentOverride.name),
       onPressed: () => _showDeviceTypeOverrideSearchDialog(context, currentOverride, onChanged),
-      theme: 'secondary',
+      theme: color,
+      size: size,
       showTextAlways: true,
     );
   }

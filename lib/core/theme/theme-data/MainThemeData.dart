@@ -68,6 +68,38 @@ class MainThemeData extends AppTheme {
       'borderRadius': BorderRadius.circular(20.0),
       'alignment': Alignment.center,
     },
+
+    // dropdowns
+    'dd_s': <String, dynamic>{
+      'fontSize': 15.0,
+      'height': 25.0,
+      'padding': const EdgeInsets.only(right: 3, left: 13),
+      'borderRadius': BorderRadius.circular(12.0),
+      'alignment': Alignment.center,
+    },
+    'dd_m': <String, dynamic>{
+      'fontSize': 16.0,
+      'height': 30.0,
+      'padding': const EdgeInsets.only(right: 5, left: 15),
+      'borderRadius': BorderRadius.circular(15.0),
+      'alignment': Alignment.center,
+    },
+    'dd_l': <String, dynamic>{
+      'iconSize': 19.0,
+      'fontSize': 19.0,
+      'height': 35.0,
+      'padding': const EdgeInsets.only(right: 7, left: 16),
+      'borderRadius': BorderRadius.circular(20.0),
+      'alignment': Alignment.center,
+    },
+    'dd_xl': <String, dynamic>{
+      'iconSize': 24.0,
+      'fontSize': 24.0,
+      'height': 42.0,
+      'padding': const EdgeInsets.only(right: 10, left: 20),
+      'borderRadius': BorderRadius.circular(25.0),
+      'alignment': Alignment.center,
+    },
   };
 
   @override

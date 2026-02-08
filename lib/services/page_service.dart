@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:grpc/grpc.dart';
 import 'package:http/http.dart' as http;
@@ -13,44 +12,12 @@ class PageService {
 
   PageService(this.api);
 
-  /// Convert HTTP JSON response to proto3 JSON format
-  Map<String, dynamic> _convertHttpJsonToProto3Json(Map<String, dynamic> data) {
-    final converted = <String, dynamic>{};
-
-    for (final entry in data.entries) {
-      final key = entry.key;
-      final value = entry.value;
-
-      // Convert snake_case to camelCase
-      final camelKey = _snakeToCamel(key);
-
-      if (value is Map<String, dynamic> && value.containsKey('seconds') && value.containsKey('nanos')) {
-        // Convert timestamp object to ISO string
-        final seconds = value['seconds'] as int;
-        final nanos = value['nanos'] as int;
-        final dateTime = DateTime.fromMillisecondsSinceEpoch(seconds * 1000 + nanos ~/ 1000000);
-        converted[camelKey] = '${dateTime.toIso8601String()}Z';
-      } else {
-        converted[camelKey] = value;
-      }
-    }
-
-    return converted;
-  }
-
-  /// Convert snake_case to camelCase
-  String _snakeToCamel(String snake) {
-    final parts = snake.split('_');
-    if (parts.length == 1) return snake;
-    return parts[0] + parts.sublist(1).map((part) => part.isNotEmpty ? part[0].toUpperCase() + part.substring(1) : part).join('');
-  }
-
   /// Get page data by slug, with required language and country.
   Future<pages_pb.Page> get(String slug, String language, String country) async {
     final request = pages_pb.GetRequest()
-      ..slug = slug
-      ..countryCode = country
-      ..languageCode = language;
+      ..slug = slug.toLowerCase()
+      ..languageCode = language.toLowerCase()
+      ..countryCode = country.toLowerCase();
 
     Endpoint? ep = api.selectedEndpoint;
     if (ep == null) {
@@ -63,17 +30,16 @@ class PageService {
 
     try {
       if (kIsWeb) {
-        final url = Uri.parse('http://${ep.httpHost}:${ep.httpPort}$pageGetPath');
+        final url = Uri.parse('${ep.httpType}://${ep.httpHost}:${ep.httpPort}$pageGetPath');
+        final requestBytes = request.writeToBuffer();
         final response = await http.post(
           url,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(request.toProto3Json()),
+          headers: {'Content-Type': 'application/x-protobuf'},
+          body: requestBytes,
         ).timeout(const Duration(seconds: 10));
 
         if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final convertedData = _convertHttpJsonToProto3Json(data);
-          final pageResponse = pages_pb.Page()..mergeFromProto3Json(convertedData);
+          final pageResponse = pages_pb.Page()..mergeFromBuffer(response.bodyBytes);
           return pageResponse;
         } else {
           throw Exception('HTTP ${response.statusCode}: ${response.body}');

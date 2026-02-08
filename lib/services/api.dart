@@ -1,10 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:grpc/grpc.dart';
 import 'package:http/http.dart' as http;
 import 'package:free_open_ocean_grpc/src/grpc/status/v1/status.pbgrpc.dart' show StatusClient;
-import 'package:free_open_ocean_grpc/src/grpc/status/v1/status.pb.dart' show GetRequest;
+import 'package:free_open_ocean_grpc/src/grpc/status/v1/status.pb.dart' as status_pb;
 import 'package:free_open_ocean/services/status_info.dart';
 import 'package:free_open_ocean/services/settings_service.dart';
 
@@ -15,6 +14,7 @@ class Endpoint {
   final String grpcHost;
   final int grpcPort;
   final String country;
+  final String httpType; // https://, http://
 
   const Endpoint({
     required this.name,
@@ -23,9 +23,10 @@ class Endpoint {
     required this.grpcHost,
     required this.grpcPort,
     required this.country,
+    required this.httpType,
   });
 
-  Uri httpStatusUri(String path) => Uri.parse('http://$httpHost:$httpPort$path');
+  Uri httpStatusUri(String path) => Uri.parse('${httpType}://$httpHost:$httpPort$path');
 }
 
 class Api {
@@ -37,8 +38,8 @@ class Api {
   Api({this.settingsService, this.retryInterval = const Duration(seconds: 20)});
 
   static const List<Endpoint> endpoints = [
-    Endpoint(name: 'local-1', country: 'USA', httpHost: 'localhost', httpPort: 8081, grpcHost: '10.0.2.2', grpcPort: 50051),
-    Endpoint(name: 'local-2', country: 'USA', httpHost: 'localhost', httpPort: 8082, grpcHost: '10.0.2.2', grpcPort: 50052),
+    Endpoint(name: 'local-1', country: 'USA', httpHost: 'localhost', httpPort: 8081, grpcHost: '10.0.2.2', grpcPort: 50051, httpType: 'http'),
+    Endpoint(name: 'local-2', country: 'USA', httpHost: 'localhost', httpPort: 8082, grpcHost: '10.0.2.2', grpcPort: 50052, httpType: 'http'),
   ];
 
   Endpoint? _selectedEndpoint;
@@ -160,24 +161,21 @@ class Api {
 
     try {
       if (kIsWeb) {
-        final url = Uri.parse('http://${ep.httpHost}:${ep.httpPort}$statusGetPath');
+        final url = Uri.parse('${ep.httpType}://${ep.httpHost}:${ep.httpPort}$statusGetPath');
+        final requestBytes = status_pb.GetRequest().writeToBuffer();
         final response = await http.post(
           url,
-          headers: {'Content-Type': 'application/json'},
-          body: '{}',
+          headers: {'Content-Type': 'application/x-protobuf'},
+          body: requestBytes,
         ).timeout(const Duration(seconds: 5));
 
         if (response.statusCode == 200) {
-          try {
-            final data = jsonDecode(response.body);
-            final id = data['id']?.toString() ?? '';
-            final name = data['name']?.toString() ?? '';
-            final loads = data['loads']?.toString() ?? '';
-            final message = 'ID: $id, Name: $name, Loads: $loads%';
-            return StatusInfo(ok: true, serverName: name, message: message);
-          } catch (e) {
-            return StatusInfo(ok: true, serverName: '', message: response.body);
-          }
+          final statusResponse = status_pb.GetResponse()..mergeFromBuffer(response.bodyBytes);
+          final id = statusResponse.id.toString();
+          final name = statusResponse.name.toString();
+          final loads = statusResponse.loads.toString();
+          final message = 'ID: $id, Name: $name, Loads: $loads%';
+          return StatusInfo(ok: true, serverName: name, message: message);
         } else {
           // server returned non-OK -> clear selected endpoint and try discovery
           _selectedEndpoint = null;
@@ -194,7 +192,7 @@ class Api {
 
         try {
           final client = StatusClient(channel);
-          final request = GetRequest();
+          final request = status_pb.GetRequest();
           try {
             final response = await client.get(request).timeout(const Duration(seconds: 5));
             final message = 'ID: ${response.id}, Name: ${response.name}, Loads: ${response.loads}%';
@@ -226,13 +224,14 @@ class Api {
     try {
       if (kIsWeb) {
         final uri = ep.httpStatusUri(statusGetPath);
-        final resp = await http.post(uri, headers: {'Content-Type': 'application/json'}, body: '{}').timeout(timeout);
+        final requestBytes = status_pb.GetRequest().writeToBuffer();
+        final resp = await http.post(uri, headers: {'Content-Type': 'application/x-protobuf'}, body: requestBytes).timeout(timeout);
         if (resp.statusCode == 200) {
           try {
-            final data = jsonDecode(resp.body);
-            final loadsVal = data['loads'];
+            final statusResponse = status_pb.GetResponse()..mergeFromBuffer(resp.bodyBytes);
+            final loadsVal = statusResponse.loads;
             final loads = _parseLoads(loadsVal);
-            final name = data['name']?.toString() ?? ep.name;
+            final name = statusResponse.name.toString().isEmpty ? ep.name : statusResponse.name.toString();
             return _ProbeResult(endpoint: ep, ok: true, loads: loads, serverName: name);
           } catch (_) {
             return _ProbeResult(endpoint: ep, ok: true, loads: double.infinity, serverName: ep.name);
@@ -247,7 +246,7 @@ class Api {
         );
         try {
           final client = StatusClient(channel);
-          final request = GetRequest();
+          final request = status_pb.GetRequest();
           final response = await client.get(request).timeout(timeout);
           final loads = double.tryParse(response.loads.toString()) ?? double.infinity;
           final serverName = response.name.toString().isEmpty ? ep.name : response.name.toString();

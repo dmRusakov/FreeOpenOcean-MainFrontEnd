@@ -26,6 +26,7 @@ class _OceanChartsState extends State<OceanCharts> {
         : 'https://api.protomaps.com/styles/v2/light.json?key=${widget.apiKey}';
 
     return PageTemplate(
+      fullScreen: true,
       body: kIsWeb
           ? MaplibreMap(
               styleString: styleUrl,

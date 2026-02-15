@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import 'package:free_open_ocean/core/theme/AppTheme.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:free_open_ocean/widgets/status_indicator.dart';
+import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
 
 class Footer extends StatefulWidget {
   const Footer({super.key});
@@ -47,7 +47,6 @@ class _FooterState extends State<Footer> {
             ),
           ),
           // Status indicator on the right
-          const StatusIndicator(),
         ],
       ),
     );

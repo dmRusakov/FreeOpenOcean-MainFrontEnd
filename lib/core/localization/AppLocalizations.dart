@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
+import '../provider/AppThemeProvider.dart';
 import 'countries.dart';
 import 'languages/en.dart';
 import 'languages/es.dart';

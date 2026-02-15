@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:free_open_ocean/pages/page_template.dart';
 import 'package:free_open_ocean/core/theme/AppTheme.dart' as theme_interface;
+import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
 import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import 'package:free_open_ocean/common/element/appButon.dart';
 import 'package:flutter/foundation.dart';
@@ -55,7 +56,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = theme_interface.AppThemeProvider.of(context)!;
+    final themeProvider = AppThemeProvider.of(context)!;
     if (kIsWeb) {
       final localizations = AppLocalizations.of(context)!;
       html.document.title = localizations.translate('settings_page_title');
@@ -131,7 +132,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildSectionContent(theme_interface.AppThemeProvider themeProvider) {
+  Widget _buildSectionContent(AppThemeProvider themeProvider) {
     final localizations = AppLocalizations.of(context)!;
     switch (_selectedSection) {
 
@@ -149,7 +150,7 @@ class _SettingsPageState extends State<SettingsPage> {
               children: [
                 Text(localizations.translate('app_theme_label'), style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(width: 16),
-                theme_interface.AppThemeProvider.buildAppThemeDropdown(context, themeProvider.appTheme, themeProvider.onAppThemeChanged),
+                AppThemeProvider.buildAppThemeDropdown(context, themeProvider.appTheme, themeProvider.onAppThemeChanged),
               ],
             ),
             const SizedBox(height: 16),
@@ -158,7 +159,7 @@ class _SettingsPageState extends State<SettingsPage> {
               children: [
                 Text(localizations.translate('theme_mode_label'), style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(width: 16),
-                theme_interface.AppThemeProvider.buildThemeModeDropdown(context, themeProvider.themeMode, themeProvider.onThemeModeChanged),
+                AppThemeProvider.buildThemeModeDropdown(context, themeProvider.themeMode, themeProvider.onThemeModeChanged),
               ],
             ),
             const SizedBox(height: 16),
@@ -167,7 +168,7 @@ class _SettingsPageState extends State<SettingsPage> {
               children: [
                 Text(localizations.translate('device_type_override_label'), style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(width: 16),
-                theme_interface.AppThemeProvider.buildDeviceTypeOverrideDropdown(context, themeProvider.deviceTypeOverride, themeProvider.onDeviceTypeOverrideChanged),
+                AppThemeProvider.buildDeviceTypeOverrideDropdown(context, themeProvider.deviceTypeOverride, themeProvider.onDeviceTypeOverrideChanged),
               ],
             ),
           ],

@@ -4,6 +4,7 @@ import 'package:free_open_ocean/common/element/logo.dart';
 import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import '../core/theme/AppTheme.dart';
 import 'package:free_open_ocean/common/element/appButon.dart';
+import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
 
 class AppMenu extends StatelessWidget {
   const AppMenu({super.key});

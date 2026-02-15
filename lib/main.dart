@@ -9,7 +9,8 @@ import 'core/theme/theme-data/MainThemeData.dart';
 import 'core/theme/theme-data/MinimalisticThemeData.dart';
 import 'services/app.dart';
 import 'services/api.dart';
-import 'core/app/AppProvider.dart';
+import 'package:free_open_ocean/core/provider/AppProvider.dart';
+import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -205,7 +206,7 @@ class _MyAppState extends State<MyApp> {
         return AppProvider(
           app: widget.settingsService,
           api: _api,
-          child: theme_interface.AppThemeProvider(
+          child: AppThemeProvider(
             theme: currentTheme,
             deviceTypeOverride: _deviceTypeOverride,
             onDeviceTypeOverrideChanged: _changeDeviceTypeOverride,

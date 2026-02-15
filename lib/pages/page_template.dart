@@ -4,6 +4,7 @@ import 'package:free_open_ocean/widgets/header.dart';
 import 'package:free_open_ocean/widgets/menu.dart';
 import 'package:free_open_ocean/widgets/top_header.dart';
 import 'package:free_open_ocean/core/theme/AppTheme.dart';
+import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
 
 class PageTemplate extends StatelessWidget {
   final Widget body;

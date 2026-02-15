@@ -12,55 +12,55 @@ class PageService {
 
   PageService(this.api);
 
-  /// Get page data by slug, with required language and country.
-  Future<pages_pb.Page> get(String slug, String language, String country) async {
-    final request = pages_pb.GetRequest()
-      ..slug = slug.toLowerCase()
-      ..languageCode = language.toLowerCase()
-      ..countryCode = country.toLowerCase();
-
-    Endpoint? ep = api.selectedEndpoint;
-    if (ep == null) {
-      await api.discoverBestEndpoint(force: true);
-      ep = api.selectedEndpoint;
-    }
-    if (ep == null) {
-      throw Exception('No endpoint available');
-    }
-
-    try {
-      if (kIsWeb) {
-        final url = Uri.parse('${ep.httpType}://${ep.httpHost}:${ep.httpPort}$pageGetPath');
-        final requestBytes = request.writeToBuffer();
-        final response = await http.post(
-          url,
-          headers: {'Content-Type': 'application/x-protobuf'},
-          body: requestBytes,
-        ).timeout(const Duration(seconds: 10));
-
-        if (response.statusCode == 200) {
-          final pageResponse = pages_pb.Page()..mergeFromBuffer(response.bodyBytes);
-          return pageResponse;
-        } else {
-          throw Exception('HTTP ${response.statusCode}: ${response.body}');
-        }
-      } else {
-        final channel = ClientChannel(
-          ep.grpcHost,
-          port: ep.grpcPort,
-          options: ChannelOptions(credentials: ChannelCredentials.insecure()),
-        );
-
-        try {
-          final client = PageServiceClient(channel);
-          final response = await client.get(request).timeout(const Duration(seconds: 10));
-          return response;
-        } finally {
-          await channel.shutdown();
-        }
-      }
-    } catch (e) {
-      throw Exception('Failed to get page data: $e');
-    }
-  }
+  // /// Get page data by slug, with required language and country.
+  // Future<pages_pb.Page> get(String slug, String language, String country) async {
+  //   final request = pages_pb.GetRequest()
+  //     ..slug = slug.toLowerCase()
+  //     ..languageCode = language.toLowerCase()
+  //     ..countryCode = country.toLowerCase();
+  //
+  //   Endpoint? ep = api.selectedEndpoint;
+  //   if (ep == null) {
+  //     await api.discoverBestEndpoint(force: true);
+  //     ep = api.selectedEndpoint;
+  //   }
+  //   if (ep == null) {
+  //     throw Exception('No endpoint available');
+  //   }
+  //
+  //   try {
+  //     if (kIsWeb) {
+  //       final url = Uri.parse('${ep.httpType}://${ep.httpHost}:${ep.httpPort}$pageGetPath');
+  //       final requestBytes = request.writeToBuffer();
+  //       final response = await http.post(
+  //         url,
+  //         headers: {'Content-Type': 'application/x-protobuf'},
+  //         body: requestBytes,
+  //       ).timeout(const Duration(seconds: 10));
+  //
+  //       if (response.statusCode == 200) {
+  //         final pageResponse = pages_pb.Page()..mergeFromBuffer(response.bodyBytes);
+  //         return pageResponse;
+  //       } else {
+  //         throw Exception('HTTP ${response.statusCode}: ${response.body}');
+  //       }
+  //     } else {
+  //       final channel = ClientChannel(
+  //         ep.grpcHost,
+  //         port: ep.grpcPort,
+  //         options: ChannelOptions(credentials: ChannelCredentials.insecure()),
+  //       );
+  //
+  //       try {
+  //         final client = PageServiceClient(channel);
+  //         final response = await client.get(request).timeout(const Duration(seconds: 10));
+  //         return response;
+  //       } finally {
+  //         await channel.shutdown();
+  //       }
+  //     }
+  //   } catch (e) {
+  //     throw Exception('Failed to get page data: $e');
+  //   }
+  // }
 }

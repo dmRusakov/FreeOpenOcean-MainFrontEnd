@@ -7,20 +7,19 @@ import 'core/localization/AppLocalizations.dart';
 import 'core/theme/AppTheme.dart' as theme_interface;
 import 'core/theme/theme-data/MainThemeData.dart';
 import 'core/theme/theme-data/MinimalisticThemeData.dart';
-import 'services/settings_service.dart';
+import 'services/app.dart';
 import 'services/api.dart';
+import 'core/app/AppProvider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (kIsWeb) {
-    web_setup.setupWeb();
-  }
-  final settingsService = SettingsService();
-  final appTheme = await settingsService.loadAppTheme();
-  final themeModeOption = await settingsService.loadThemeModeOption();
-  final locale = await settingsService.loadLocale();
-  final deviceTypeOverride = await settingsService.loadDeviceTypeOverride();
-  final country = await settingsService.loadCountry();
+  if (kIsWeb) { web_setup.setupWeb(); }
+  final settingsService = App();
+  final appTheme = await settingsService.getTheme();
+  final themeModeOption = await settingsService.getThemeMode();
+  final locale = await settingsService.getLocale();
+  final deviceTypeOverride = await settingsService.getDevice();
+  final country = await settingsService.getCountry();
 
   runApp(MyApp(
     settingsService: settingsService,
@@ -33,7 +32,7 @@ void main() async {
 }
 
 class MyApp extends StatefulWidget {
-  final SettingsService settingsService;
+  final App settingsService;
   final theme_interface.AppThemeEnum initialAppTheme;
   final theme_interface.ThemeModeOptionEnum initialThemeModeOption;
   final Locale initialLocale;
@@ -72,7 +71,7 @@ class _MyAppState extends State<MyApp> {
     _locale = widget.initialLocale;
     _deviceTypeOverride = widget.initialDeviceTypeOverride;
     _country = widget.initialCountry;
-    _api = Api(settingsService: widget.settingsService);
+    _api = Api(app: widget.settingsService);
     _appRouter = AppRouter(onLocaleChanged: _changeLanguage);
   }
 
@@ -81,7 +80,7 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _appTheme = theme;
     });
-    widget.settingsService.saveAppTheme(theme);
+    widget.settingsService.setTheme(theme);
   }
 
   void _changeThemeModeOption(theme_interface.ThemeModeOptionEnum? mode) {
@@ -89,7 +88,7 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _themeModeOption = mode;
     });
-    widget.settingsService.saveThemeModeOption(mode);
+    widget.settingsService.setThemeMode(mode);
   }
 
   void _changeLanguage(Locale? locale, bool fromDropdown) {
@@ -97,7 +96,7 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _locale = locale;
     });
-    widget.settingsService.saveLocale(locale);
+    widget.settingsService.setLocale(locale);
     if (fromDropdown) {
       _isChangingFromDropdown = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -119,7 +118,7 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _deviceTypeOverride = deviceTypeOverride;
     });
-    widget.settingsService.saveDeviceTypeOverride(deviceTypeOverride);
+    widget.settingsService.setDevice(deviceTypeOverride);
   }
 
   void _changeCountry(String? country) {
@@ -127,7 +126,7 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _country = country;
     });
-    widget.settingsService.saveCountry(country);
+    widget.settingsService.setCountry(country);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final currentPath = _appRouter.router.routerDelegate.currentConfiguration.uri.path;
       final pathParts = currentPath.split('/');
@@ -203,20 +202,24 @@ class _MyAppState extends State<MyApp> {
       },
       routerConfig: _appRouter.router,
       builder: (context, child) {
-        return theme_interface.AppThemeProvider(
-          theme: currentTheme,
-          deviceTypeOverride: _deviceTypeOverride,
-          onDeviceTypeOverrideChanged: _changeDeviceTypeOverride,
-          appTheme: _appTheme,
-          onAppThemeChanged: _changeAppTheme,
-          themeMode: _themeModeOption,
-          onThemeModeChanged: _changeThemeModeOption,
-          locale: _locale,
-          onLocaleChanged: _changeLanguage,
-          country: _country,
-          onCountryChanged: _changeCountry,
+        return AppProvider(
+          app: widget.settingsService,
           api: _api,
-          child: child!,
+          child: theme_interface.AppThemeProvider(
+            theme: currentTheme,
+            deviceTypeOverride: _deviceTypeOverride,
+            onDeviceTypeOverrideChanged: _changeDeviceTypeOverride,
+            appTheme: _appTheme,
+            onAppThemeChanged: _changeAppTheme,
+            themeMode: _themeModeOption,
+            onThemeModeChanged: _changeThemeModeOption,
+            locale: _locale,
+            onLocaleChanged: _changeLanguage,
+            country: _country,
+            onCountryChanged: _changeCountry,
+            api: _api,
+            child: child!,
+          ),
         );
       },
     );

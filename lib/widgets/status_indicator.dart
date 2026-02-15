@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:free_open_ocean/services/api.dart';
-import 'package:free_open_ocean/services/status_info.dart';
-import 'package:free_open_ocean/services/settings_service.dart';
 import 'package:free_open_ocean/core/theme/AppTheme.dart' as theme_interface;
 import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
+import 'package:free_open_ocean/core/app/AppProvider.dart';
 
 class StatusIndicator extends StatefulWidget {
   final Duration pollInterval;
@@ -16,9 +14,9 @@ class StatusIndicator extends StatefulWidget {
 }
 
 class _StatusIndicatorState extends State<StatusIndicator> {
-  final Api _api = Api(settingsService: SettingsService());
+  // final Api _api = Api(settingsService: SettingsService());
   late Timer _timer;
-  StatusInfo _info = const StatusInfo(ok: false, serverName: '', message: 'Not checked');
+  // StatusInfo _info = const StatusInfo(ok: false, serverName: '', message: 'Not checked');
   // states: 0 = initial (yellow), 1 = ok (green), 2 = error (red)
   int _state = 0;
   OverlayEntry? _overlayEntry;
@@ -28,19 +26,28 @@ class _StatusIndicatorState extends State<StatusIndicator> {
     super.initState();
     // initial: yellow
     _state = 0;
-    _poll();
+    // _poll(); // moved to didChangeDependencies
     _timer = Timer.periodic(widget.pollInterval, (_) => _poll());
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _poll();
+  }
+
   Future<void> _poll() async {
+    final ep = context.getEndpoint();
+    print(ep);
+    print('Polling server status... Endpoint: ${ep?.id}');
     setState(() {
       _state = 0; // loading
     });
-    final info = await _api.getStatus();
-    setState(() {
-      _info = info;
-      _state = info.ok ? 1 : 2;
-    });
+    // final ep = await _api.getStatus();
+    // setState(() {
+    //   _info = info;
+    //   _state = info.ok ? 1 : 2;
+    // });
   }
 
   @override
@@ -72,7 +79,8 @@ class _StatusIndicatorState extends State<StatusIndicator> {
         icon = Icons.error;
     }
 
-    final displayName = _info.serverName.isNotEmpty ? _info.serverName : _info.message;
+    // final displayName = _info.serverName.isNotEmpty ? _info.serverName : _info.message;
+    final displayName = 'Not checked';
 
     // Align to the right and shift up by 3px (negative top margin)
     return Align(
@@ -97,7 +105,6 @@ class _StatusIndicatorState extends State<StatusIndicator> {
                 }
                 _overlayEntry = OverlayEntry(
                   builder: (context) {
-                    final localizations = AppLocalizations.of(context)!;
                     final themeProvider = theme_interface.AppThemeProvider.of(context)!;
                     final name = "Server: $displayName";
                     return Positioned(

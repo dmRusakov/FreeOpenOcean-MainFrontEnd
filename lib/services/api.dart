@@ -1,189 +1,59 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:free_open_ocean/services/app.dart';
+import 'package:free_open_ocean_grpc/src/grpc/status/v1/status.pb.dart' as status_pb;
+import 'package:free_open_ocean_grpc/src/grpc/status/v1/status.pbgrpc.dart';
 import 'package:grpc/grpc.dart';
 import 'package:http/http.dart' as http;
-import 'package:free_open_ocean_grpc/src/grpc/status/v1/status.pbgrpc.dart' show StatusClient;
-import 'package:free_open_ocean_grpc/src/grpc/status/v1/status.pb.dart' as status_pb;
-import 'package:free_open_ocean/services/status_info.dart';
-import 'package:free_open_ocean/services/settings_service.dart';
-
-class Endpoint {
-  final String name;
-  final String httpHost;
-  final int httpPort;
-  final String grpcHost;
-  final int grpcPort;
-  final String country;
-  final String httpType; // https://, http://
-
-  const Endpoint({
-    required this.name,
-    required this.httpHost,
-    required this.httpPort,
-    required this.grpcHost,
-    required this.grpcPort,
-    required this.country,
-    required this.httpType,
-  });
-
-  Uri httpStatusUri(String path) => Uri.parse('${httpType}://$httpHost:$httpPort$path');
-}
+import '../models/endpoint.dart';
 
 class Api {
   static const String statusGetPath = '/status.v1.Status/Get';
 
-  final SettingsService? settingsService;
-  final Duration retryInterval;
-
-  Api({this.settingsService, this.retryInterval = const Duration(seconds: 20)});
-
-  static const List<Endpoint> endpoints = [
-    Endpoint(name: 'local-1', country: 'USA', httpHost: 'localhost', httpPort: 8081, grpcHost: '10.0.2.2', grpcPort: 50051, httpType: 'http'),
-    Endpoint(name: 'local-2', country: 'USA', httpHost: 'localhost', httpPort: 8082, grpcHost: '10.0.2.2', grpcPort: 50052, httpType: 'http'),
+  static final List<Endpoint> endpoints = [
+    Endpoint(id: 'foo-central-1', country: 'USA', httpHost: 'http://localhost', httpPort: 8081, grpcHost: '10.0.2.2', grpcPort: 50051),
+    Endpoint(id: 'foo-central-2', country: 'USA', httpHost: 'http://localhost', httpPort: 8082, grpcHost: '10.0.2.2', grpcPort: 50052),
   ];
 
-  Endpoint? _selectedEndpoint;
-  bool _discovering = false;
-  Timer? _retryTimer;
-  bool _retrying = false;
+  late Endpoint? selectedEndpoint = null;
 
-  /// Public getter for the selected endpoint (may be null until discovered)
-  Endpoint? get selectedEndpoint => _selectedEndpoint;
+  final App? app;
+  final Duration retryInterval;
 
-  void _startRetrying() {
-    if (_retrying) return;
-    _retrying = true;
-    _retryTimer = Timer.periodic(retryInterval, (_) async {
-      try {
-        await discoverBestEndpoint();
-        // if discovered an endpoint (i.e., one responded OK) stop retrying
-        if (_selectedEndpoint != null) {
-          _stopRetrying();
-        }
-      } catch (_) {
-        // ignore and keep retrying
-      }
-    });
-  }
-
-  void _stopRetrying() {
-    _retryTimer?.cancel();
-    _retryTimer = null;
-    _retrying = false;
-  }
-
-  /// Discover and select the best endpoint from the configured list.
-  /// Selection criteria: endpoint that responds OK and has the lowest numeric `loads`.
-  Future<void> discoverBestEndpoint({Duration timeout = const Duration(seconds: 3), bool force = false}) async {
-    // If there's already a selected endpoint and discovery isn't forced, skip probing.
-    if (_selectedEndpoint != null && !force) return;
-    if (_discovering) return;
-    _discovering = true;
-    try {
-      // try load from settings first (but verify it's actually reachable)
-      final tried = <String>{};
-      if (settingsService != null) {
-        final saved = await settingsService!.loadSelectedEndpointName();
-        if (saved != null && saved.isNotEmpty) {
-          final match = endpoints.firstWhere((e) => e.name == saved, orElse: () => endpoints.first);
-          tried.add(match.name);
-          final probe = await _probeEndpoint(match, timeout: timeout);
-          if (probe.ok) {
-            _selectedEndpoint = match;
-            if (settingsService != null) await settingsService!.saveSelectedEndpointName(_selectedEndpoint!.name);
-            return;
-          }
-          // saved endpoint not reachable - continue probing others
+  // Get fasts endpoint
+  //
+  // Returns the endpoint that responds OK and have lowest duration
+  Future<Endpoint?>getFastestEndpoint(List<Endpoint> endpoints, {Duration timeout = const Duration(seconds: 5)}) async {
+    Endpoint? fastest;
+    for (final ep in endpoints) {
+      final isOk = await checkEndpoint(ep, timeout: timeout);
+      if (isOk) {
+        if (fastest == null || ep.durations < fastest.durations) {
+          fastest = ep;
         }
       }
-      final List<_ProbeResult> results = [];
-
-      for (final ep in endpoints) {
-        if (tried.contains(ep.name)) continue;
-        try {
-          if (kIsWeb) {
-            final probe = await _probeEndpoint(ep, timeout: timeout);
-            results.add(probe);
-          } else {
-            final probe = await _probeEndpoint(ep, timeout: timeout);
-            results.add(probe);
-          }
-        } catch (_) {
-          // timeout or network error - treat as unreachable
-          results.add(_ProbeResult(endpoint: ep, ok: false, loads: double.infinity, serverName: ep.name));
-        }
-      }
-
-      // pick the ok endpoint with the minimal loads
-      _ProbeResult? best;
-      for (final r in results) {
-        if (!r.ok) continue;
-        if (best == null || r.loads < best.loads) best = r;
-      }
-
-      if (best != null) {
-        _selectedEndpoint = best.endpoint;
-        // persist selected endpoint name
-        if (settingsService != null) {
-          await settingsService!.saveSelectedEndpointName(_selectedEndpoint!.name);
-        }
-        // found a working endpoint -> stop any retry timer
-        _stopRetrying();
-      }
-    } finally {
-      _discovering = false;
     }
+    return fastest;
   }
 
-  /// Helper: parse a `loads` value that may be numeric or string.
-  static double _parseLoads(dynamic v) {
-    if (v == null) return double.infinity;
-    if (v is num) return v.toDouble();
-    if (v is String) return double.tryParse(v) ?? double.infinity;
-    return double.infinity;
-  }
+  // Check endpoint
+  // Checks if the given endpoint is reachable by making a status request. Updates the endpoint's info if successful.
+  //
+  // Returns true if endpoint is reachable and updates its info (id, name, loads, appKey) from the response
+  Future<bool> checkEndpoint(Endpoint ep, {Duration timeout = const Duration(seconds: 5)}) async {
+    // load sessionId
+    final sessionId = await app!.getSessionId();
 
-  /// Fetch status. Uses discovered endpoint (or discovers one first).
-  /// Returns StatusInfo with ok/serverName/message.
-  Future<StatusInfo> getStatus() async {
-    // ensure endpoint discovered
-    if (_selectedEndpoint == null) {
-      // try an immediate discovery (force) before returning failure
-      await discoverBestEndpoint(force: true);
-    }
+    // make request
+    final request = status_pb.GetRequest();
 
-    final ep = _selectedEndpoint;
-    if (ep == null) {
-      // nothing discovered -> start periodic retrying and return failure
-      _startRetrying();
-      return const StatusInfo(ok: false, serverName: '', message: 'No endpoint available');
-    }
+    // grpc
+    ep.isGrpc = !kIsWeb;
+
+    // start time
+    final startTime = DateTime.now();
 
     try {
-      if (kIsWeb) {
-        final url = Uri.parse('${ep.httpType}://${ep.httpHost}:${ep.httpPort}$statusGetPath');
-        final requestBytes = status_pb.GetRequest().writeToBuffer();
-        final response = await http.post(
-          url,
-          headers: {'Content-Type': 'application/x-protobuf'},
-          body: requestBytes,
-        ).timeout(const Duration(seconds: 5));
-
-        if (response.statusCode == 200) {
-          final statusResponse = status_pb.GetResponse()..mergeFromBuffer(response.bodyBytes);
-          final id = statusResponse.id.toString();
-          final name = statusResponse.name.toString();
-          final loads = statusResponse.loads.toString();
-          final message = 'ID: $id, Name: $name, Loads: $loads%';
-          return StatusInfo(ok: true, serverName: name, message: message);
-        } else {
-          // server returned non-OK -> clear selected endpoint and try discovery
-          _selectedEndpoint = null;
-          await discoverBestEndpoint(force: true);
-          if (_selectedEndpoint == null) _startRetrying();
-          return StatusInfo(ok: false, serverName: '', message: 'HTTP ${response.statusCode}');
-        }
-      } else {
+      if (ep.isGrpc) {
         final channel = ClientChannel(
           ep.grpcHost,
           port: ep.grpcPort,
@@ -193,81 +63,90 @@ class Api {
         try {
           final client = StatusClient(channel);
           final request = status_pb.GetRequest();
-          try {
-            final response = await client.get(request).timeout(const Duration(seconds: 5));
-            final message = 'ID: ${response.id}, Name: ${response.name}, Loads: ${response.loads}%';
-            // success -> stop retrying
-            _stopRetrying();
-            return StatusInfo(ok: true, serverName: response.name, message: message);
-          } catch (e) {
-            // gRPC call failed -> clear selected endpoint and start re-discovery/retry
-            _selectedEndpoint = null;
-            await discoverBestEndpoint(force: true);
-            if (_selectedEndpoint == null) _startRetrying();
-            return StatusInfo(ok: false, serverName: '', message: e.toString());
-          }
-         } finally {
-           await channel.shutdown();
-         }
-      }
-    } catch (e) {
-      // network or unexpected error -> clear selected endpoint and start retrying
-      _selectedEndpoint = null;
-      await discoverBestEndpoint(force: true);
-      if (_selectedEndpoint == null) _startRetrying();
-      return StatusInfo(ok: false, serverName: '', message: e.toString());
-    }
-  }
+          final response = await client.get(request, options: CallOptions(metadata: {
+            'X-App-Session': sessionId,
+            'X-App-Key': ep.appKey,
+          })).timeout(timeout);
 
-  /// Probe a single endpoint for status. Returns a ProbeResult with ok flag and parsed loads.
-  Future<_ProbeResult> _probeEndpoint(Endpoint ep, {Duration timeout = const Duration(seconds: 3)}) async {
-    try {
-      if (kIsWeb) {
-        final uri = ep.httpStatusUri(statusGetPath);
-        final requestBytes = status_pb.GetRequest().writeToBuffer();
-        final resp = await http.post(uri, headers: {'Content-Type': 'application/x-protobuf'}, body: requestBytes).timeout(timeout);
-        if (resp.statusCode == 200) {
-          try {
-            final statusResponse = status_pb.GetResponse()..mergeFromBuffer(resp.bodyBytes);
-            final loadsVal = statusResponse.loads;
-            final loads = _parseLoads(loadsVal);
-            final name = statusResponse.name.toString().isEmpty ? ep.name : statusResponse.name.toString();
-            return _ProbeResult(endpoint: ep, ok: true, loads: loads, serverName: name);
-          } catch (_) {
-            return _ProbeResult(endpoint: ep, ok: true, loads: double.infinity, serverName: ep.name);
-          }
-        }
-        return _ProbeResult(endpoint: ep, ok: false, loads: double.infinity, serverName: ep.name);
-      } else {
-        final channel = ClientChannel(
-          ep.grpcHost,
-          port: ep.grpcPort,
-          options: ChannelOptions(credentials: ChannelCredentials.insecure()),
-        );
-        try {
-          final client = StatusClient(channel);
-          final request = status_pb.GetRequest();
-          final response = await client.get(request).timeout(timeout);
-          final loads = double.tryParse(response.loads.toString()) ?? double.infinity;
-          final serverName = response.name.toString().isEmpty ? ep.name : response.name.toString();
-          return _ProbeResult(endpoint: ep, ok: true, loads: loads, serverName: serverName);
+          ep.id = response.id.toString();
+          ep.name = response.name.toString();
+          ep.loads = int.tryParse(response.loads.toString()) ?? 0;
+          ep.appKey = response.key.toString();
+          ep.durations = DateTime.now().difference(startTime);
+
+          return true;
         } catch (_) {
-          return _ProbeResult(endpoint: ep, ok: false, loads: double.infinity, serverName: ep.name);
+          return false;
         } finally {
           await channel.shutdown();
         }
+      } else {
+        // make URL
+        final url = Uri.parse('${ep.httpHost}:${ep.httpPort}$statusGetPath');
+
+        // get data from server
+        final responseData = await http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/x-protobuf',
+            'X-App-Session': sessionId,
+            'X-App-Key': ep.appKey,
+          },
+          body: request.writeToBuffer(),
+        ).timeout(const Duration(seconds: 20));
+
+        // check status code
+        if (responseData.statusCode == 200) {
+          final response = status_pb.GetResponse()..mergeFromBuffer(responseData.bodyBytes);
+          ep.id = response.id.toString();
+          ep.name = response.name.toString();
+          ep.loads = int.tryParse(response.loads.toString()) ?? 0;
+          ep.appKey = response.key.toString();
+
+          return true;
+        } else {
+          return false;
+        }
       }
     } catch (_) {
-      return _ProbeResult(endpoint: ep, ok: false, loads: double.infinity, serverName: ep.name);
+      return false;
     }
   }
-}
 
-class _ProbeResult {
-  final Endpoint endpoint;
-  final bool ok;
-  final double loads;
-  final String serverName;
+  // Constructor
+  Api({this.app, this.retryInterval = const Duration(seconds: 20)}) {
+    Future(() async {
+      var sessionEndpointId = await app?.getEndpointId();
+      late Endpoint? ep = null;
 
-  _ProbeResult({required this.endpoint, required this.ok, required this.loads, required this.serverName});
+      // if sessionEndpointId is not null, try to find matching endpoint and check it
+      if (sessionEndpointId != null) {
+        ep = endpoints.firstWhere((e) => e.id == sessionEndpointId, orElse: () => endpoints.first);
+        final isOk = await checkEndpoint(ep);
+        if (!isOk) {
+          ep = null;
+        }
+        await app?.setEndpoint(ep);
+        selectedEndpoint = ep;
+      }
+
+      // if no valid session endpoint, check all endpoints and print results
+      if (ep == null) {
+        ep = await getFastestEndpoint(endpoints);
+        await app?.setEndpoint(ep);
+        selectedEndpoint = ep;
+      }
+
+      // make cron job getFastestEndpoint every 15 minutes to update selected endpoint if needed
+      Future.doWhile(() async {
+        await Future.delayed(const Duration(minutes: 15));
+        final fastest = await getFastestEndpoint(endpoints);
+        if (fastest != null && fastest.id != selectedEndpoint?.id) {
+          selectedEndpoint = fastest;
+          await app?.setEndpoint(selectedEndpoint);
+        }
+        return true; // continue the loop
+      });
+    });
+  }
 }

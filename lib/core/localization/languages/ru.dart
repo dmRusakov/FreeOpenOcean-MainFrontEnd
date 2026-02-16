@@ -37,4 +37,12 @@ const Map<String, String> ruTranslations = {
   'device_type_override_label': 'Переопределение типа устройства',
   'language_label': 'Язык',
   'country_label': 'Страна',
+  'connection_mode': 'Режим подключения',
+  'disable': 'Отключить',
+  'connecting': 'Подключение',
+  'offline': 'Оффлайн',
+  'silent': 'Тихий',
+  'normal': 'Нормальный',
+  'select_connection_mode': 'Выбрать режим подключения',
+  'search_connection_mode': 'Поиск режимов подключения',
 };

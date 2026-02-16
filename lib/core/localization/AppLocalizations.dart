@@ -52,6 +52,7 @@ class AppLocalizations {
       onPressed: () => _showLanguageSearchDialog(context, currentLocale, onChanged),
       theme: color,
       size: size,
+      icon: Icons.language,
       showTextAlways: true,
     );
   }
@@ -118,6 +119,7 @@ class AppLocalizations {
     return AppDropdown<String>(
       text: countries[currentCountry] ?? currentCountry,
       onPressed: () => _showCountrySearchDialog(context, currentCountry, onChanged),
+      icon: Icons.flag,
       theme: 'secondary',
       showTextAlways: true,
     );

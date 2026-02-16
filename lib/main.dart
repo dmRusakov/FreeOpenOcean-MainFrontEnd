@@ -21,6 +21,7 @@ void main() async {
   final locale = await settingsService.getLocale();
   final deviceTypeOverride = await settingsService.getDevice();
   final country = await settingsService.getCountry();
+  final connectionMode = await settingsService.getConnectionMode();
 
   runApp(MyApp(
     settingsService: settingsService,
@@ -29,6 +30,7 @@ void main() async {
     initialLocale: locale,
     initialDeviceTypeOverride: deviceTypeOverride,
     initialCountry: country,
+    initialConnectionMode: connectionMode,
   ));
 }
 
@@ -39,6 +41,7 @@ class MyApp extends StatefulWidget {
   final Locale initialLocale;
   final theme_interface.DeviceTypeOverride initialDeviceTypeOverride;
   final String initialCountry;
+  final ConnectionMode initialConnectionMode;
 
   const MyApp({
     super.key,
@@ -48,6 +51,7 @@ class MyApp extends StatefulWidget {
     required this.initialLocale,
     required this.initialDeviceTypeOverride,
     required this.initialCountry,
+    required this.initialConnectionMode,
   });
 
   @override
@@ -62,6 +66,7 @@ class _MyAppState extends State<MyApp> {
   late String _country;
   late AppRouter _appRouter;
   late Api _api;
+  late ConnectionMode _connectionMode;
   bool _isChangingFromDropdown = false;
 
   @override
@@ -72,6 +77,7 @@ class _MyAppState extends State<MyApp> {
     _locale = widget.initialLocale;
     _deviceTypeOverride = widget.initialDeviceTypeOverride;
     _country = widget.initialCountry;
+    _connectionMode = widget.initialConnectionMode;
     _api = Api(app: widget.settingsService);
     _appRouter = AppRouter(onLocaleChanged: _changeLanguage);
   }
@@ -137,6 +143,14 @@ class _MyAppState extends State<MyApp> {
         _appRouter.router.go(newPath);
       }
     });
+  }
+
+  void _changeConnectionMode(ConnectionMode? mode) {
+    if (mode == null) return;
+    setState(() {
+      _connectionMode = mode;
+    });
+    widget.settingsService.setConnectionMode(mode);
   }
 
   @override
@@ -218,6 +232,8 @@ class _MyAppState extends State<MyApp> {
             onLocaleChanged: _changeLanguage,
             country: _country,
             onCountryChanged: _changeCountry,
+            connectionMode: _connectionMode,
+            onConnectionModeChanged: _changeConnectionMode,
             api: _api,
             child: child!,
           ),

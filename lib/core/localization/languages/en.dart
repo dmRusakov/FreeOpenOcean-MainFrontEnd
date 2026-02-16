@@ -37,4 +37,12 @@ const Map<String, String> enTranslations = {
   'device_type_override_label': 'Device Type Override',
   'language_label': 'Language',
   'country_label': 'Country',
+  'connection_mode': 'Connection Mode',
+  'disable': 'Disable',
+  'connecting': 'Connecting',
+  'offline': 'Offline',
+  'silent': 'Silent',
+  'normal': 'Normal',
+  'select_connection_mode': 'Select Connection Mode',
+  'search_connection_mode': 'Search connection modes',
 };

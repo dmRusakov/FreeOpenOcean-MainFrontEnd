@@ -3,15 +3,7 @@ import 'dart:ui';
 import '../core/theme/AppTheme.dart';
 import 'package:uuid/uuid.dart';
 import '../models/endpoint.dart';
-
-enum ConnectionMode {
-  disabled,
-  connected,
-  offline,
-  silent,
-  normal,
-  unlimited,
-}
+import '../core/provider/AppProvider.dart';
 
 class App {
   static const String _appThemeKey = 'appTheme';
@@ -156,7 +148,7 @@ class App {
     final modeName = prefs.getString(_connectionModeKey);
     return ConnectionMode.values.firstWhere(
           (e) => e.name == modeName,
-      orElse: () => ConnectionMode.normal,
+      orElse: () => ConnectionMode.offline,
     );
   }
 }

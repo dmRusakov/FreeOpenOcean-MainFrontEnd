@@ -37,4 +37,12 @@ const Map<String, String> ptTranslations = {
   'device_type_override_label': 'Substituição de Tipo de Dispositivo',
   'language_label': 'Idioma',
   'country_label': 'País',
+  'connection_mode': 'Modo de Conexão',
+  'disable': 'Desabilitar',
+  'connecting': 'Conectando',
+  'offline': 'Offline',
+  'silent': 'Silencioso',
+  'normal': 'Normal',
+  'select_connection_mode': 'Selecionar Modo de Conexão',
+  'search_connection_mode': 'Pesquisar modos de conexão',
 };

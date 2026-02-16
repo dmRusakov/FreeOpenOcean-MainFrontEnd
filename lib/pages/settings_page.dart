@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:free_open_ocean/pages/page_template.dart';
-import 'package:free_open_ocean/core/theme/AppTheme.dart' as theme_interface;
 import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
 import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import 'package:free_open_ocean/common/element/appButon.dart';
 import 'package:flutter/foundation.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:go_router/go_router.dart';
-import 'package:free_open_ocean/pages/page_content.dart';
+import 'package:free_open_ocean/core/provider/AppProvider.dart';
 
 enum SettingSection { general, theme, language/*, style*/ }
 
@@ -138,7 +137,19 @@ class _SettingsPageState extends State<SettingsPage> {
 
     // general settings
       case SettingSection.general:
-        return const Text('General settings placeholder');
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(localizations.translate('connection_mode'), style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(width: 16),
+                AppProvider.buildConnectionModeDropdown(context, themeProvider.connectionMode, themeProvider.onConnectionModeChanged, showTextAlways: true),
+              ],
+            ),
+          ],
+        );
 
     // theme settings
       case SettingSection.theme:

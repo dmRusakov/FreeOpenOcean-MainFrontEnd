@@ -91,7 +91,6 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
             mainAxisSize: MainAxisSize.min,
             children: [
               iconWidget,
-              const Icon(Icons.arrow_drop_down, color: Colors.white),
             ],
           );
         }

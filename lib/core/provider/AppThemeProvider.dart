@@ -5,6 +5,7 @@ import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import 'package:free_open_ocean/services/api.dart';
 import 'package:free_open_ocean/common/element/appDropdown.dart';
 import '../theme/AppTheme.dart';
+import 'AppProvider.dart';
 
 class AppThemeProvider extends InheritedWidget {
   final AppTheme theme;
@@ -23,6 +24,9 @@ class AppThemeProvider extends InheritedWidget {
   final String country;
   final void Function(String?) onCountryChanged;
 
+  final ConnectionMode connectionMode;
+  final void Function(ConnectionMode?) onConnectionModeChanged;
+
   final Api api;
 
   const AppThemeProvider({
@@ -38,6 +42,8 @@ class AppThemeProvider extends InheritedWidget {
     required this.onLocaleChanged,
     required this.country,
     required this.onCountryChanged,
+    required this.connectionMode,
+    required this.onConnectionModeChanged,
     required this.api,
     required super.child,
   });
@@ -53,7 +59,8 @@ class AppThemeProvider extends InheritedWidget {
         appTheme != oldWidget.appTheme ||
         themeMode != oldWidget.themeMode ||
         locale != oldWidget.locale ||
-        country != oldWidget.country;
+        country != oldWidget.country ||
+        connectionMode != oldWidget.connectionMode;
   }
 
   @override
@@ -64,6 +71,7 @@ class AppThemeProvider extends InheritedWidget {
     properties.add(DiagnosticsProperty<ThemeModeOptionEnum>('themeMode', themeMode));
     properties.add(DiagnosticsProperty<Locale>('locale', locale));
     properties.add(DiagnosticsProperty<String>('country', country));
+    properties.add(DiagnosticsProperty<ConnectionMode>('connectionMode', connectionMode));
   }
 
   static Widget buildAppThemeDropdown(BuildContext context, AppThemeEnum currentTheme, void Function(AppThemeEnum?) onChanged, {String color = 'secondary', String size = 'm'}) {
@@ -72,6 +80,7 @@ class AppThemeProvider extends InheritedWidget {
     return AppDropdown<AppThemeEnum>(
       text: localizations.translate(currentTheme.name),
       onPressed: () => _showAppThemeSearchDialog(context, currentTheme, onChanged),
+      icon: Icons.palette,
       theme: color,
       size: size,
       showTextAlways: true,
@@ -130,6 +139,7 @@ class AppThemeProvider extends InheritedWidget {
       text: localizations.translate('${currentMode.name}_theme'),
       onPressed: () => _showThemeModeSearchDialog(context, currentMode, onChanged),
       theme: color,
+      icon: Icons.brightness_6,
       size: size,
       showTextAlways: true,
     );
@@ -187,6 +197,7 @@ class AppThemeProvider extends InheritedWidget {
       text: localizations.translate(currentOverride.name),
       onPressed: () => _showDeviceTypeOverrideSearchDialog(context, currentOverride, onChanged),
       theme: color,
+      icon: Icons.devices,
       size: size,
       showTextAlways: true,
     );

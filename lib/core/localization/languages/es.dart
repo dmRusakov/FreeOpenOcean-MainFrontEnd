@@ -37,4 +37,12 @@ const Map<String, String> esTranslations = {
   'device_type_override_label': 'Anulación de Tipo de Dispositivo',
   'language_label': 'Idioma',
   'country_label': 'País',
+  'connection_mode': 'Modo de Conexión',
+  'disable': 'Deshabilitar',
+  'connecting': 'Conectando',
+  'offline': 'Fuera de línea',
+  'silent': 'Silencioso',
+  'normal': 'Normal',
+  'select_connection_mode': 'Seleccionar Modo de Conexión',
+  'search_connection_mode': 'Buscar modos de conexión',
 };

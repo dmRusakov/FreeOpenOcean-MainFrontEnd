@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:free_open_ocean/services/app.dart';
 import 'package:free_open_ocean_grpc/src/grpc/status/v1/status.pb.dart' as status_pb;
@@ -5,6 +6,9 @@ import 'package:free_open_ocean_grpc/src/grpc/status/v1/status.pbgrpc.dart';
 import 'package:grpc/grpc.dart';
 import 'package:http/http.dart' as http;
 import '../models/endpoint.dart';
+
+enum ConnectionMode { disable, silent, normal }
+enum ConnectionStatus { offline, connecting, online }
 
 class Api {
   static const String statusGetPath = '/status.v1.Status/Get';
@@ -15,6 +19,7 @@ class Api {
   ];
 
   late Endpoint? selectedEndpoint = null;
+  Completer<Endpoint>? endpointCompleter;
 
   final App? app;
   final Duration retryInterval;
@@ -32,6 +37,7 @@ class Api {
         }
       }
     }
+
     return fastest;
   }
 
@@ -108,7 +114,7 @@ class Api {
           return false;
         }
       }
-    } catch (_) {
+    } catch (e) {
       return false;
     }
   }
@@ -119,6 +125,8 @@ class Api {
       var sessionEndpointId = await app?.getEndpointId();
       late Endpoint? ep = null;
 
+      //
+
       // if sessionEndpointId is not null, try to find matching endpoint and check it
       if (sessionEndpointId != null) {
         ep = endpoints.firstWhere((e) => e.id == sessionEndpointId, orElse: () => endpoints.first);
@@ -128,6 +136,9 @@ class Api {
         }
         await app?.setEndpoint(ep);
         selectedEndpoint = ep;
+        if (ep != null && endpointCompleter != null && !endpointCompleter!.isCompleted) {
+          endpointCompleter!.complete(ep);
+        }
       }
 
       // if no valid session endpoint, check all endpoints and print results
@@ -135,7 +146,12 @@ class Api {
         ep = await getFastestEndpoint(endpoints);
         await app?.setEndpoint(ep);
         selectedEndpoint = ep;
+        if (ep != null && endpointCompleter != null && !endpointCompleter!.isCompleted) {
+          endpointCompleter!.complete(ep);
+        }
       }
+
+      print(ep?.id);
 
       // make cron job getFastestEndpoint every 15 minutes to update selected endpoint if needed
       Future.doWhile(() async {
@@ -144,6 +160,9 @@ class Api {
         if (fastest != null && fastest.id != selectedEndpoint?.id) {
           selectedEndpoint = fastest;
           await app?.setEndpoint(selectedEndpoint);
+          if (endpointCompleter != null && !endpointCompleter!.isCompleted) {
+            endpointCompleter!.complete(selectedEndpoint!);
+          }
         }
         return true; // continue the loop
       });

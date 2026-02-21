@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
-import 'package:free_open_ocean/core/theme/AppTheme.dart';
+import 'package:free_open_ocean/core/provider/AppProvider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
 
@@ -31,6 +31,7 @@ class _FooterState extends State<Footer> {
   Widget build(BuildContext context) {
     final theme = context.getTheme('footer');
     final localizations = AppLocalizations.of(context)!;
+    final app = AppProvider.of(context)?.app;
 
     return Container(
       height: theme.sizes['height'],
@@ -40,13 +41,19 @@ class _FooterState extends State<Footer> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            '@2024 - ${DateTime.now().year} ${localizations.translate('footer_text')} (v$_version)',
+            '@ 2024 - ${DateTime.now().year} ${localizations.translate('footer_text')} (v$_version)',
             style: TextStyle(
               fontSize: theme.sizes['fontSize'],
               color: theme.color['text'],
             ),
           ),
-          // Status indicator on the right
+          if (app != null)
+            ListenableBuilder(
+              listenable: app,
+              builder: (context, child) => AppProvider.buildFooterConnectionStatusIcon(context),
+            )
+          else
+            AppProvider.buildFooterConnectionStatusIcon(context),
         ],
       ),
     );

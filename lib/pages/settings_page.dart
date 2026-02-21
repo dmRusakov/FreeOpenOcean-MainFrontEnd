@@ -7,8 +7,9 @@ import 'package:flutter/foundation.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:go_router/go_router.dart';
 import 'package:free_open_ocean/core/provider/AppProvider.dart';
+import 'page_content.dart';
 
-enum SettingSection { general, theme, language/*, style*/ }
+enum SettingSection { general, theme, language, style }
 
 class SettingsPage extends StatefulWidget {
   final Map<String, String>? params;
@@ -37,9 +38,9 @@ class _SettingsPageState extends State<SettingsPage> {
         case 'language':
           _selectedSection = SettingSection.language;
           break;
-        // case 'style':
-        //   _selectedSection = SettingSection.style;
-        //   break;
+        case 'style':
+          _selectedSection = SettingSection.style;
+          break;
         default:
           _selectedSection = SettingSection.general;
       }
@@ -107,13 +108,13 @@ class _SettingsPageState extends State<SettingsPage> {
                       showTextOnBigScreen: true,
                     ),
                     const SizedBox(width: 8.0),
-                    // AppButton(
-                    //   icon: Icons.text_fields,
-                    //   text: 'Style Guide',
-                    //   onPressed: () => _selectSection(SettingSection.style),
-                    //   theme: _selectedSection == SettingSection.style ? 'primary' : 'secondary',
-                    //   showTextOnBigScreen: true,
-                    // ),
+                    AppButton(
+                      icon: Icons.text_fields,
+                      text: 'Style Guide',
+                      onPressed: () => _selectSection(SettingSection.style),
+                      theme: _selectedSection == SettingSection.style ? 'primary' : 'secondary',
+                      showTextOnBigScreen: true,
+                    ),
                   ],
                 ),
               ],
@@ -211,8 +212,8 @@ class _SettingsPageState extends State<SettingsPage> {
         );
 
     // typography
-    //   case SettingSection.style:
-        // return PageContent(slug: 'style-guide');
+      case SettingSection.style:
+        return PageContent(slug: 'style-guide');
     }
   }
 }

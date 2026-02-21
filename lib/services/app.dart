@@ -1,11 +1,14 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:ui';
+import 'dart:async';
 import '../core/theme/AppTheme.dart';
 import 'package:uuid/uuid.dart';
 import '../models/endpoint.dart';
 import '../core/provider/AppProvider.dart';
+import '../../services/api.dart';
 
-class App {
+class App extends ChangeNotifier {
   static const String _appThemeKey = 'appTheme';
   static const String _themeModeKey = 'themeMode';
   static const String _localeKey = 'locale';
@@ -15,6 +18,12 @@ class App {
   static const String _endpointIdKey = 'endpointId';
   static const String _connectionModeKey = 'connectionMode';
   late Endpoint? endpoint;
+  late ConnectionStatus connectionStatus = ConnectionStatus.connecting;
+  late ConnectionMode connectionMode = ConnectionMode.disable;
+  Completer<Endpoint>? _endpointCompleter;
+  final StreamController<Map<String, dynamic>> _connectionController = StreamController<Map<String, dynamic>>.broadcast();
+
+  Stream<Map<String, dynamic>> get connectionStream => _connectionController.stream;
 
   // theme
   Future<void> setTheme(AppThemeEnum theme) async {
@@ -128,27 +137,45 @@ class App {
 
   // Endpoint
   Future<void> setEndpoint(Endpoint? ep) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_endpointIdKey, ep?.id ?? '');
     endpoint = ep;
+    setEndpointId(ep?.id ?? null);
+    notifyListeners();
   }
 
-  Future<Endpoint?> getEndpoint() async {
-    return endpoint;
+  Future<Endpoint> getEndpoint() async {
+    if (endpoint != null) return endpoint!;
+    if (_endpointCompleter == null) _endpointCompleter = Completer<Endpoint>();
+    return _endpointCompleter!.future;
   }
 
   // connection mode
   Future<void> setConnectionMode(ConnectionMode mode) async {
+    connectionMode = mode;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_connectionModeKey, mode.name);
+    notifyListeners();
+    _connectionController.add({'status': connectionStatus.name, 'mode': connectionMode.name});
   }
 
   Future<ConnectionMode> getConnectionMode() async {
     final prefs = await SharedPreferences.getInstance();
     final modeName = prefs.getString(_connectionModeKey);
-    return ConnectionMode.values.firstWhere(
+    connectionMode = ConnectionMode.values.firstWhere(
           (e) => e.name == modeName,
-      orElse: () => ConnectionMode.offline,
+      orElse: () => ConnectionMode.disable,
     );
+    _connectionController.add({'status': connectionStatus.name, 'mode': connectionMode.name});
+    return connectionMode;
+  }
+
+  // connection status
+  Future<void> setConnectionStatus(ConnectionStatus status) async {
+    connectionStatus = status;
+    notifyListeners();
+    _connectionController.add({'status': connectionStatus.name, 'mode': connectionMode.name});
+  }
+
+  Future<ConnectionStatus> getConnectionStatus() async {
+    return connectionStatus;
   }
 }

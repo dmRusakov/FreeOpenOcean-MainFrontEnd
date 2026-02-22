@@ -143,7 +143,7 @@ class AppProvider extends InheritedWidget {
       icon: icon,
       text: '${localizations.translate('server_connection')}: ${localizations.translate(status)}',
       size: 's',
-      theme: status == 'offline' ? 'danger' : (status == 'disable' ? 'warning' : 'success'),
+      theme: status == 'offline' || status == 'disable' ? 'danger' : (status == 'connecting' ? 'warning' : 'success'),
     );
   }
 }

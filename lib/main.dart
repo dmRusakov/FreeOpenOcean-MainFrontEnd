@@ -67,7 +67,7 @@ class _MyAppState extends State<MyApp> {
   late String _country;
   late AppRouter _appRouter;
   late Api _api;
-  late ConnectionMode _connectionMode;
+  late ConnectionMode _connectionMode = ConnectionMode.normal;
   bool _isChangingFromDropdown = false;
   bool _isReady = false;
 

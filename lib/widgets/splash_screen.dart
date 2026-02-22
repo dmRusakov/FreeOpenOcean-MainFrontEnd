@@ -28,22 +28,39 @@ class SplashScreen extends StatelessWidget {
                     ),
                   ),
                   // Sailing icon
-                  const Icon(
-                    Icons.sailing_sharp,
-                    size: 36,
-                    color: Color(0xFF4FC3F7),
+                  const Text(
+                    '⛵',
+                    style: TextStyle(fontSize: 45),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
             const Text(
-              'FreeOpenOcean',
+              'Loading ...',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 20,
+                fontWeight: FontWeight.w100,
+                color: Color(0xFFB0BEC5),
+              ),
+            ),
+            const SizedBox(height: 15),
+            const Text(
+              'FreeOpenOcean.com',
+              style: TextStyle(
+                fontSize: 30,
                 fontWeight: FontWeight.w300,
                 color: Color(0xFFB0BEC5),
-                letterSpacing: 4,
+                letterSpacing: 2,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Modern Ocean Charting and Weather Applications',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w300,
+                color: Color(0xFFB0BEC5),
               ),
             ),
           ],

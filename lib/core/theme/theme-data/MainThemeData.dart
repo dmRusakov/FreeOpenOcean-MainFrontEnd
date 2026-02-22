@@ -39,7 +39,7 @@ class MainThemeData extends AppTheme {
 
     // buttons
     'btn_s': <String, dynamic>{
-      'fontSize': 15.0,
+      'fontSize': 13.0,
       'height': 25.0,
       'padding': const EdgeInsets.symmetric(horizontal: 7),
       'borderRadius': BorderRadius.circular(18.0),

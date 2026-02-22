@@ -28,6 +28,7 @@ class Api {
   //
   // Returns the endpoint that responds OK and have lowest duration
   Future<Endpoint?>getFastestEndpoint(List<Endpoint> endpoints, {Duration timeout = const Duration(seconds: 5)}) async {
+    await app?.setConnectionStatus(ConnectionStatus.connecting);
     Endpoint? fastest;
     for (final ep in endpoints) {
       final isOk = await checkEndpoint(ep, timeout: timeout);
@@ -37,6 +38,8 @@ class Api {
         }
       }
     }
+
+    app?.setConnectionStatus(fastest != null ? ConnectionStatus.online : ConnectionStatus.offline);
 
     return fastest;
   }
@@ -125,8 +128,6 @@ class Api {
       var sessionEndpointId = await app?.getEndpointId();
       late Endpoint? ep = null;
 
-      //
-
       // if sessionEndpointId is not null, try to find matching endpoint and check it
       if (sessionEndpointId != null) {
         ep = endpoints.firstWhere((e) => e.id == sessionEndpointId, orElse: () => endpoints.first);
@@ -139,6 +140,8 @@ class Api {
         if (ep != null && endpointCompleter != null && !endpointCompleter!.isCompleted) {
           endpointCompleter!.complete(ep);
         }
+
+        app?.setConnectionStatus(isOk ? ConnectionStatus.online : ConnectionStatus.connecting);
       }
 
       // if no valid session endpoint, check all endpoints and print results
@@ -150,8 +153,6 @@ class Api {
           endpointCompleter!.complete(ep);
         }
       }
-
-      print(ep?.id);
 
       // make cron job getFastestEndpoint every 15 minutes to update selected endpoint if needed
       Future.doWhile(() async {

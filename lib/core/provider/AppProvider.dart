@@ -118,66 +118,32 @@ class AppProvider extends InheritedWidget {
     );
   }
 
-  static Future<Map<String, dynamic>> _getStatusData(BuildContext context) async {
-    final provider = AppProvider.of(context);
-    final connectionStatus = await provider?.app.getConnectionStatus();
-    final connectionMode = await provider?.app.getConnectionMode();
-    final endpoint = await provider?.app.getEndpoint();
-
-    String status = 'unknown';
-    IconData icon = AppProvider.getConnectionStatusIcon(ConnectionStatus.offline);
-
-    if (connectionMode == ConnectionMode.disable) {
-      status = connectionMode?.name ?? 'disable';
-      icon = AppProvider.getConnectionModeIcon(ConnectionMode.disable);
-    } else if (connectionStatus == ConnectionStatus.online) {
-      status = connectionMode?.name ?? 'normal';
-      icon = AppProvider.getConnectionModeIcon(connectionMode ?? ConnectionMode.normal);
-    } else {
-      status = connectionStatus?.name ?? 'online';
-      icon = AppProvider.getConnectionStatusIcon(connectionStatus ?? ConnectionStatus.online);
-    }
-
-    return {
-      'name': endpoint?.name ?? 'Offline',
-      'status': status,
-      'icon': icon,
-    };
-  }
-
   static Widget buildFooterConnectionStatusIcon(BuildContext context) {
-    final theme = context.getTheme('footer');
     final localizations = AppLocalizations.of(context)!;
 
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _getStatusData(context),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return SizedBox.shrink();
-        }
-        final data = snapshot.data;
-        final status = data?['status'] ?? 'unknown';
-        final icon = data?['icon'] ?? Icons.help_outline;
+    final provider = AppProvider.of(context);
+    final connectionStatus = provider?.app.connectionStatus ?? ConnectionStatus.offline;
+    final connectionMode = provider?.app.connectionMode ?? ConnectionMode.disable;
 
-        return AppButton(
-          icon: icon,
-          text: localizations.translate(status),
-          size: 's',
-          // onPressed: () => _selectSection(SettingSection.general),
-          // theme: _selectedSection == SettingSection.general ? 'primary' : 'secondary',
-        );
+    String status = 'unknown';
+    IconData icon = Icons.help_outline;
 
-        // return Padding(
-        //   padding: const EdgeInsets.only(top: 3),
-        //   child: Container(
-        //     child: Icon(
-        //       icon,
-        //       color: color,
-        //       size: (theme.sizes['fontSize'] ?? 14.0) * 1.2,
-        //     ),
-        //   ),
-        // );
-      },
+    if (connectionMode == ConnectionMode.disable) {
+      status = 'disable';
+      icon = AppProvider.getConnectionModeIcon(ConnectionMode.disable);
+    } else if (connectionStatus == ConnectionStatus.online) {
+      status = connectionMode.name;
+      icon = AppProvider.getConnectionModeIcon(connectionMode);
+    } else {
+      status = connectionStatus.name;
+      icon = AppProvider.getConnectionStatusIcon(connectionStatus);
+    }
+
+    return AppButton(
+      icon: icon,
+      text: '${localizations.translate('server_connection')}: ${localizations.translate(status)}',
+      size: 's',
+      theme: status == 'offline' ? 'danger' : (status == 'disable' ? 'warning' : 'success'),
     );
   }
 }

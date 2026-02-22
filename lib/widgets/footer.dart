@@ -40,13 +40,17 @@ class _FooterState extends State<Footer> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            '@ 2024 - ${DateTime.now().year} ${localizations.translate('footer_text')} (v$_version)',
-            style: TextStyle(
-              fontSize: theme.sizes['fontSize'],
-              color: theme.color['text'],
+          Flexible(
+            child: Text(
+              '@ 2024 - ${DateTime.now().year} ${localizations.translate('footer_text')} (v$_version)',
+              style: TextStyle(
+                fontSize: theme.sizes['fontSize'],
+                color: theme.color['text'],
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const SizedBox(width: 8),
           if (app != null)
             ListenableBuilder(
               listenable: app,

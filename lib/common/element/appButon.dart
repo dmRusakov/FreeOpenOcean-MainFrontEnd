@@ -37,9 +37,9 @@ class _AppButtonState extends State<AppButton> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isConstrained = constraints.maxWidth < 100.0; // Threshold to detect constrained width
-        final sizes = context.getThemeSizes('btn_${widget.size}');
-        final color = context.getThemeColor('btn_${widget.theme}');
-        final hoverBackground = Color.lerp(color?['background'], Colors.black, 0.2);
+        final sizes = context.getThemeSizes('btn_${widget.size}') as Map<String, dynamic>? ?? <String, dynamic>{};
+        final color = context.getThemeColor('btn_${widget.theme}') as Map<String, dynamic>? ?? <String, dynamic>{};
+        final hoverBackground = Color.lerp(color['background'] as Color? ?? Colors.grey, Colors.black, 0.2);
         final deviceType = context.getDeviceType();
         final hasIcon = widget.icon != null || widget.svgIconPath != null;
         final showText = (!hasIcon && widget.text != null && widget.text!.isNotEmpty) ||
@@ -51,13 +51,13 @@ class _AppButtonState extends State<AppButton> {
         if (widget.svgIconPath != null) {
           iconWidget = SvgPicture.asset(
             widget.svgIconPath!,
-            colorFilter: ColorFilter.mode(color['text'] ?? Colors.white, BlendMode.srcIn),
+            colorFilter: ColorFilter.mode(color['text'] as Color? ?? Colors.white, BlendMode.srcIn),
           );
         } else if (widget.icon != null) {
           iconWidget = Icon(
             widget.icon,
-            color: color['text'],
-            size: sizes['fontSize'] + 2 ?? 16.0,
+            color: color['text'] as Color? ?? Colors.white,
+            size: (sizes['fontSize'] as double? ?? 14.0) + 2,
           );
         } else {
           iconWidget = const SizedBox.shrink();
@@ -73,8 +73,8 @@ class _AppButtonState extends State<AppButton> {
               Text(
                 widget.text!,
                 style: TextStyle(
-                  color: color['text'],
-                  fontSize: sizes['fontSize'] ?? 14.0,
+                  color: color['text'] as Color? ?? Colors.white,
+                  fontSize: sizes['fontSize'] as double? ?? 14.0,
                 ),
               ),
             ],
@@ -83,7 +83,7 @@ class _AppButtonState extends State<AppButton> {
           content = iconWidget;
         }
 
-        final height = sizes['height'] ?? 30.0;
+        final height = sizes['height'] as double? ?? 30.0;
 
         return MouseRegion(
           onEnter: (_) => setState(() => _isHovered = true),
@@ -91,14 +91,14 @@ class _AppButtonState extends State<AppButton> {
           child: Container(
             height: height,
             width: showText ? null : height,
-            padding: showText ? sizes['padding'] : const EdgeInsets.all(0),
+            padding: showText ? (sizes['padding'] as EdgeInsets? ?? const EdgeInsets.symmetric(horizontal: 10)) : const EdgeInsets.all(0),
             decoration: BoxDecoration(
-              color: _isHovered ? hoverBackground : color['background'],
-              borderRadius: sizes['borderRadius'],
+              color: _isHovered ? hoverBackground : (color['background'] as Color? ?? Colors.grey),
+              borderRadius: sizes['borderRadius'] as BorderRadius? ?? BorderRadius.circular(20),
             ),
             child: InkWell(
               onTap: widget.onPressed,
-              borderRadius: sizes['borderRadius'],
+              borderRadius: sizes['borderRadius'] as BorderRadius? ?? BorderRadius.circular(20),
               child: ClipRect(
                 child: Align(
                   alignment: Alignment.center,

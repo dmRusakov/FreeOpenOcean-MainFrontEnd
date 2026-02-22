@@ -6,7 +6,6 @@ import '../../services/api.dart';
 import '../../models/endpoint.dart';
 import '../../core/localization/AppLocalizations.dart';
 import '../../common/element/appDropdown.dart';
-import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
 
 class AppProvider extends InheritedWidget {
   final App app;
@@ -143,7 +142,7 @@ class AppProvider extends InheritedWidget {
       icon: icon,
       text: '${localizations.translate('server_connection')}: ${localizations.translate(status)}',
       size: 's',
-      theme: status == 'offline' || status == 'disable' ? 'danger' : (status == 'connecting' ? 'warning' : 'success'),
+      theme: status == 'offline' || status == 'disable' ? 'error' : (status == 'connecting' ? 'warning' : 'success'),
     );
   }
 }

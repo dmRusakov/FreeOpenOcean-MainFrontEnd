@@ -5,8 +5,7 @@ import 'dart:async';
 import '../core/theme/AppTheme.dart';
 import 'package:uuid/uuid.dart';
 import '../models/endpoint.dart';
-import '../core/provider/AppProvider.dart';
-import '../../services/api.dart';
+import 'api.dart';
 
 class App extends ChangeNotifier {
   static const String _appThemeKey = 'appTheme';

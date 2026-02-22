@@ -177,11 +177,6 @@ class _MyAppState extends State<MyApp> {
         darkTheme = MainThemeData.buildThemeData(true);
         currentTheme = MainThemeData();
         break;
-      default:
-        lightTheme = MinimalisticThemeData.buildThemeData(false);
-        darkTheme = MinimalisticThemeData.buildThemeData(true);
-        currentTheme = MinimalisticThemeData();
-        break;
     }
 
     ThemeMode themeMode;
@@ -193,7 +188,6 @@ class _MyAppState extends State<MyApp> {
         themeMode = ThemeMode.dark;
         break;
       case theme_interface.ThemeModeOptionEnum.auto:
-      default:
         themeMode = ThemeMode.system;
         break;
     }

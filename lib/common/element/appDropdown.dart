@@ -126,11 +126,11 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
                       items: widget.items,
                       icon: const SizedBox.shrink(), // Hide default icon since we have it in content
                       style: TextStyle(
-                        color: color['text'],
-                        fontSize: sizes['fontSize'] ?? 14.0,
+                        color: color['text'] as Color? ?? Colors.white,
+                        fontSize: sizes['fontSize'] as double? ?? 14.0,
                       ),
-                      dropdownColor: color['background'],
-                      borderRadius: sizes['borderRadius'],
+                      dropdownColor: color['background'] as Color? ?? Colors.grey,
+                      borderRadius: sizes['borderRadius'] as BorderRadius? ?? BorderRadius.circular(15),
                       isExpanded: false,
                       selectedItemBuilder: (BuildContext context) {
                         return widget.items!.map((item) {

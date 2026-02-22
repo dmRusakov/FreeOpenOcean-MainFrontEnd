@@ -7,7 +7,6 @@ import 'package:free_open_ocean_grpc/src/grpc/pages/v1/pages.pbgrpc.dart' show P
 import 'package:free_open_ocean_grpc/src/grpc/pages/v1/pages.pb.dart' as pages_pb;
 import 'package:free_open_ocean/services/api.dart';
 import 'package:free_open_ocean/core/provider/AppProvider.dart';
-import 'package:free_open_ocean/models/endpoint.dart';
 
 class PageService {
   static const String pageGetPath = '/pages.v1.PageService/Get';

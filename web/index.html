@@ -33,10 +33,84 @@
   <link href='https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.css' rel='stylesheet' />
   <script src='https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.js'></script>
 
-  <title>free_open_onean</title>
+  <title>FreeOpenOcean</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #1a2332;
+      overflow: hidden;
+    }
+    #loading {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100vw;
+      background-color: #1a2332;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 9999;
+    }
+    #loading .spinner {
+      width: 80px;
+      height: 80px;
+      border: 4px solid rgba(255,255,255,0.1);
+      border-top: 4px solid #4fc3f7;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #loading .spinner .icon {
+      font-size: 45px;
+      color: #4fc3f7;
+      animation: anti-spin 1s linear infinite;
+    }
+    #loading .title {
+      margin-top: 24px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 30px;
+      font-weight: 300;
+      color: #b0bec5;
+      letter-spacing: 2px;
+    }
+    #loading .sub-title {
+      margin-top: 16px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 16px;
+      font-weight: 300;
+      color: #b0bec5;
+
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes anti-spin {
+      0% { transform: rotate(360deg); }
+      100% { transform: rotate(0deg); }
+    }
+  </style>
 </head>
 <body>
+  <div id="loading">
+    <div class="spinner">
+      <span class="icon">⛵</span>
+    </div>
+    <div class="title">FreeOpenOcean.com</div>
+    <div class="sub-title">Modern Ocean Charting and Weather App</div>
+  </div>
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var loading = document.getElementById('loading');
+      if (loading) loading.remove();
+    });
+  </script>
 </body>
 </html>

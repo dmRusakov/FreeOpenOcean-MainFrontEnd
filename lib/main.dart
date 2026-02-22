@@ -11,6 +11,7 @@ import 'services/app.dart';
 import 'services/api.dart';
 import 'package:free_open_ocean/core/provider/AppProvider.dart';
 import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
+import 'package:free_open_ocean/widgets/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,6 +69,7 @@ class _MyAppState extends State<MyApp> {
   late Api _api;
   late ConnectionMode _connectionMode;
   bool _isChangingFromDropdown = false;
+  bool _isReady = false;
 
   @override
   void initState() {
@@ -80,6 +82,16 @@ class _MyAppState extends State<MyApp> {
     _connectionMode = widget.initialConnectionMode;
     _api = Api(app: widget.settingsService);
     _appRouter = AppRouter(onLocaleChanged: _changeLanguage);
+    _waitForReady();
+  }
+
+  Future<void> _waitForReady() async {
+    try {
+      await widget.settingsService.getEndpoint().timeout(const Duration(seconds: 15));
+    } catch (_) {}
+    if (mounted) {
+      setState(() => _isReady = true);
+    }
   }
 
   void _changeAppTheme(theme_interface.AppThemeEnum? theme) {
@@ -235,7 +247,7 @@ class _MyAppState extends State<MyApp> {
             connectionMode: _connectionMode,
             onConnectionModeChanged: _changeConnectionMode,
             api: _api,
-            child: child!,
+            child: _isReady ? child! : const SplashScreen(),
           ),
         );
       },

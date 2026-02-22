@@ -25,6 +25,7 @@ class App extends ChangeNotifier {
 
   Stream<Map<String, dynamic>> get connectionStream => _connectionController.stream;
 
+
   // theme
   Future<void> setTheme(AppThemeEnum theme) async {
     final prefs = await SharedPreferences.getInstance();
@@ -40,6 +41,7 @@ class App extends ChangeNotifier {
     );
   }
 
+
   // theme mode (color scheme)
   Future<void> setThemeMode(ThemeModeOptionEnum mode) async {
     final prefs = await SharedPreferences.getInstance();
@@ -54,6 +56,7 @@ class App extends ChangeNotifier {
       orElse: () => ThemeModeOptionEnum.auto,
     );
   }
+
 
   // locale (language)
   Future<void> setLocale(Locale locale) async {
@@ -75,6 +78,7 @@ class App extends ChangeNotifier {
     return const Locale('en', '');
   }
 
+
   // device type
   Future<void> setDevice(DeviceTypeOverride deviceTypeOverride) async {
     final prefs = await SharedPreferences.getInstance();
@@ -90,6 +94,7 @@ class App extends ChangeNotifier {
     );
   }
 
+
   // country
   Future<void> setCountry(String country) async {
     final prefs = await SharedPreferences.getInstance();
@@ -100,6 +105,7 @@ class App extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_countryKey) ?? 'USA';
   }
+
 
   // session ID
   Future<void> setSessionId(String sessionId) async {
@@ -120,6 +126,7 @@ class App extends ChangeNotifier {
     }
   }
 
+
   // endpoint ID
   Future<void> setEndpointId(String? endpointId) async {
     final prefs = await SharedPreferences.getInstance();
@@ -135,6 +142,7 @@ class App extends ChangeNotifier {
     return prefs.getString(_endpointIdKey);
   }
 
+
   // Endpoint
   Future<void> setEndpoint(Endpoint? ep) async {
     endpoint = ep;
@@ -147,6 +155,7 @@ class App extends ChangeNotifier {
     if (_endpointCompleter == null) _endpointCompleter = Completer<Endpoint>();
     return _endpointCompleter!.future;
   }
+
 
   // connection mode
   Future<void> setConnectionMode(ConnectionMode mode) async {
@@ -167,6 +176,7 @@ class App extends ChangeNotifier {
     _connectionController.add({'status': connectionStatus.name, 'mode': connectionMode.name});
     return connectionMode;
   }
+
 
   // connection status
   Future<void> setConnectionStatus(ConnectionStatus status) async {

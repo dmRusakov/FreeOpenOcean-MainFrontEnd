@@ -28,7 +28,7 @@ class _LogoState extends State<Logo> {
     // calc width by size
     final baseWidth = 150.0; // base width for size "m"
     final widthMultiplier = {
-      's': 0.8,
+      's': 0.9,
       'm': 1.0,
       'l': 1.15,
     }[widget.size] ?? 1.0;

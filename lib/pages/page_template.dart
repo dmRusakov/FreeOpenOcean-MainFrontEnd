@@ -5,6 +5,9 @@ import 'package:free_open_ocean/widgets/menu.dart';
 import 'package:free_open_ocean/widgets/top_header.dart';
 import 'package:free_open_ocean/core/theme/AppTheme.dart';
 import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
+import 'package:free_open_ocean/common/element/logo.dart';
+import 'package:free_open_ocean/common/element/appButon.dart';
+import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 
 class PageTemplate extends StatelessWidget {
   final Widget body;
@@ -19,6 +22,7 @@ class PageTemplate extends StatelessWidget {
 
     if (fullScreen) {
       return Scaffold(
+        drawer: const AppMenu(),
         body: Stack(
           children: [
             Positioned.fill(child: body),
@@ -26,7 +30,7 @@ class PageTemplate extends StatelessWidget {
               top: 0,
               left: 0,
               right: 0,
-              child: const MyAppBar(),
+              child: const HeaderRow(),
             ),
             if (sizes['footer']) Positioned(
               bottom: 0,
@@ -53,6 +57,43 @@ class PageTemplate extends StatelessWidget {
         ],
       ),
       floatingActionButton: floatingActionButton,
+    );
+  }
+}
+
+class HeaderRow extends StatelessWidget {
+  const HeaderRow({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.getTheme('header');
+    final localizations = AppLocalizations.of(context)!;
+
+    return Container(
+      height: kToolbarHeight,
+      padding: theme.sizes['padding'],
+      color: theme.color['background'],
+      child: Row(
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Logo(
+              size: 'l',
+              onPressed: () { Scaffold.of(context).openDrawer(); },
+            ),
+          ),
+          const Spacer(),
+          AppButton(
+            onPressed: () {
+              context.routerGoTo('about');
+            },
+            svgIconPath: 'assets/icons/donate.svg',
+            text: localizations.translate('donations'),
+            size: "l",
+            theme: "warning",
+          ),
+        ],
+      ),
     );
   }
 }

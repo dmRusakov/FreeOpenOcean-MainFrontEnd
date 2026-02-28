@@ -74,10 +74,10 @@ class AppProvider extends InheritedWidget {
 
     showDialog(
       context: context,
-      builder: (context) {
-        final localizations = AppLocalizations.of(context)!;
+      builder: (dialogContext) {
+        final localizations = AppLocalizations.of(dialogContext)!;
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (dialogContext, setState) {
             final filteredModes = ConnectionMode.values.where((mode) =>
                 mode.name.toLowerCase().contains(searchQuery.toLowerCase())).toList();
             return AlertDialog(
@@ -100,8 +100,9 @@ class AppProvider extends InheritedWidget {
                             title: Text(localizations.translate(mode.name)),
                             selected: mode == currentMode,
                             onTap: () {
+                              AppProvider.of(context)?.app.setConnectionMode(mode);
                               onChanged(mode);
-                              Navigator.pop(context);
+                              Navigator.pop(dialogContext);
                             },
                           );
                         }).toList(),

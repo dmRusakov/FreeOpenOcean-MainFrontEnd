@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_html/flutter_html.dart';
 import 'package:free_open_ocean/pages/page_template.dart';
 import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';

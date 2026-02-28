@@ -18,7 +18,7 @@ class AppRouter {
     initialLocation: '/USA/en',
     routes: [
       _buildRoute('/:country/:language', (params) => OceanCharts(params: params)),
-      _buildRoute('/:country/:language/main', (params) => MainPage(params: params)),
+      // _buildRoute('/:country/:language/main', (params) => MainPage(params: params)),
       _buildRoute('/:country/:language/user', (params) => UserPage(params: params)),
       _buildRoute('/:country/:language/settings', (params) => SettingsPage(params: params)),
       _buildRoute('/:country/:language/ocean_charts', (params) => OceanCharts(params: params)),

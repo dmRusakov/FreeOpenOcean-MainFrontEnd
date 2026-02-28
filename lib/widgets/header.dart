@@ -30,7 +30,7 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
           onPressed: () {
             context.routerGoTo('about');
           },
-          svgIconPath: 'assets/icons/donate.svg',
+          svgIconPath: 'icons/donate.svg',
           text: localizations.translate('donations'),
           size: "l",
           theme: "warning",

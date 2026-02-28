@@ -79,7 +79,7 @@ class AppMenu extends StatelessWidget {
                       ),
                       ListTile(
                         leading: SvgPicture.asset(
-                          'assets/icons/donate.svg',
+                          'icons/donate.svg',
                           width: 25.0,
                           colorFilter: ColorFilter.mode(Theme.of(context).textTheme.bodyLarge!.color ?? Colors.black, BlendMode.srcIn),
                         ),
@@ -97,7 +97,7 @@ class AppMenu extends StatelessWidget {
                   child: Row(
                     children: <Widget>[
                       SvgPicture.asset(
-                        'assets/flags/us.svg',
+                        'flags/us.svg',
                         width: 25.0,
                       ),
                       const SizedBox(width: 10.0),

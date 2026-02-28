@@ -1,0 +1,41 @@
+{
+  "version": 8,
+  "name": "Protomaps Light",
+  "center": [0, 0],
+  "zoom": 2,
+  "sources": {
+    "protomaps": {
+      "type": "vector",
+      "url": "pmtiles://https://api.protomaps.com/tiles/v3/{z}/{x}/{y}.mvt?key=42f6ab2492a77fae"
+    }
+  },
+  "sprite": "https://api.protomaps.com/styles/v2/sprite",
+  "glyphs": "https://api.protomaps.com/fonts/{fontstack}/{range}.pbf",
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#ffffff"
+      }
+    },
+    {
+      "id": "water",
+      "source": "protomaps",
+      "source-layer": "water",
+      "type": "fill",
+      "paint": {
+        "fill-color": "#a0c8f0"
+      }
+    },
+    {
+      "id": "land",
+      "source": "protomaps",
+      "source-layer": "land",
+      "type": "fill",
+      "paint": {
+        "fill-color": "#f0f0f0"
+      }
+    }
+  ]
+}

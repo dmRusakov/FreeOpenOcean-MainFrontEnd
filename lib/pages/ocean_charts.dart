@@ -17,18 +17,22 @@ class OceanCharts extends StatefulWidget {
 }
 
 class _OceanChartsState extends State<OceanCharts> {
-  late Future<String> _styleFuture;
+  Future<String>? _styleFuture;
+  bool? _isDark;
 
   @override
-  void initState() {
-    super.initState();
-    _styleFuture = _loadStyle();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (_isDark != isDark) {
+      _isDark = isDark;
+      _loadStyle();
+    }
   }
 
-  Future<String> _loadStyle() async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final stylePath = isDark ? 'assets/styles/dark.json' : 'assets/styles/light.json';
-    return await rootBundle.loadString(stylePath);
+  void _loadStyle() {
+    final stylePath = _isDark! ? 'styles/dark.json' : 'styles/light.json';
+    _styleFuture = rootBundle.loadString(stylePath);
   }
 
   @override
@@ -43,6 +47,7 @@ class _OceanChartsState extends State<OceanCharts> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
+            print('Error loading map style: ${snapshot.error}');
             return Center(child: Text('Error loading style: ${snapshot.error}'));
           } else {
             final styleString = snapshot.data!;

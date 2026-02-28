@@ -25,29 +25,40 @@ class _LogoState extends State<Logo> {
     final color = context.getThemeColor('btn_logo');
     final sizes = context.getThemeSizes('btn_${widget.size}');
 
+    // calc width by size
+    final baseWidth = 150.0; // base width for size "m"
+    final widthMultiplier = {
+      's': 0.8,
+      'm': 1.0,
+      'l': 1.15,
+    }[widget.size] ?? 1.0;
+
     final background = color?['background'];
     final hoverBackground = Color.lerp(background, Colors.black, 0.2);
 
-    final logoWidget = Container(
-      height: sizes['height'],
-      padding: sizes['padding'],
-      alignment: Alignment.center, // vertical centering
-      decoration: BoxDecoration(
-        color: _isHovered ? (hoverBackground ?? background) : background,
-        borderRadius: sizes['borderRadius'],
-      ),
-      child: Align(
-        alignment: sizes['alignment'],
-        child: Text(
-          'FreeOpenOcean',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.museoModerno(
-            color: color?['text'],
-            fontWeight: FontWeight.w400,
-            fontSize: sizes['fontSize'],
+    final logoWidget = IntrinsicWidth(
+      child: Container(
+        height: sizes['height'],
+        width: baseWidth * widthMultiplier,
+        padding: sizes['padding'],
+        alignment: Alignment.center, // vertical centering
+        decoration: BoxDecoration(
+          color: _isHovered ? (hoverBackground ?? background) : background,
+          borderRadius: sizes['borderRadius'],
+        ),
+        child: Align(
+          alignment: sizes['alignment'],
+          child: Text(
+            'FreeOpenOcean',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.museoModerno(
+              color: color?['text'],
+              fontWeight: FontWeight.w400,
+              fontSize: sizes['fontSize'],
+            ),
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
           ),
-          overflow: TextOverflow.ellipsis,
-          softWrap: false,
         ),
       ),
     );

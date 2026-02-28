@@ -19,6 +19,7 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
       automaticallyImplyLeading: false,
       title: Align(
         alignment: Alignment.centerLeft,
+        // widthFactor: 1.6,
         child: Logo(
           size: 'l',
           onPressed: () { Scaffold.of(context).openDrawer(); },

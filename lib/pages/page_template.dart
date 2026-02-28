@@ -87,7 +87,7 @@ class HeaderRow extends StatelessWidget {
             onPressed: () {
               context.routerGoTo('about');
             },
-            svgIconPath: 'icons/donate.svg',
+            svgIconPath: 'assets/icons/donate.svg',
             text: localizations.translate('donations'),
             size: "l",
             theme: "warning",

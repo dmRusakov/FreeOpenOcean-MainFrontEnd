@@ -52,7 +52,7 @@ class AppMenu extends StatelessWidget {
                         leading: const Icon(Icons.map),
                         title: Text(localizations.translate('ocean_charts')),
                         onTap: () {
-                          context.routerGoTo('ocean_charts');
+                          context.routerGoTo('');
                         },
                       ),
                       const Spacer(),

@@ -17,63 +17,36 @@ class OceanCharts extends StatefulWidget {
 }
 
 class _OceanChartsState extends State<OceanCharts> {
-  Future<String>? _styleFuture;
-  bool? _isDark;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    if (_isDark != isDark) {
-      _isDark = isDark;
-      _loadStyle();
-    }
-  }
-
-  void _loadStyle() {
-    final stylePath = _isDark! ? 'styles/dark.json' : 'styles/light.json';
-    _styleFuture = rootBundle.loadString(stylePath);
-  }
-
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final styleUrl = isDark
+        ? 'https://api.protomaps.com/styles/v2/dark.json?key=${widget.apiKey}'
+        : 'https://api.protomaps.com/styles/v2/light.json?key=${widget.apiKey}';
 
     return PageTemplate(
       fullScreen: true,
-      body: FutureBuilder<String>(
-        future: _styleFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            print('Error loading map style: ${snapshot.error}');
-            return Center(child: Text('Error loading style: ${snapshot.error}'));
-          } else {
-            final styleString = snapshot.data!;
-            return kIsWeb
-                ? MaplibreMap(
-                    styleString: styleString,
-                    initialCameraPosition: const CameraPosition(
-                      target: LatLng(0, 0),
-                      zoom: 2,
-                    ),
-                    onMapCreated: (MaplibreMapController controller) {
-                      _getCurrentLocation(controller);
-                    },
-                  )
-                : MaplibreMap(
-                    styleString: styleString,
-                    initialCameraPosition: const CameraPosition(
-                      target: LatLng(0, 0),
-                      zoom: 2,
-                    ),
-                    myLocationRenderMode: MyLocationRenderMode.compass,
-                    onMapCreated: (MaplibreMapController controller) {
-                      // Add any additional setup here if needed
-                    },
-                  );
-          }
+      body: kIsWeb
+          ? MaplibreMap(
+        styleString: styleUrl,
+        initialCameraPosition: const CameraPosition(
+          target: LatLng(0, 0),
+          zoom: 2,
+        ),
+        onMapCreated: (MaplibreMapController controller) {
+          _getCurrentLocation(controller);
+        },
+      )
+          : MaplibreMap(
+        styleString: styleUrl,
+        initialCameraPosition: const CameraPosition(
+          target: LatLng(0, 0),
+          zoom: 2,
+        ),
+        myLocationRenderMode: MyLocationRenderMode.compass,
+        onMapCreated: (MaplibreMapController controller) {
+          // Add any additional setup here if needed
         },
       ),
     );

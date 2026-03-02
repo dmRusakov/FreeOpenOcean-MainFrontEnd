@@ -79,11 +79,11 @@ class AppMenu extends StatelessWidget {
                       ),
                       ListTile(
                         leading: SvgPicture.asset(
-                          'icons/donate.svg',
+                          'assets/icons/donate.svg',
                           width: 25.0,
                           colorFilter: ColorFilter.mode(Theme.of(context).textTheme.bodyLarge!.color ?? Colors.black, BlendMode.srcIn),
                         ),
-                        title: Text(localizations.translate('donations')),
+                        title: Text(localizations.translate('donate_to_project')),
                         onTap: () {
                           context.routerGoTo('about');
                         },

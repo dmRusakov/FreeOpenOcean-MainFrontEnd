@@ -38,8 +38,15 @@ class _FooterState extends State<Footer> {
       color: theme.color['background'],
       padding: theme.sizes['padding'],
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          if (app != null)
+            ListenableBuilder(
+              listenable: app,
+              builder: (context, child) => AppProvider.buildFooterConnectionStatusIcon(context),
+            )
+          else AppProvider.buildFooterConnectionStatusIcon(context),
+          const SizedBox(width: 8),
           Flexible(
             child: Text(
               '@ 2024 - ${DateTime.now().year} ${localizations.translate('footer_text')} (v$_version)',
@@ -50,14 +57,6 @@ class _FooterState extends State<Footer> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(width: 8),
-          if (app != null)
-            ListenableBuilder(
-              listenable: app,
-              builder: (context, child) => AppProvider.buildFooterConnectionStatusIcon(context),
-            )
-          else
-            AppProvider.buildFooterConnectionStatusIcon(context),
         ],
       ),
     );

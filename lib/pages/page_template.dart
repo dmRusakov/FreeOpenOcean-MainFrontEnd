@@ -66,34 +66,6 @@ class HeaderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.getTheme('header');
-    final localizations = AppLocalizations.of(context)!;
-
-    return Container(
-      height: kToolbarHeight,
-      padding: theme.sizes['padding'],
-      color: theme.color['background'],
-      child: Row(
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Logo(
-              size: 'l',
-              onPressed: () { Scaffold.of(context).openDrawer(); },
-            ),
-          ),
-          const Spacer(),
-          AppButton(
-            onPressed: () {
-              context.routerGoTo('about');
-            },
-            svgIconPath: 'assets/icons/donate.svg',
-            text: localizations.translate('donations'),
-            size: "l",
-            theme: "warning",
-          ),
-        ],
-      ),
-    );
+    return const MyAppBar();
   }
 }

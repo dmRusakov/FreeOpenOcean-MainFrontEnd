@@ -19,7 +19,6 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
       automaticallyImplyLeading: false,
       title: Align(
         alignment: Alignment.centerLeft,
-        // widthFactor: 1.6,
         child: Logo(
           size: 'l',
           onPressed: () { Scaffold.of(context).openDrawer(); },
@@ -27,11 +26,8 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       actions: [
         AppButton(
-          onPressed: () {
-            context.routerGoTo('about');
-          },
-          svgIconPath: 'icons/donate.svg',
-          text: localizations.translate('donations'),
+          onPressed: () { Scaffold.of(context).openDrawer(); },
+          icon: Icons.menu,
           size: "l",
           theme: "warning",
         ),

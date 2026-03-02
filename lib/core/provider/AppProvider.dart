@@ -139,11 +139,16 @@ class AppProvider extends InheritedWidget {
       icon = AppProvider.getConnectionStatusIcon(connectionStatus);
     }
 
-    return AppButton(
-      icon: icon,
-      text: '${localizations.translate('server_connection')}: ${localizations.translate(status)}',
-      size: 's',
-      theme: status == 'offline' || status == 'disable' ? 'error' : (status == 'connecting' ? 'warning' : 'success'),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 0, top: 3),
+      child:
+        AppButton(
+          icon: icon,
+          text: '${localizations.translate('server_connection')}: ${localizations.translate(status)}',
+          size: 's',
+          theme: status == 'offline' || status == 'disable' ? 'error' : (status == 'connecting' ? 'warning' : 'success'),
+        )
+
     );
   }
 }

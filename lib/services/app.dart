@@ -18,7 +18,8 @@ class App extends ChangeNotifier {
   static const String _connectionModeKey = 'connectionMode';
   late Endpoint? endpoint;
   late ConnectionStatus connectionStatus = ConnectionStatus.connecting;
-  late ConnectionMode connectionMode = ConnectionMode.disable;
+  // Default to `normal` so on first run (or when preference missing) app uses normal mode.
+  late ConnectionMode connectionMode = ConnectionMode.normal;
   Completer<Endpoint>? _endpointCompleter;
   final StreamController<Map<String, dynamic>> _connectionController = StreamController<Map<String, dynamic>>.broadcast();
 
@@ -170,7 +171,8 @@ class App extends ChangeNotifier {
     final modeName = prefs.getString(_connectionModeKey);
     connectionMode = ConnectionMode.values.firstWhere(
           (e) => e.name == modeName,
-      orElse: () => ConnectionMode.disable,
+      // default to normal if nothing was saved previously
+      orElse: () => ConnectionMode.normal,
     );
     _connectionController.add({'status': connectionStatus.name, 'mode': connectionMode.name});
     return connectionMode;

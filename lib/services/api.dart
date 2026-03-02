@@ -7,8 +7,8 @@ import 'package:grpc/grpc.dart';
 import 'package:http/http.dart' as http;
 import '../models/endpoint.dart';
 
-enum ConnectionMode { disable, silent, normal }
-enum ConnectionStatus { offline, connecting, online }
+enum ConnectionMode { normal, silent, disable, }
+enum ConnectionStatus { online, connecting, offline, }
 
 class Api {
   static const String statusGetPath = '/status.v1.Status/Get';

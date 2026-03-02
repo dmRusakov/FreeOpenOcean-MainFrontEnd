@@ -8,7 +8,7 @@ const Map<String, String> enTranslations = {
   'donate_to_project': 'Donate to the project',
   'footer_text': 'FreeOpenOcean.com or its affiliates. All Rights Reserved.',
   'user': 'User',
-  'made_in_usa': 'Made in USA',
+  'made_for_ocean_cruisers_in_usa': 'Made for Ocean Cruisers in the USA',
   'user_page': 'User page',
   'main_theme': 'Main Theme',
   'minimalistic_theme': 'Minimalistic Theme',
@@ -48,4 +48,8 @@ const Map<String, String> enTranslations = {
   'normal': 'Normal',
   'select_connection_mode': 'Select Connection Mode',
   'search_connection_mode': 'Search connection modes',
+  'style_guide': 'Style Guide',
+  'general': 'General',
+  'theme': 'Theme',
+  'language': 'Language',
 };

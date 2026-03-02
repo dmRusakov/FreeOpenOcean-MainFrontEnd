@@ -13,6 +13,21 @@ class UserPage extends StatefulWidget {
 
 class _UserPageState extends State<UserPage> {
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final localizations = AppLocalizations.of(context)!;
+      setTopBar(title: localizations.translate('user_page'), ownerId: 'user_page', submenu: []);
+    });
+  }
+
+  @override
+  void dispose() {
+    clearTopBar(ownerId: 'user_page');
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
 

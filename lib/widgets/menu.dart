@@ -101,7 +101,7 @@ class AppMenu extends StatelessWidget {
                         width: 25.0,
                       ),
                       const SizedBox(width: 10.0),
-                      Text(localizations.translate('made_in_usa')),
+                      Text(localizations.translate('made_for_ocean_cruisers_in_usa')),
                     ],
                   ),
                 ),

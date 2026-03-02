@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:free_open_ocean/pages/page_template.dart';
 import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -18,8 +17,22 @@ class OceanCharts extends StatefulWidget {
 
 class _OceanChartsState extends State<OceanCharts> {
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final localizations = AppLocalizations.of(context)!;
+      setTopBar(title: localizations.translate('ocean_charts'), ownerId: 'ocean_charts', submenu: []);
+    });
+  }
+
+  @override
+  void dispose() {
+    clearTopBar(ownerId: 'ocean_charts');
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final styleUrl = isDark
         ? 'https://api.protomaps.com/styles/v2/dark.json?key=${widget.apiKey}'

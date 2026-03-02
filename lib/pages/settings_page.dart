@@ -9,7 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:free_open_ocean/core/provider/AppProvider.dart';
 import 'page_content.dart';
 
-enum SettingSection { general, theme, language, style }
+enum SettingSection { general, theme, language, /*style*/ }
 
 class SettingsPage extends StatefulWidget {
   final Map<String, String>? params;
@@ -38,13 +38,26 @@ class _SettingsPageState extends State<SettingsPage> {
         case 'language':
           _selectedSection = SettingSection.language;
           break;
-        case 'style':
-          _selectedSection = SettingSection.style;
-          break;
+        // case 'style':
+        //   _selectedSection = SettingSection.style;
+        //   break;
         default:
           _selectedSection = SettingSection.general;
       }
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Schedule top bar update after the first frame so localization delegates are ready
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateTopBar());
+  }
+
+  @override
+  void dispose() {
+    clearTopBar(ownerId: 'settings');
+    super.dispose();
   }
 
   void _selectSection(SettingSection section) {
@@ -52,6 +65,52 @@ class _SettingsPageState extends State<SettingsPage> {
     final newUri = currentUri.replace(queryParameters: {'section': section.name});
     GoRouter.of(context).go(newUri.toString());
     setState(() => _selectedSection = section);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateTopBar());
+  }
+
+  void _updateTopBar() {
+    final localizations = AppLocalizations.of(context)!;
+    setTopBar(
+      title: localizations.translate('settings'),
+      ownerId: 'settings',
+      submenu: [
+        AppButton(
+          icon: Icons.settings,
+          size: 'l',
+          text: localizations.translate('general'),
+          onPressed: () => _selectSection(SettingSection.general),
+          theme: _selectedSection == SettingSection.general ? 'primary' : 'secondary',
+          showTextOnBigScreen: true,
+        ),
+        const SizedBox(width: 8.0),
+        AppButton(
+          icon: Icons.palette,
+          size: 'l',
+          text: localizations.translate('theme'),
+          onPressed: () => _selectSection(SettingSection.theme),
+          theme: _selectedSection == SettingSection.theme ? 'primary' : 'secondary',
+          showTextOnBigScreen: true,
+        ),
+        const SizedBox(width: 8.0),
+        AppButton(
+          icon: Icons.language,
+          size: 'l',
+          text: localizations.translate('language'),
+          onPressed: () => _selectSection(SettingSection.language),
+          theme: _selectedSection == SettingSection.language ? 'primary' : 'secondary',
+          showTextOnBigScreen: true,
+        ),
+        // const SizedBox(width: 8.0),
+        // AppButton(
+        //   icon: Icons.text_fields,
+        //   size: 'l',
+        //   text: localizations.translate('style_guide'),
+        //   onPressed: () => _selectSection(SettingSection.style),
+        //   theme: _selectedSection == SettingSection.style ? 'primary' : 'secondary',
+        //   showTextOnBigScreen: true,
+        // ),
+      ],
+    );
   }
 
   @override
@@ -69,58 +128,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return PageTemplate(
       body: Column(
         children: [
-          // Horizontal sub-menu
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-            child: Row(
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.settings),
-                    const SizedBox(width: 8.0),
-                    Text('Settings', style: Theme.of(context).textTheme.headlineSmall),
-                  ],
-                ),
-                const Spacer(),
-                Row(
-                  children: [
-                    AppButton(
-                      icon: Icons.settings,
-                      text: 'General',
-                      onPressed: () => _selectSection(SettingSection.general),
-                      theme: _selectedSection == SettingSection.general ? 'primary' : 'secondary',
-                      showTextOnBigScreen: true,
-                    ),
-                    const SizedBox(width: 8.0),
-                    AppButton(
-                      icon: Icons.palette,
-                      text: 'Theme',
-                      onPressed: () => _selectSection(SettingSection.theme),
-                      theme: _selectedSection == SettingSection.theme ? 'primary' : 'secondary',
-                      showTextOnBigScreen: true,
-                    ),
-                    const SizedBox(width: 8.0),
-                    AppButton(
-                      icon: Icons.language,
-                      text: 'Language',
-                      onPressed: () => _selectSection(SettingSection.language),
-                      theme: _selectedSection == SettingSection.language ? 'primary' : 'secondary',
-                      showTextOnBigScreen: true,
-                    ),
-                    const SizedBox(width: 8.0),
-                    AppButton(
-                      icon: Icons.text_fields,
-                      text: 'Style Guide',
-                      onPressed: () => _selectSection(SettingSection.style),
-                      theme: _selectedSection == SettingSection.style ? 'primary' : 'secondary',
-                      showTextOnBigScreen: true,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // Content area
+          // Content area — top bar (title + submenu) is rendered in the header now via setTopBar
           Expanded(
             child: Align(
               alignment: Alignment.topCenter,
@@ -211,9 +219,9 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         );
 
-    // typography
-      case SettingSection.style:
-        return PageContent(slug: 'style-guide');
+      // // typography
+      // case SettingSection.style:
+      //   return PageContent(slug: 'style-guide');
     }
   }
 }

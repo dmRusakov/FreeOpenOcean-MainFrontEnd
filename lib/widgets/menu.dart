@@ -63,13 +63,13 @@ class AppMenu extends StatelessWidget {
                           context.routerGoTo('settings');
                         },
                       ),
-                      ListTile(
-                        leading: const Icon(Icons.person),
-                        title: Text(localizations.translate('user')),
-                        onTap: () {
-                          context.routerGoTo('user');
-                        },
-                      ),
+                      // ListTile(
+                      //   leading: const Icon(Icons.person),
+                      //   title: Text(localizations.translate('user')),
+                      //   onTap: () {
+                      //     context.routerGoTo('user');
+                      //   },
+                      // ),
                       ListTile(
                         leading: const Icon(Icons.info),
                         title: Text(localizations.translate('about')),
@@ -77,17 +77,17 @@ class AppMenu extends StatelessWidget {
                           context.routerGoTo('about');
                         },
                       ),
-                      ListTile(
-                        leading: SvgPicture.asset(
-                          'assets/icons/donate.svg',
-                          width: 25.0,
-                          colorFilter: ColorFilter.mode(Theme.of(context).textTheme.bodyLarge!.color ?? Colors.black, BlendMode.srcIn),
-                        ),
-                        title: Text(localizations.translate('donate_to_project')),
-                        onTap: () {
-                          context.routerGoTo('about');
-                        },
-                      ),
+                      // ListTile(
+                      //   leading: SvgPicture.asset(
+                      //     'assets/icons/donate.svg',
+                      //     width: 25.0,
+                      //     colorFilter: ColorFilter.mode(Theme.of(context).textTheme.bodyLarge!.color ?? Colors.black, BlendMode.srcIn),
+                      //   ),
+                      //   title: Text(localizations.translate('donate_to_project')),
+                      //   onTap: () {
+                      //     context.routerGoTo('about');
+                      //   },
+                      // ),
                     ],
                   ),
                 ),

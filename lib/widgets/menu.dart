@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:country_flags/country_flags.dart';
 import 'package:free_open_ocean/common/element/logo.dart';
 import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import '../core/theme/AppTheme.dart';
@@ -96,11 +97,11 @@ class AppMenu extends StatelessWidget {
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
                     children: <Widget>[
-                      SvgPicture.asset(
-                        'flags/us.svg',
-                        width: 25.0,
+                      CountryFlag.fromCountryCode(
+                        'US',
+                        theme: const ImageTheme(width: 20, height: 14),
                       ),
-                      const SizedBox(width: 10.0),
+                      const SizedBox(width:8.0),
                       Text(localizations.translate('made_for_ocean_cruisers_in_usa')),
                     ],
                   ),

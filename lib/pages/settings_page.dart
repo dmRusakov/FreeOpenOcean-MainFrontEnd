@@ -76,7 +76,7 @@ class _SettingsPageState extends State<SettingsPage> {
       submenu: [
         AppButton(
           icon: Icons.settings,
-          size: 'l',
+          size: 'm',
           text: localizations.translate('general'),
           onPressed: () => _selectSection(SettingSection.general),
           theme: _selectedSection == SettingSection.general ? 'secondary' : 'info',
@@ -85,7 +85,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 8.0),
         AppButton(
           icon: Icons.palette,
-          size: 'l',
+          size: 'm',
           text: localizations.translate('theme'),
           onPressed: () => _selectSection(SettingSection.theme),
           theme: _selectedSection == SettingSection.theme ? 'secondary' : 'info',
@@ -94,7 +94,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 8.0),
         AppButton(
           icon: Icons.language,
-          size: 'l',
+          size: 'm',
           text: localizations.translate('language'),
           onPressed: () => _selectSection(SettingSection.language),
           theme: _selectedSection == SettingSection.language ? 'secondary' : 'info',

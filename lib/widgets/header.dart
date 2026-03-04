@@ -18,19 +18,21 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
       automaticallyImplyLeading: false,
       title: Row(
         children: [
-          // Menu button moved to the left
+
           AppButton(
             onPressed: () { Scaffold.of(context).openDrawer(); },
             icon: Icons.menu,
             size: "l",
             theme: "primary",
           ),
+
           const SizedBox(width: 8),
+
           Logo(
             size: 'l',
             onPressed: () { Scaffold.of(context).openDrawer(); },
           ),
-          // Page title directly after logo
+
           ValueListenableBuilder<TopBarData>(
             valueListenable: topBarNotifier,
             builder: (context, data, child) {
@@ -42,7 +44,7 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
             },
           ),
           const Spacer(),
-          // Submenu on the far right
+
           ValueListenableBuilder<TopBarData>(
             valueListenable: topBarNotifier,
             builder: (context, data, child) {
@@ -55,6 +57,7 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
               );
             },
           ),
+
         ],
       ),
     );

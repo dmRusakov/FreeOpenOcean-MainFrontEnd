@@ -12,6 +12,7 @@ import 'services/api.dart';
 import 'package:free_open_ocean/core/provider/AppProvider.dart';
 import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
 import 'package:free_open_ocean/widgets/splash_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -38,6 +38,7 @@ dependencies:
   maplibre_gl: ^0.25.0
   geolocator: ^13.0.1
   country_flags: ^4.1.2
+  flutter_dotenv: ^5.1.0
 
 dev_dependencies:
   flutter_test:

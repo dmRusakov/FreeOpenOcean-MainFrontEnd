@@ -11,7 +11,6 @@ import 'languages/fr.dart';
 import 'languages/pt.dart';
 import 'languages/ru.dart';
 import 'package:free_open_ocean/common/element/appDropdown.dart';
-import 'package:free_open_ocean/core/theme/AppTheme.dart';
 
 class AppLocalizations {
   final Locale locale;

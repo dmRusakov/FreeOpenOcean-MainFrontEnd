@@ -4,10 +4,10 @@ import 'package:free_open_ocean/pages/page_template.dart';
 import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:free_open_ocean/config/config.dart';
 
 class OceanCharts extends StatefulWidget {
   final Map<String, String>? params;
-  final String apiKey = '42f6ab2492a77fae';
 
   const OceanCharts({super.key, this.params});
 
@@ -35,8 +35,10 @@ class _OceanChartsState extends State<OceanCharts> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final styleUrl = isDark
-        ? 'https://api.protomaps.com/styles/v2/dark.json?key=${widget.apiKey}'
-        : 'https://api.protomaps.com/styles/v2/light.json?key=${widget.apiKey}';
+        ? 'https://api.protomaps.com/styles/v2/dark.json?key=${Config.apiKey}'
+        : 'https://api.protomaps.com/styles/v2/light.json?key=${Config.apiKey}';
+
+    // final styleUrl = 'https://api.protomaps.com/styles/v2/light.json?key=${Config.apiKey}';
 
     return PageTemplate(
       fullScreen: true,

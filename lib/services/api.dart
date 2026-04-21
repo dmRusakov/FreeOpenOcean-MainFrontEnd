@@ -6,17 +6,13 @@ import 'package:free_open_ocean_grpc/src/grpc/status/v1/status.pbgrpc.dart';
 import 'package:grpc/grpc.dart';
 import 'package:http/http.dart' as http;
 import '../models/endpoint.dart';
+import 'package:free_open_ocean/config/config.dart';
 
 enum ConnectionMode { normal, silent, disable, }
 enum ConnectionStatus { online, connecting, offline, }
 
 class Api {
   static const String statusGetPath = '/status.v1.Status/Get';
-
-  static final List<Endpoint> endpoints = [
-    Endpoint(id: 'foo-central-1', country: 'USA', httpHost: 'http://localhost', httpPort: 8081, grpcHost: '10.0.2.2', grpcPort: 50051),
-    Endpoint(id: 'foo-central-2', country: 'USA', httpHost: 'http://localhost', httpPort: 8082, grpcHost: '10.0.2.2', grpcPort: 50052),
-  ];
 
   late Endpoint? selectedEndpoint = null;
   Completer<Endpoint>? endpointCompleter;
@@ -130,10 +126,12 @@ class Api {
 
       // if sessionEndpointId is not null, try to find matching endpoint and check it
       if (sessionEndpointId != null) {
-        ep = endpoints.firstWhere((e) => e.id == sessionEndpointId, orElse: () => endpoints.first);
-        final isOk = await checkEndpoint(ep);
-        if (!isOk) {
-          ep = null;
+        ep = Config.endpoints.firstWhere((e) => e.id == sessionEndpointId, orElse: () => Config.endpoints.first);
+        if (ep != null) {
+          final isOk = await checkEndpoint(ep);
+          if (!isOk) {
+            ep = null;
+          }
         }
         await app?.setEndpoint(ep);
         selectedEndpoint = ep;
@@ -141,12 +139,12 @@ class Api {
           endpointCompleter!.complete(ep);
         }
 
-        app?.setConnectionStatus(isOk ? ConnectionStatus.online : ConnectionStatus.connecting);
+        app?.setConnectionStatus(ep != null ? ConnectionStatus.online : ConnectionStatus.connecting);
       }
 
       // if no valid session endpoint, check all endpoints and print results
       if (ep == null) {
-        ep = await getFastestEndpoint(endpoints);
+        ep = await getFastestEndpoint(Config.endpoints);
         await app?.setEndpoint(ep);
         selectedEndpoint = ep;
         if (ep != null && endpointCompleter != null && !endpointCompleter!.isCompleted) {
@@ -157,7 +155,7 @@ class Api {
       // make cron job getFastestEndpoint every 15 minutes to update selected endpoint if needed
       Future.doWhile(() async {
         await Future.delayed(const Duration(minutes: 15));
-        final fastest = await getFastestEndpoint(endpoints);
+        final fastest = await getFastestEndpoint(Config.endpoints);
         if (fastest != null && fastest.id != selectedEndpoint?.id) {
           selectedEndpoint = fastest;
           await app?.setEndpoint(selectedEndpoint);

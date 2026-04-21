@@ -3,8 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:free_open_ocean/pages/page_template.dart';
 import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:free_open_ocean/config/config.dart';
+import 'package:free_open_ocean/services/map_service.dart';
 
 class OceanCharts extends StatefulWidget {
   final Map<String, String>? params;
@@ -33,13 +32,7 @@ class _OceanChartsState extends State<OceanCharts> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final styleUrl = isDark
-        ? 'https://api.protomaps.com/styles/v2/dark.json?key=${Config.apiKey}'
-        : 'https://api.protomaps.com/styles/v2/light.json?key=${Config.apiKey}';
-
-    // final styleUrl = 'https://api.protomaps.com/styles/v2/light.json?key=${Config.apiKey}';
-
+    final styleUrl = MapService.getStyleUrl(Theme.of(context).brightness);
     return PageTemplate(
       fullScreen: true,
       body: kIsWeb
@@ -50,7 +43,7 @@ class _OceanChartsState extends State<OceanCharts> {
           zoom: 2,
         ),
         onMapCreated: (MaplibreMapController controller) {
-          _getCurrentLocation(controller);
+          MapService.getCurrentLocation(controller);
         },
       )
           : MaplibreMap(
@@ -65,43 +58,5 @@ class _OceanChartsState extends State<OceanCharts> {
         },
       ),
     );
-  }
-
-  Future<void> _getCurrentLocation(MaplibreMapController controller) async {
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        // Location services are disabled
-        return;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          // Permissions are denied
-          return;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        // Permissions are denied forever
-        return;
-      }
-
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      controller.animateCamera(
-        CameraUpdate.newLatLngZoom(
-          LatLng(position.latitude, position.longitude),
-          10.0,
-        ),
-      );
-    } catch (e) {
-      // Handle error
-      print('Error getting location: $e');
-    }
   }
 }

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/foundation.dart';
-import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
+import 'package:free_open_ocean/core/provider/app_theme_provider.dart';
 import 'package:free_open_ocean/widgets/footer.dart';
 import 'package:free_open_ocean/widgets/header.dart';
 import 'package:free_open_ocean/widgets/menu.dart';
 import 'package:free_open_ocean/widgets/top_header.dart';
-
 
 // Top bar data and notifier so pages can set a title and submenu that the header will render.
 class TopBarData {
@@ -17,7 +16,9 @@ class TopBarData {
   const TopBarData({this.title, this.submenu, this.ownerId});
 }
 
-final ValueNotifier<TopBarData> topBarNotifier = ValueNotifier(const TopBarData());
+final ValueNotifier<TopBarData> topBarNotifier = ValueNotifier(
+  const TopBarData(),
+);
 
 /// Helper that updates the notifier immediately if safe, or schedules it for the next frame.
 void _updateTopBarNotifier(TopBarData data) {
@@ -27,9 +28,15 @@ void _updateTopBarNotifier(TopBarData data) {
       final prev = topBarNotifier.value;
       // print a concise debug message showing previous and new top bar states
       // include a short stack trace for context
-      final trace = StackTrace.current.toString().split('\n').take(3).join(' | ');
+      final trace = StackTrace.current
+          .toString()
+          .split('\n')
+          .take(3)
+          .join(' | ');
       // ignore long prints in non-debug builds
-      print('[TopBar] update: prev(owner=${prev.ownerId}, title=${prev.title}) -> new(owner=${data.ownerId}, title=${data.title}) ; trace: $trace');
+      debugPrint(
+        '[TopBar] update: prev(owner=${prev.ownerId}, title=${prev.title}) -> new(owner=${data.ownerId}, title=${data.title}) ; trace: $trace',
+      );
     }
     topBarNotifier.value = data;
   }
@@ -74,7 +81,12 @@ class PageTemplate extends StatelessWidget {
   final Widget? floatingActionButton;
   final bool fullScreen;
 
-  const PageTemplate({super.key, required this.body, this.floatingActionButton, this.fullScreen = false});
+  const PageTemplate({
+    super.key,
+    required this.body,
+    this.floatingActionButton,
+    this.fullScreen = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -86,18 +98,9 @@ class PageTemplate extends StatelessWidget {
         body: Stack(
           children: [
             Positioned.fill(child: body),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: const HeaderRow(),
-            ),
-            if (sizes['footer']) Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: const Footer(),
-            ),
+            Positioned(top: 0, left: 0, right: 0, child: const HeaderRow()),
+            if (sizes['footer'])
+              Positioned(bottom: 0, left: 0, right: 0, child: const Footer()),
           ],
         ),
         floatingActionButton: floatingActionButton,
@@ -110,9 +113,7 @@ class PageTemplate extends StatelessWidget {
       body: Column(
         children: [
           sizes['topHeader'] ? const TopHeader() : const SizedBox(),
-          Expanded(
-            child: body,
-          ),
+          Expanded(child: body),
           sizes['footer'] ? const Footer() : const SizedBox(),
         ],
       ),

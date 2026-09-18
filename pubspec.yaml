@@ -19,6 +19,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   google_fonts: ^7.0.2
   shared_preferences: ^2.2.3
+  uuid: ^4.6.0
   flutter_svg: ^2.0.10+1
   package_info_plus: ^9.0.0
   grpc: ^5.1.0
@@ -45,6 +46,10 @@ dev_dependencies:
     sdk: flutter
   build_runner: ^2.10.5
   flutter_lints: ^6.0.0
+
+# flutter_html 3.0.0 calls html's top-level qs.matches(), removed in html 0.15.7.
+dependency_overrides:
+  html: 0.15.6
 
 flutter:
 

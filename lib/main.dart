@@ -1,22 +1,24 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'web_setup_stub.dart' if (dart.library.html) 'web_setup.dart' as web_setup;
+import 'web_setup_stub.dart'
+    if (dart.library.html) 'web_setup.dart'
+    as web_setup;
 import 'package:free_open_ocean/core/router/app_router.dart';
-import 'core/localization/AppLocalizations.dart';
-import 'core/theme/AppTheme.dart' as theme_interface;
-import 'core/theme/theme-data/MainThemeData.dart';
-import 'core/theme/theme-data/MinimalisticThemeData.dart';
+import 'core/localization/app_localizations.dart';
+import 'core/theme/app_theme.dart' as theme_interface;
+import 'core/theme/theme-data/main_theme_data.dart';
 import 'services/app.dart';
 import 'services/api.dart';
-import 'package:free_open_ocean/core/provider/AppProvider.dart';
-import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
+import 'package:free_open_ocean/core/provider/app_provider.dart';
+import 'package:free_open_ocean/core/provider/app_theme_provider.dart';
 import 'package:free_open_ocean/widgets/splash_screen.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (kIsWeb) { web_setup.setupWeb(); }
+  if (kIsWeb) {
+    web_setup.setupWeb();
+  }
   final settingsService = App();
   final appTheme = await settingsService.getTheme();
   final themeModeOption = await settingsService.getThemeMode();
@@ -25,15 +27,17 @@ void main() async {
   final country = await settingsService.getCountry();
   final connectionMode = await settingsService.getConnectionMode();
 
-  runApp(MyApp(
-    settingsService: settingsService,
-    initialAppTheme: appTheme,
-    initialThemeModeOption: themeModeOption,
-    initialLocale: locale,
-    initialDeviceTypeOverride: deviceTypeOverride,
-    initialCountry: country,
-    initialConnectionMode: connectionMode,
-  ));
+  runApp(
+    MyApp(
+      settingsService: settingsService,
+      initialAppTheme: appTheme,
+      initialThemeModeOption: themeModeOption,
+      initialLocale: locale,
+      initialDeviceTypeOverride: deviceTypeOverride,
+      initialCountry: country,
+      initialConnectionMode: connectionMode,
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -69,7 +73,6 @@ class _MyAppState extends State<MyApp> {
   late AppRouter _appRouter;
   late Api _api;
   late ConnectionMode _connectionMode = ConnectionMode.normal;
-  bool _isChangingFromDropdown = false;
   bool _isReady = false;
 
   @override
@@ -82,13 +85,17 @@ class _MyAppState extends State<MyApp> {
     _country = widget.initialCountry;
     _connectionMode = widget.initialConnectionMode;
     _api = Api(app: widget.settingsService);
-    _appRouter = AppRouter(onLocaleChanged: _changeLanguage);
+    _appRouter = AppRouter(
+      initialCountry: _country,
+      initialLocale: _locale,
+      onRegionChanged: _syncRegionFromRoute,
+    );
     _waitForReady();
   }
 
   Future<void> _waitForReady() async {
     try {
-      await widget.settingsService.getEndpoint().timeout(const Duration(seconds: 15));
+      await _api.refresh();
     } catch (_) {}
     if (mounted) {
       setState(() => _isReady = true);
@@ -111,29 +118,38 @@ class _MyAppState extends State<MyApp> {
     widget.settingsService.setThemeMode(mode);
   }
 
-  void _changeLanguage(Locale? locale, bool fromDropdown) {
-    if (locale == null) return;
+  void _syncRegionFromRoute(String country, Locale locale) {
+    if (!mounted) return;
     setState(() {
+      _country = country;
       _locale = locale;
     });
+    widget.settingsService.setCountry(country);
     widget.settingsService.setLocale(locale);
-    if (fromDropdown) {
-      _isChangingFromDropdown = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final currentPath = _appRouter.router.routerDelegate.currentConfiguration.uri.path;
-        final pathParts = currentPath.split('/');
-        if (pathParts.length > 2) {
-          pathParts[2] = locale.languageCode;
-          final newPath = pathParts.join('/');
-          _appRouter.router.go(newPath);
-        }
-        _isChangingFromDropdown = false;
-      });
-    }
+  }
+
+  void _rewriteRegion({String? country, String? language}) {
+    final router = _appRouter.router;
+    final uri = router.routerDelegate.currentConfiguration.uri;
+    router.go(
+      AppRouter.withRegion(
+        uri,
+        country: country,
+        language: language,
+      ).toString(),
+    );
+  }
+
+  void _changeLanguage(Locale? locale, bool fromDropdown) {
+    if (locale == null) return;
+    setState(() => _locale = locale);
+    widget.settingsService.setLocale(locale);
+    if (fromDropdown) _rewriteRegion(language: locale.languageCode);
   }
 
   void _changeDeviceTypeOverride(
-      theme_interface.DeviceTypeOverride? deviceTypeOverride) {
+    theme_interface.DeviceTypeOverride? deviceTypeOverride,
+  ) {
     if (deviceTypeOverride == null) return;
     setState(() {
       _deviceTypeOverride = deviceTypeOverride;
@@ -143,19 +159,16 @@ class _MyAppState extends State<MyApp> {
 
   void _changeCountry(String? country) {
     if (country == null) return;
-    setState(() {
-      _country = country;
-    });
+    setState(() => _country = country);
     widget.settingsService.setCountry(country);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final currentPath = _appRouter.router.routerDelegate.currentConfiguration.uri.path;
-      final pathParts = currentPath.split('/');
-      if (pathParts.length >= 3) {
-        pathParts[1] = country;
-        final newPath = pathParts.join('/');
-        _appRouter.router.go(newPath);
-      }
-    });
+    _rewriteRegion(country: country);
+  }
+
+  @override
+  void dispose() {
+    _api.dispose();
+    _appRouter.dispose();
+    super.dispose();
   }
 
   void _changeConnectionMode(ConnectionMode? mode) {
@@ -173,7 +186,7 @@ class _MyAppState extends State<MyApp> {
     theme_interface.AppTheme currentTheme;
 
     switch (_appTheme) {
-      case theme_interface.AppThemeEnum.main_theme:
+      case theme_interface.AppThemeEnum.mainTheme:
         lightTheme = MainThemeData.buildThemeData(false);
         darkTheme = MainThemeData.buildThemeData(true);
         currentTheme = MainThemeData();
@@ -213,15 +226,7 @@ class _MyAppState extends State<MyApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      localeResolutionCallback: (locale, supportedLocales) {
-        for (var supportedLocale in supportedLocales) {
-          if (supportedLocale.languageCode == locale?.languageCode &&
-              supportedLocale.countryCode == locale?.countryCode) {
-            return supportedLocale;
-          }
-        }
-        return supportedLocales.first;
-      },
+      localeResolutionCallback: AppLocalizations.resolveLocale,
       routerConfig: _appRouter.router,
       builder: (context, child) {
         return AppProvider(

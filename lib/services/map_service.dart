@@ -9,7 +9,9 @@ class MapService {
     return 'https://api.protomaps.com/styles/v2/$colorSchema.json?key=${Config.apiKey}';
   }
 
-  static Future<void> getCurrentLocation(MaplibreMapController controller) async {
+  static Future<void> getCurrentLocation(
+    MapLibreMapController controller,
+  ) async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
@@ -32,7 +34,9 @@ class MapService {
       }
 
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
 
       controller.animateCamera(
@@ -43,7 +47,7 @@ class MapService {
       );
     } catch (e) {
       // Handle error
-      print('Error getting location: $e');
+      debugPrint('Error getting location: $e');
     }
   }
 }

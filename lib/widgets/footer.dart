@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
-import 'package:free_open_ocean/core/provider/AppProvider.dart';
+import 'package:free_open_ocean/core/localization/app_localizations.dart';
+import 'package:free_open_ocean/core/provider/app_provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
+import 'package:free_open_ocean/core/provider/app_theme_provider.dart';
 
 class Footer extends StatefulWidget {
   const Footer({super.key});
@@ -22,6 +22,7 @@ class _FooterState extends State<Footer> {
 
   Future<void> _initPackageInfo() async {
     final info = await PackageInfo.fromPlatform();
+    if (!mounted) return;
     setState(() {
       _version = info.version;
     });
@@ -43,9 +44,11 @@ class _FooterState extends State<Footer> {
           if (app != null)
             ListenableBuilder(
               listenable: app,
-              builder: (context, child) => AppProvider.buildFooterConnectionStatusIcon(context),
+              builder: (context, child) =>
+                  AppProvider.buildFooterConnectionStatusIcon(context),
             )
-          else AppProvider.buildFooterConnectionStatusIcon(context),
+          else
+            AppProvider.buildFooterConnectionStatusIcon(context),
           const SizedBox(width: 8),
           Flexible(
             child: Text(

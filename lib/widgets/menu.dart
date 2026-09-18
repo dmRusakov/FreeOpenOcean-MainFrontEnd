@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:country_flags/country_flags.dart';
 import 'package:free_open_ocean/common/element/logo.dart';
-import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
-import '../core/theme/AppTheme.dart';
-import 'package:free_open_ocean/common/element/appButon.dart';
-import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
+import 'package:free_open_ocean/core/localization/app_localizations.dart';
+import 'package:free_open_ocean/common/element/app_button.dart';
+import 'package:free_open_ocean/core/provider/app_theme_provider.dart';
 
 class AppMenu extends StatelessWidget {
   const AppMenu({super.key});
@@ -34,11 +32,13 @@ class AppMenu extends StatelessWidget {
                         Logo(
                           onPressed: () {
                             context.routerGoTo('');
-                            },
+                          },
                           size: theme.sizes['headerButtonSize'],
                         ),
                         AppButton(
-                          onPressed: () { Navigator.pop(context); },
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
                           icon: Icons.close,
                           size: theme.sizes['headerButtonSize'],
                         ),
@@ -101,8 +101,12 @@ class AppMenu extends StatelessWidget {
                         'US',
                         theme: const ImageTheme(width: 20, height: 14),
                       ),
-                      const SizedBox(width:8.0),
-                      Text(localizations.translate('made_for_ocean_cruisers_in_usa')),
+                      const SizedBox(width: 8.0),
+                      Text(
+                        localizations.translate(
+                          'made_for_ocean_cruisers_in_usa',
+                        ),
+                      ),
                     ],
                   ),
                 ),

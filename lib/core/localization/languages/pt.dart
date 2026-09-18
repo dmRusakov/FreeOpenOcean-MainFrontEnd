@@ -1,11 +1,18 @@
 const Map<String, String> ptTranslations = {
+  "page_load_failed":
+      "Não foi possível carregar esta página. Verifique a conexão e tente novamente.",
+  "connection_disabled_message":
+      "A conexão com o servidor está desativada. Ative-a nas configurações gerais.",
+  "retry": "Tentar novamente",
+
   'about': 'Sobre',
   'settings': 'Configurações',
   'home_page': 'Página Inicial',
   'about_page': 'Página Sobre',
   'ocean_charts': 'Mapa do Oceano',
   'donations': 'Doações',
-  'footer_text': 'FreeOpenOcean.com ou seus afiliados. Todos os direitos reservados.',
+  'footer_text':
+      'FreeOpenOcean.com ou seus afiliados. Todos os direitos reservados.',
   'user': 'Usuário',
   'made_in_usa': 'Feito nos EUA',
   'user_page': 'Página do usuário',
@@ -18,7 +25,8 @@ const Map<String, String> ptTranslations = {
   'dark_theme': 'Tema Escuro',
   'select_theme_mode': 'Selecionar Modo de Tema',
   'search_theme_mode': 'Buscar modos de tema',
-  'select_device_type_override': 'Selecionar Substituição de Tipo de Dispositivo',
+  'select_device_type_override':
+      'Selecionar Substituição de Tipo de Dispositivo',
   'search_device_type_override': 'Buscar substituições de tipo de dispositivo',
   'auto': 'Auto',
   'mobile': 'Móvel',
@@ -31,7 +39,8 @@ const Map<String, String> ptTranslations = {
   'portuguese': 'Português',
   'russian': 'Russo (Русский)',
   'settings_page_title': 'Configurações - Free Open Ocean',
-  'settings_page_description': 'Personalize sua experiência com as configurações do Free Open Ocean. Gerencie temas, idiomas e muito mais.',
+  'settings_page_description':
+      'Personalize sua experiência com as configurações do Free Open Ocean. Gerencie temas, idiomas e muito mais.',
   'app_theme_label': 'Tema do App',
   'theme_mode_label': 'Modo de Tema',
   'device_type_override_label': 'Substituição de Tipo de Dispositivo',

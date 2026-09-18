@@ -1,4 +1,10 @@
 const Map<String, String> ruTranslations = {
+  "page_load_failed":
+      "Не удалось загрузить страницу. Проверьте подключение и повторите попытку.",
+  "connection_disabled_message":
+      "Подключение к серверу отключено. Включите его в общих настройках.",
+  "retry": "Повторить",
+
   'about': 'О нас',
   'settings': 'Настройки',
   'home_page': 'Главная страница',
@@ -31,7 +37,8 @@ const Map<String, String> ruTranslations = {
   'portuguese': 'Португальский (Português)',
   'russian': 'Русский',
   'settings_page_title': 'Настройки - Free Open Ocean',
-  'settings_page_description': 'Настройте свой опыт с настройками Free Open Ocean. Управляйте темами, языками и многим другим.',
+  'settings_page_description':
+      'Настройте свой опыт с настройками Free Open Ocean. Управляйте темами, языками и многим другим.',
   'app_theme_label': 'Тема приложения',
   'theme_mode_label': 'Режим темы',
   'device_type_override_label': 'Переопределение типа устройства',

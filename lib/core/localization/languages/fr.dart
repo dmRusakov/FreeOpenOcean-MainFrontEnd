@@ -1,4 +1,10 @@
 const Map<String, String> frTranslations = {
+  "page_load_failed":
+      "Impossible de charger cette page. Vérifiez votre connexion et réessayez.",
+  "connection_disabled_message":
+      "La connexion au serveur est désactivée. Activez-la dans les paramètres généraux.",
+  "retry": "Réessayer",
+
   'about': 'À propos',
   'settings': 'Paramètres',
   'home_page': 'Page d\'accueil',
@@ -18,8 +24,10 @@ const Map<String, String> frTranslations = {
   'dark_theme': 'Thème Sombre',
   'select_theme_mode': 'Sélectionner le Mode de Thème',
   'search_theme_mode': 'Rechercher des modes de thème',
-  'select_device_type_override': 'Sélectionner la Substitution de Type d\'Appareil',
-  'search_device_type_override': 'Rechercher des substitutions de type d\'appareil',
+  'select_device_type_override':
+      'Sélectionner la Substitution de Type d\'Appareil',
+  'search_device_type_override':
+      'Rechercher des substitutions de type d\'appareil',
   'auto': 'Auto',
   'mobile': 'Mobile',
   'tablet': 'Tablette',
@@ -31,7 +39,8 @@ const Map<String, String> frTranslations = {
   'portuguese': 'Portugais (Português)',
   'russian': 'Russe (Русский)',
   'settings_page_title': 'Paramètres - Free Open Ocean',
-  'settings_page_description': 'Personnalisez votre expérience avec les paramètres de Free Open Ocean. Gérez les thèmes, les langues et plus encore.',
+  'settings_page_description':
+      'Personnalisez votre expérience avec les paramètres de Free Open Ocean. Gérez les thèmes, les langues et plus encore.',
   'app_theme_label': 'Thème de l\'App',
   'theme_mode_label': 'Mode de Thème',
   'device_type_override_label': 'Substitution de Type d\'Appareil',

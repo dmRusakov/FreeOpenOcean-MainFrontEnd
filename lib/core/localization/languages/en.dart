@@ -1,4 +1,10 @@
 const Map<String, String> enTranslations = {
+  "page_load_failed":
+      "Unable to load this page. Check your connection and try again.",
+  "connection_disabled_message":
+      "Backend connection is disabled. Enable it in General settings to load this page.",
+  "retry": "Retry",
+
   'about': 'About',
   'settings': 'Settings',
   'home_page': 'Home Page',
@@ -32,7 +38,8 @@ const Map<String, String> enTranslations = {
   'portuguese': 'Portuguese (Português)',
   'russian': 'Russian (Русский)',
   'settings_page_title': 'Settings - Free Open Ocean',
-  'settings_page_description': 'Customize your experience with Free Open Ocean settings. Manage themes, languages, and more.',
+  'settings_page_description':
+      'Customize your experience with Free Open Ocean settings. Manage themes, languages, and more.',
   'app_theme_label': 'App Theme',
   'theme_mode_label': 'Theme Mode',
   'device_type_override_label': 'Device Type Override',

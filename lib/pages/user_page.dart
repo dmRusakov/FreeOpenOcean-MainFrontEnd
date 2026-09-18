@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:free_open_ocean/pages/page_template.dart';
-import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
+import 'package:free_open_ocean/core/localization/app_localizations.dart';
 
 class UserPage extends StatefulWidget {
   final Map<String, String>? params;
@@ -16,8 +16,13 @@ class _UserPageState extends State<UserPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final localizations = AppLocalizations.of(context)!;
-      setTopBar(title: localizations.translate('user_page'), ownerId: 'user_page', submenu: []);
+      setTopBar(
+        title: localizations.translate('user_page'),
+        ownerId: 'user_page',
+        submenu: [],
+      );
     });
   }
 

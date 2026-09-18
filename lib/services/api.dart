@@ -1,170 +1,253 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:free_open_ocean/services/app.dart';
-import 'package:free_open_ocean_grpc/src/grpc/status/v1/status.pb.dart' as status_pb;
-import 'package:free_open_ocean_grpc/src/grpc/status/v1/status.pbgrpc.dart';
 import 'package:grpc/grpc.dart';
 import 'package:http/http.dart' as http;
+// The contracts package currently exposes generated files only.
+// ignore: implementation_imports
+import 'package:free_open_ocean_grpc/src/grpc/status/v1/status.pbgrpc.dart'
+    as status_pb;
+import '../config/config.dart';
 import '../models/endpoint.dart';
-import 'package:free_open_ocean/config/config.dart';
+import '../models/connection_exception.dart';
+import 'app.dart';
 
-enum ConnectionMode { normal, silent, disable, }
-enum ConnectionStatus { online, connecting, offline, }
+enum ConnectionMode { normal, silent, disable }
+
+enum ConnectionStatus { online, connecting, offline }
 
 class Api {
-  static const String statusGetPath = '/status.v1.Status/Get';
-
-  late Endpoint? selectedEndpoint = null;
-  Completer<Endpoint>? endpointCompleter;
-
-  final App? app;
+  static const statusGetPath = '/status.v1.Status/Get';
+  final App app;
   final Duration retryInterval;
+  final Duration healthInterval;
+  final Duration probeTimeout;
+  final List<Endpoint> endpoints;
+  final bool useHttp;
+  final http.Client Function() clientFactory;
+  final Set<http.Client> _clients = {};
+  final Set<ClientChannel> _channels = {};
+  Timer? _timer;
+  Future<void>? _refreshing;
+  late ConnectionMode _mode;
+  int _generation = 0;
+  bool _disposed = false;
 
-  // Get fasts endpoint
-  //
-  // Returns the endpoint that responds OK and have lowest duration
-  Future<Endpoint?>getFastestEndpoint(List<Endpoint> endpoints, {Duration timeout = const Duration(seconds: 5)}) async {
-    await app?.setConnectionStatus(ConnectionStatus.connecting);
-    Endpoint? fastest;
-    for (final ep in endpoints) {
-      final isOk = await checkEndpoint(ep, timeout: timeout);
-      if (isOk) {
-        if (fastest == null || ep.durations < fastest.durations) {
-          fastest = ep;
-        }
-      }
-    }
-
-    app?.setConnectionStatus(fastest != null ? ConnectionStatus.online : ConnectionStatus.offline);
-
-    return fastest;
+  Api({
+    required this.app,
+    List<Endpoint>? endpoints,
+    this.retryInterval = const Duration(seconds: 20),
+    this.healthInterval = const Duration(minutes: 15),
+    this.probeTimeout = const Duration(seconds: 5),
+    this.useHttp = kIsWeb,
+    http.Client Function()? clientFactory,
+    bool autoStart = true,
+  }) : endpoints = endpoints ?? Config.endpoints,
+       clientFactory = clientFactory ?? http.Client.new {
+    _mode = app.connectionMode;
+    app.addListener(_onAppChanged);
+    if (autoStart) unawaited(refresh());
   }
 
-  // Check endpoint
-  // Checks if the given endpoint is reachable by making a status request. Updates the endpoint's info if successful.
-  //
-  // Returns true if endpoint is reachable and updates its info (id, name, loads, appKey) from the response
-  Future<bool> checkEndpoint(Endpoint ep, {Duration timeout = const Duration(seconds: 5)}) async {
-    // load sessionId
-    final sessionId = await app!.getSessionId();
+  Endpoint? get selectedEndpoint => app.endpoint;
+  bool get isEnabled =>
+      !_disposed && app.connectionMode != ConnectionMode.disable;
 
-    // make request
-    final request = status_pb.GetRequest();
+  void _ensureEnabled([int? generation]) {
+    if (!isEnabled || generation != null && generation != _generation) {
+      throw const ConnectionUnavailable(
+        'Backend connection is disabled or has changed.',
+      );
+    }
+  }
 
-    // grpc
-    ep.isGrpc = !kIsWeb;
+  void _onAppChanged() {
+    if (_mode == app.connectionMode) return;
+    final wasDisabled = _mode == ConnectionMode.disable;
+    _mode = app.connectionMode;
+    if (_mode == ConnectionMode.disable) {
+      _generation++;
+      _refreshing = null;
+      _timer?.cancel();
+      _cancelRequests();
+      unawaited(app.setConnectionStatus(ConnectionStatus.offline));
+    } else if (wasDisabled) {
+      unawaited(refresh());
+    }
+  }
 
-    // start time
-    final startTime = DateTime.now();
+  void _cancelRequests() {
+    for (final client in _clients.toList()) {
+      client.close();
+    }
+    _clients.clear();
+    for (final channel in _channels.toList()) {
+      unawaited(channel.terminate());
+    }
+    _channels.clear();
+  }
 
+  Future<http.Response> post(
+    Endpoint ep,
+    String path,
+    List<int> body, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    _ensureEnabled();
+    final generation = _generation;
+    final sessionId = await app.getSessionId();
+    _ensureEnabled(generation);
+    final client = clientFactory();
+    _clients.add(client);
     try {
-      if (ep.isGrpc) {
-        final channel = ClientChannel(
-          ep.grpcHost,
-          port: ep.grpcPort,
-          options: ChannelOptions(credentials: ChannelCredentials.insecure()),
+      final response = await client
+          .post(
+            ep.httpStatusUri(path),
+            headers: {
+              'Content-Type': 'application/x-protobuf',
+              'X-App-Session': sessionId,
+              'X-App-Key': ep.appKey,
+            },
+            body: body,
+          )
+          .timeout(timeout);
+      _ensureEnabled(generation);
+      return response;
+    } finally {
+      _clients.remove(client);
+      client.close();
+    }
+  }
+
+  Future<T> grpc<T>(
+    Endpoint ep,
+    Future<T> Function(ClientChannel, CallOptions) request, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    _ensureEnabled();
+    final generation = _generation;
+    final sessionId = await app.getSessionId();
+    _ensureEnabled(generation);
+    final channel = ClientChannel(
+      ep.grpcHost,
+      port: ep.grpcPort,
+      options: ChannelOptions(
+        credentials: ep.grpcSecure
+            ? const ChannelCredentials.secure()
+            : const ChannelCredentials.insecure(),
+      ),
+    );
+    _channels.add(channel);
+    try {
+      final result = await request(
+        channel,
+        CallOptions(
+          timeout: timeout,
+          metadata: {'x-app-session': sessionId, 'x-app-key': ep.appKey},
+        ),
+      ).timeout(timeout);
+      _ensureEnabled(generation);
+      return result;
+    } finally {
+      _channels.remove(channel);
+      await channel.terminate();
+    }
+  }
+
+  Future<bool> checkEndpoint(
+    Endpoint ep, {
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    if (!isEnabled) return false;
+    final started = DateTime.now();
+    try {
+      final request = status_pb.GetRequest();
+      final status_pb.GetResponse response;
+      if (useHttp) {
+        final result = await post(
+          ep,
+          statusGetPath,
+          request.writeToBuffer(),
+          timeout: timeout,
         );
-
-        try {
-          final client = StatusClient(channel);
-          final request = status_pb.GetRequest();
-          final response = await client.get(request, options: CallOptions(metadata: {
-            'X-App-Session': sessionId,
-            'X-App-Key': ep.appKey,
-          })).timeout(timeout);
-
-          ep.id = response.id.toString();
-          ep.name = response.name.toString();
-          ep.loads = int.tryParse(response.loads.toString()) ?? 0;
-          ep.appKey = response.key.toString();
-          ep.durations = DateTime.now().difference(startTime);
-
-          return true;
-        } catch (_) {
-          return false;
-        } finally {
-          await channel.shutdown();
-        }
+        if (result.statusCode != 200) return false;
+        response = status_pb.GetResponse.fromBuffer(result.bodyBytes);
       } else {
-        // make URL
-        final url = Uri.parse('${ep.httpHost}:${ep.httpPort}$statusGetPath');
-
-        // get data from server
-        final responseData = await http.post(
-          url,
-          headers: {
-            'Content-Type': 'application/x-protobuf',
-            'X-App-Session': sessionId,
-            'X-App-Key': ep.appKey,
-          },
-          body: request.writeToBuffer(),
-        ).timeout(const Duration(seconds: 20));
-
-        // check status code
-        if (responseData.statusCode == 200) {
-          final response = status_pb.GetResponse()..mergeFromBuffer(responseData.bodyBytes);
-          ep.id = response.id.toString();
-          ep.name = response.name.toString();
-          ep.loads = int.tryParse(response.loads.toString()) ?? 0;
-          ep.appKey = response.key.toString();
-
-          return true;
-        } else {
-          return false;
-        }
+        response = await grpc(
+          ep,
+          (channel, options) =>
+              status_pb.StatusClient(channel).get(request, options: options),
+          timeout: timeout,
+        );
       }
-    } catch (e) {
+      ep.id = response.id;
+      ep.name = response.name;
+      ep.appKey = response.key;
+      ep.loads = 0;
+      ep.isGrpc = !useHttp;
+      ep.durations = DateTime.now().difference(started);
+      return true;
+    } catch (_) {
       return false;
     }
   }
 
-  // Constructor
-  Api({this.app, this.retryInterval = const Duration(seconds: 20)}) {
-    Future(() async {
-      var sessionEndpointId = await app?.getEndpointId();
-      late Endpoint? ep = null;
+  Future<Endpoint?> getFastestEndpoint(
+    List<Endpoint> candidates, {
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    if (!isEnabled) return null;
+    final results = await Future.wait(
+      candidates.map(
+        (ep) async => await checkEndpoint(ep, timeout: timeout) ? ep : null,
+      ),
+    );
+    final reachable = results.whereType<Endpoint>().toList()
+      ..sort((a, b) => a.durations.compareTo(b.durations));
+    return reachable.isEmpty ? null : reachable.first;
+  }
 
-      // if sessionEndpointId is not null, try to find matching endpoint and check it
-      if (sessionEndpointId != null) {
-        ep = Config.endpoints.firstWhere((e) => e.id == sessionEndpointId, orElse: () => Config.endpoints.first);
-        if (ep != null) {
-          final isOk = await checkEndpoint(ep);
-          if (!isOk) {
-            ep = null;
-          }
-        }
-        await app?.setEndpoint(ep);
-        selectedEndpoint = ep;
-        if (ep != null && endpointCompleter != null && !endpointCompleter!.isCompleted) {
-          endpointCompleter!.complete(ep);
-        }
-
-        app?.setConnectionStatus(ep != null ? ConnectionStatus.online : ConnectionStatus.connecting);
+  Future<void> refresh() {
+    if (_disposed) return Future.value();
+    if (!isEnabled) return app.setConnectionStatus(ConnectionStatus.offline);
+    if (_refreshing != null) return _refreshing!;
+    _timer?.cancel();
+    final generation = _generation;
+    late final Future<void> work;
+    work = _discover(generation).whenComplete(() {
+      if (identical(_refreshing, work)) _refreshing = null;
+      if (isEnabled && generation == _generation) {
+        _timer = Timer(
+          selectedEndpoint == null ? retryInterval : healthInterval,
+          () => unawaited(refresh()),
+        );
       }
-
-      // if no valid session endpoint, check all endpoints and print results
-      if (ep == null) {
-        ep = await getFastestEndpoint(Config.endpoints);
-        await app?.setEndpoint(ep);
-        selectedEndpoint = ep;
-        if (ep != null && endpointCompleter != null && !endpointCompleter!.isCompleted) {
-          endpointCompleter!.complete(ep);
-        }
-      }
-
-      // make cron job getFastestEndpoint every 15 minutes to update selected endpoint if needed
-      Future.doWhile(() async {
-        await Future.delayed(const Duration(minutes: 15));
-        final fastest = await getFastestEndpoint(Config.endpoints);
-        if (fastest != null && fastest.id != selectedEndpoint?.id) {
-          selectedEndpoint = fastest;
-          await app?.setEndpoint(selectedEndpoint);
-          if (endpointCompleter != null && !endpointCompleter!.isCompleted) {
-            endpointCompleter!.complete(selectedEndpoint!);
-          }
-        }
-        return true; // continue the loop
-      });
     });
+    _refreshing = work;
+    return work;
+  }
+
+  Future<void> _discover(int generation) async {
+    await app.setConnectionStatus(ConnectionStatus.connecting);
+    final fastest = await getFastestEndpoint(endpoints, timeout: probeTimeout);
+    if (!isEnabled || generation != _generation) return;
+    // Publish availability before persisting the selected endpoint.
+    final saved = app.setEndpoint(fastest);
+    await app.setConnectionStatus(
+      fastest == null ? ConnectionStatus.offline : ConnectionStatus.online,
+    );
+    try {
+      await saved;
+    } catch (error) {
+      debugPrint('Could not persist the selected endpoint: $error');
+    }
+  }
+
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _generation++;
+    app.removeListener(_onAppChanged);
+    _timer?.cancel();
+    _cancelRequests();
   }
 }

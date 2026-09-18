@@ -7,8 +7,8 @@
 ## Big Picture Architecture
 - App bootstraps in `lib/main.dart`: preload persisted settings from `App` (`lib/services/app.dart`), create `Api`, then gate UI with `SplashScreen` until an endpoint is ready (`_waitForReady`).
 - Global state is provided through two inherited widgets:
-  - `AppProvider` (`lib/core/provider/AppProvider.dart`) for `App` + `Api` + connection helpers.
-  - `AppThemeProvider` (`lib/core/provider/AppThemeProvider.dart`) for theme/device/locale/country/connection mode and callbacks.
+  - `AppProvider` (`lib/core/provider/app_provider.dart`) for `App` + `Api` + connection helpers.
+  - `AppThemeProvider` (`lib/core/provider/app_theme_provider.dart`) for theme/device/locale/country/connection mode and callbacks.
 - Routing is centralized in `lib/core/router/app_router.dart` using `go_router`; canonical URL format is `/:country/:language/<page>` (example: `/USA/en/settings`).
 - Header title/submenu is shared across pages through `topBarNotifier` in `lib/pages/page_template.dart`; pages set it in `didChangeDependencies` and clear it in `dispose`.
 

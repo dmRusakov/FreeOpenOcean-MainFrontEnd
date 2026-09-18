@@ -1,67 +1,37 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'dart:async';
-import 'package:grpc/grpc.dart';
-import 'package:http/http.dart' as http;
-import 'package:free_open_ocean_grpc/src/grpc/pages/v1/pages.pbgrpc.dart' show PageServiceClient;
-import 'package:free_open_ocean_grpc/src/grpc/pages/v1/pages.pb.dart' as pages_pb;
-import 'package:free_open_ocean/services/api.dart';
-import 'package:free_open_ocean/core/provider/AppProvider.dart';
+// The contracts package currently exposes generated files only.
+// ignore: implementation_imports
+import 'package:free_open_ocean_grpc/src/grpc/pages/v1/pages.pbgrpc.dart'
+    as pages_pb;
+import 'api.dart';
 
 class PageService {
-  static const String pageGetPath = '/pages.v1.PageService/Get';
-
+  static const pageGetPath = '/pages.v1.PageService/Get';
   final Api api;
-
   PageService(this.api);
 
-  /// Get page data by slug, with required language and country.
-  Future<pages_pb.Page> get(BuildContext context, String slug, String language, String country) async {
+  Future<pages_pb.Page> get(
+    BuildContext context,
+    String slug,
+    String language,
+    String country,
+  ) async {
     final request = pages_pb.GetRequest()
       ..slug = slug.toLowerCase()
       ..languageCode = language.toLowerCase()
       ..countryCode = country.toLowerCase();
-
-    final ep = await context.getEndpoint();
-
-    try {
-      if (kIsWeb) {
-        final url = Uri.parse('${ep.httpHost}:${ep.httpPort}$pageGetPath');
-        final requestBytes = request.writeToBuffer();
-        final response = await http.post(
-          url,
-          headers: {
-            'Content-Type': 'application/x-protobuf',
-            'X-App-Session': "3333",
-            'X-App-Key': ep.appKey,
-          },
-          body: requestBytes,
-        ).timeout(const Duration(seconds: 10));
-
-        if (response.statusCode == 200) {
-          final pageResponse = pages_pb.Page()..mergeFromBuffer(response.bodyBytes);
-          return pageResponse;
-        } else {
-          throw Exception('HTTP ${response.statusCode}: ${response.body}');
-        }
-      } else {
-        final channel = ClientChannel(
-          ep.grpcHost,
-          port: ep.grpcPort,
-          options: ChannelOptions(credentials: ChannelCredentials.insecure()),
-        );
-
-        try {
-          final client = PageServiceClient(channel);
-          final response = await client.get(request).timeout(const Duration(seconds: 10));
-          return response;
-        } finally {
-          await channel.shutdown();
-        }
+    final ep = await api.app.getEndpoint();
+    if (api.useHttp) {
+      final response = await api.post(ep, pageGetPath, request.writeToBuffer());
+      if (response.statusCode != 200) {
+        throw Exception('Page request failed (HTTP ${response.statusCode}).');
       }
-    } catch (e) {
-      throw Exception('Failed to get page data: $e');
+      return pages_pb.Page.fromBuffer(response.bodyBytes);
     }
+    return api.grpc(
+      ep,
+      (channel, options) =>
+          pages_pb.PageServiceClient(channel).get(request, options: options),
+    );
   }
 }
-

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:free_open_ocean/pages/page_template.dart';
-import 'package:free_open_ocean/core/localization/AppLocalizations.dart';
+import 'package:free_open_ocean/core/localization/app_localizations.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:free_open_ocean/services/map_service.dart';
 
@@ -19,8 +19,13 @@ class _OceanChartsState extends State<OceanCharts> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final localizations = AppLocalizations.of(context)!;
-      setTopBar(title: localizations.translate('ocean_charts'), ownerId: 'ocean_charts', submenu: []);
+      setTopBar(
+        title: localizations.translate('ocean_charts'),
+        ownerId: 'ocean_charts',
+        submenu: [],
+      );
     });
   }
 
@@ -36,27 +41,27 @@ class _OceanChartsState extends State<OceanCharts> {
     return PageTemplate(
       fullScreen: true,
       body: kIsWeb
-          ? MaplibreMap(
-        styleString: styleUrl,
-        initialCameraPosition: const CameraPosition(
-          target: LatLng(0, 0),
-          zoom: 2,
-        ),
-        onMapCreated: (MaplibreMapController controller) {
-          MapService.getCurrentLocation(controller);
-        },
-      )
-          : MaplibreMap(
-        styleString: styleUrl,
-        initialCameraPosition: const CameraPosition(
-          target: LatLng(0, 0),
-          zoom: 2,
-        ),
-        myLocationRenderMode: MyLocationRenderMode.compass,
-        onMapCreated: (MaplibreMapController controller) {
-          // Add any additional setup here if needed
-        },
-      ),
+          ? MapLibreMap(
+              styleString: styleUrl,
+              initialCameraPosition: const CameraPosition(
+                target: LatLng(0, 0),
+                zoom: 2,
+              ),
+              onMapCreated: (MapLibreMapController controller) {
+                MapService.getCurrentLocation(controller);
+              },
+            )
+          : MapLibreMap(
+              styleString: styleUrl,
+              initialCameraPosition: const CameraPosition(
+                target: LatLng(0, 0),
+                zoom: 2,
+              ),
+              myLocationRenderMode: MyLocationRenderMode.compass,
+              onMapCreated: (MapLibreMapController controller) {
+                // Add any additional setup here if needed
+              },
+            ),
     );
   }
 }

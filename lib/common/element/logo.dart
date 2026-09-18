@@ -1,7 +1,7 @@
 // File: `front-end-main/lib/common/element/logo.dart`
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:free_open_ocean/core/provider/AppThemeProvider.dart';
+import 'package:free_open_ocean/core/provider/app_theme_provider.dart';
 
 class Logo extends StatefulWidget {
   const Logo({

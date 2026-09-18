@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../core/theme/AppTheme.dart';
-import '../core/provider/AppThemeProvider.dart';
+import '../core/provider/app_theme_provider.dart';
 
 class TopHeader extends StatelessWidget {
   const TopHeader({super.key});
@@ -16,7 +15,11 @@ class TopHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.info_outline, color: theme.color['text'] as Color, size: 16),
+          Icon(
+            Icons.info_outline,
+            color: theme.color['text'] as Color,
+            size: 16,
+          ),
           const SizedBox(width: 8),
           const Text(
             'This is the top header for additional information.',

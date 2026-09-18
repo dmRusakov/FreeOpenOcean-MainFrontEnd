@@ -1,11 +1,18 @@
 const Map<String, String> esTranslations = {
+  "page_load_failed":
+      "No se pudo cargar esta página. Comprueba la conexión e inténtalo de nuevo.",
+  "connection_disabled_message":
+      "La conexión al servidor está desactivada. Actívala en los ajustes generales.",
+  "retry": "Reintentar",
+
   'about': 'Acerca de',
   'settings': 'Configuración',
   'home_page': 'Página de Inicio',
   'about_page': 'Página Acerca de',
   'ocean_charts': 'Mapa del Océano',
   'donations': 'Donaciones',
-  'footer_text': 'FreeOpenOcean.com o sus afiliados. Todos los derechos reservados.',
+  'footer_text':
+      'FreeOpenOcean.com o sus afiliados. Todos los derechos reservados.',
   'user': 'Usuario',
   'made_in_usa': 'Hecho en EE.UU.',
   'user_page': 'Página de usuario',
@@ -31,7 +38,8 @@ const Map<String, String> esTranslations = {
   'portuguese': 'Portugués (Português)',
   'russian': 'Ruso (Русский)',
   'settings_page_title': 'Configuración - Free Open Ocean',
-  'settings_page_description': 'Personaliza tu experiencia con la configuración de Free Open Ocean. Gestiona temas, idiomas y más.',
+  'settings_page_description':
+      'Personaliza tu experiencia con la configuración de Free Open Ocean. Gestiona temas, idiomas y más.',
   'app_theme_label': 'Tema de la App',
   'theme_mode_label': 'Modo de Tema',
   'device_type_override_label': 'Anulación de Tipo de Dispositivo',

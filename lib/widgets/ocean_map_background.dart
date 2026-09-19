@@ -15,20 +15,18 @@ class OceanMapBackground extends StatelessWidget {
 
   /// Compass is only shown on Charts; other pages keep attribution only.
   final bool showCompass;
-  final double controlBottomInset;
 
   const OceanMapBackground({
     super.key,
     this.interactive = false,
     this.showCompass = false,
-    this.controlBottomInset = 0,
   });
 
   @override
   Widget build(BuildContext context) {
     final styleUrl = MapService.getStyleUrl(Theme.of(context).brightness);
     if (kIsWeb) {
-      web_setup.setMapControlInsets(0, controlBottomInset);
+      web_setup.setMapControlInsets(0, 0);
     }
 
     Widget map = MapLibreMap(
@@ -48,9 +46,9 @@ class OceanMapBackground extends StatelessWidget {
       compassViewPosition:
           showCompass ? CompassViewPosition.bottomRight : null,
       compassViewMargins:
-          showCompass && !kIsWeb ? Point(0, controlBottomInset) : null,
+          showCompass && !kIsWeb ? const Point(0, 0) : null,
       attributionButtonPosition: AttributionButtonPosition.bottomRight,
-      attributionButtonMargins: kIsWeb ? null : Point(0, controlBottomInset),
+      attributionButtonMargins: kIsWeb ? null : const Point(0, 0),
       onMapCreated: (controller) {
         if (kIsWeb) MapService.getCurrentLocation(controller);
       },

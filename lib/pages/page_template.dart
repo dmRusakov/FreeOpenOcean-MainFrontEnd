@@ -124,7 +124,6 @@ class PageTemplate extends StatelessWidget {
                 child: OceanMapBackground(
                   interactive: fullScreen,
                   showCompass: showCompass,
-                  controlBottomInset: footerHeight,
                 ),
               ),
               // Charts: full-bleed interactive map. Other pages: content panel over map.

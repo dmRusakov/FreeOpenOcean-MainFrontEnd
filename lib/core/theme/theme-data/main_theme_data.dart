@@ -155,7 +155,7 @@ class MainThemeData extends AppTheme {
   Map<String, dynamic> get colors => {
     'header': <String, dynamic>{'background': Colors.transparent},
     'footer': <String, dynamic>{
-      'background': const Color(0xE6101619),
+      'background': Colors.transparent,
       'text': ivory,
     },
     'primary': ember,

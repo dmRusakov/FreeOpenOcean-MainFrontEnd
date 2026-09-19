@@ -1,0 +1,203 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+
+import '../provider/app_theme_provider.dart';
+import 'countries.dart';
+import 'languages/en.dart';
+import 'languages/es.dart';
+import 'languages/fr.dart';
+import 'languages/pt.dart';
+import 'languages/ru.dart';
+import 'package:free_open_ocean/common/element/app_dropdown.dart';
+
+class AppLocalizations {
+  final Locale locale;
+
+  AppLocalizations(this.locale);
+
+  // Country selection is independent of the five supported UI languages.
+  static Locale resolveLocale(Locale? requested, Iterable<Locale> supported) {
+    return supported.firstWhere(
+      (locale) => locale.languageCode == requested?.languageCode,
+      orElse: () => supported.first,
+    );
+  }
+
+  static AppLocalizations? of(BuildContext context) {
+    return Localizations.of<AppLocalizations>(context, AppLocalizations);
+  }
+
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
+
+  static final Map<String, Map<String, String>> _localizedValues = {
+    'en': enTranslations,
+    'es': esTranslations,
+    'fr': frTranslations,
+    'pt': ptTranslations,
+    'ru': ruTranslations,
+  };
+
+  String translate(String key) {
+    return _localizedValues[locale.languageCode]?[key] ?? key;
+  }
+
+  static Widget buildLanguageDropdown(BuildContext context, Locale currentLocale, void Function(Locale?) onChanged, {String color = 'secondary', String size = 'm'}) {
+    final localizations = AppLocalizations.of(context)!;
+
+    final Map<String, String> languageMap = {
+      'en': localizations.translate('english'),
+      'es': localizations.translate('spanish'),
+      'fr': localizations.translate('french'),
+      'pt': localizations.translate('portuguese'),
+      'ru': localizations.translate('russian'),
+    };
+    return AppDropdown<Locale>(
+      text: languageMap[currentLocale.languageCode] ?? currentLocale.languageCode,
+      onPressed: () => _showLanguageSearchDialog(context, currentLocale, onChanged),
+      theme: color,
+      size: size,
+      icon: Icons.language,
+      showTextAlways: true,
+    );
+  }
+
+  static void _showLanguageSearchDialog(BuildContext context, Locale currentLocale, void Function(Locale?) onChanged) {
+    String searchQuery = '';
+    final Map<String, String> languageMap = {
+      'en': AppLocalizations.of(context)!.translate('english'),
+      'es': AppLocalizations.of(context)!.translate('spanish'),
+      'fr': AppLocalizations.of(context)!.translate('french'),
+      'pt': AppLocalizations.of(context)!.translate('portuguese'),
+      'ru': AppLocalizations.of(context)!.translate('russian'),
+    };
+    final languages = const [
+      Locale('en', ''),
+      Locale('es', ''),
+      Locale('fr', ''),
+      Locale('pt', ''),
+      Locale('ru', ''),
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final filteredLanguages = languages.where((locale) => languageMap[locale.languageCode]!.toLowerCase().contains(searchQuery.toLowerCase())).toList();
+            return AlertDialog(
+              title: const Text('Select Language'),
+              content: SizedBox(
+                width: 300,
+                height: 400,
+                child: Column(
+                  children: [
+                    TextField(
+                      onChanged: (value) => setState(() => searchQuery = value),
+                      decoration: const InputDecoration(hintText: 'Search languages'),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        children: filteredLanguages.map((locale) {
+                          return ListTile(
+                            title: Text(languageMap[locale.languageCode]!),
+                            selected: locale.languageCode == currentLocale.languageCode,
+                            onTap: () {
+                              onChanged(locale);
+                              Navigator.pop(context);
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  static Widget buildCountryDropdown(BuildContext context, String currentCountry, void Function(String?) onChanged) {
+    return AppDropdown<String>(
+      text: countries[currentCountry] ?? currentCountry,
+      onPressed: () => _showCountrySearchDialog(context, currentCountry, onChanged),
+      icon: Icons.flag,
+      theme: 'secondary',
+      showTextAlways: true,
+    );
+  }
+
+  static void _showCountrySearchDialog(BuildContext context, String currentCountry, void Function(String?) onChanged) {
+    String searchQuery = '';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final filteredCountries = countries.entries.where((entry) => entry.value.toLowerCase().contains(searchQuery.toLowerCase())).toList();
+            return AlertDialog(
+              title: const Text('Select Country'),
+              content: SizedBox(
+                width: 300,
+                height: 400,
+                child: Column(
+                  children: [
+                    TextField(
+                      onChanged: (value) => setState(() => searchQuery = value),
+                      decoration: const InputDecoration(hintText: 'Search countries'),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        children: filteredCountries.map((entry) {
+                          return ListTile(
+                            title: Text(entry.value),
+                            selected: entry.key == currentCountry,
+                            onTap: () {
+                              onChanged(entry.key);
+                              Navigator.pop(context);
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
+  const _AppLocalizationsDelegate();
+
+  @override
+  bool isSupported(Locale locale) {
+    return ['en', 'es', 'fr', 'pt', 'ru'].contains(locale.languageCode);
+  }
+
+  @override
+  Future<AppLocalizations> load(Locale locale) {
+    return SynchronousFuture<AppLocalizations>(AppLocalizations(locale));
+  }
+
+  @override
+  bool shouldReload(_AppLocalizationsDelegate old) => false;
+}
+
+extension AppLocalizationsExtension on BuildContext {
+  String getCountry() {
+    final provider = AppThemeProvider.of(this);
+    return provider?.country ?? 'USA';
+  }
+}

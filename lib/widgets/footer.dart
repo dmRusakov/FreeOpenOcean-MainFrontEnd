@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import 'page_width.dart';
+
 import 'package:free_open_ocean/core/localization/app_localizations.dart';
 import 'package:free_open_ocean/core/provider/app_provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -37,30 +40,34 @@ class _FooterState extends State<Footer> {
     return Container(
       height: theme.sizes['height'],
       color: theme.color['background'],
-      padding: theme.sizes['padding'],
-      child: Row(
-        // mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          if (app != null)
-            ListenableBuilder(
-              listenable: app,
-              builder: (context, child) =>
-                  AppProvider.buildFooterConnectionStatusIcon(context),
-            )
-          else
-            AppProvider.buildFooterConnectionStatusIcon(context),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              '@ 2024 - ${DateTime.now().year} ${localizations.translate('footer_text')} (v$_version)',
-              style: TextStyle(
-                fontSize: theme.sizes['fontSize'],
-                color: theme.color['text'],
+      child: PageWidth(
+        child: Padding(
+          padding: theme.sizes['padding'],
+          child: Row(
+            // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (app != null)
+                ListenableBuilder(
+                  listenable: app,
+                  builder: (context, child) =>
+                      AppProvider.buildFooterConnectionStatusIcon(context),
+                )
+              else
+                AppProvider.buildFooterConnectionStatusIcon(context),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  '@ 2024 - ${DateTime.now().year} ${localizations.translate('footer_text')} (v$_version)',
+                  style: TextStyle(
+                    fontSize: theme.sizes['fontSize'],
+                    color: theme.color['text'],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              overflow: TextOverflow.ellipsis,
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

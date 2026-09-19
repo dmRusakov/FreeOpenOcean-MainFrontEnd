@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../common/element/logo.dart';
-import 'package:free_open_ocean/common/element/app_button.dart';
-import 'package:free_open_ocean/core/provider/app_theme_provider.dart';
-import 'package:free_open_ocean/pages/page_template.dart'
-    show topBarNotifier, TopBarData;
+import '../common/element/app_button.dart';
+import '../core/provider/app_theme_provider.dart';
+import '../pages/page_template.dart' show topBarNotifier, TopBarData;
 
 class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
   const MyAppBar({super.key});
@@ -11,62 +11,59 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.getTheme('header');
-
     return AppBar(
       toolbarHeight: kToolbarHeight,
-      actionsPadding: theme.sizes['padding'],
+      titleSpacing: 0,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      forceMaterialTransparency: true,
       backgroundColor: theme.color['background'],
       automaticallyImplyLeading: false,
-      title: Row(
-        children: [
-          AppButton(
-            onPressed: () {
-              Scaffold.of(context).openDrawer();
-            },
-            icon: Icons.menu,
-            size: "l",
-            theme: "primary",
-          ),
-
-          const SizedBox(width: 8),
-
-          Logo(
-            size: 'l',
-            onPressed: () {
-              Scaffold.of(context).openDrawer();
-            },
-          ),
-
-          ValueListenableBuilder<TopBarData>(
-            valueListenable: topBarNotifier,
-            builder: (context, data, child) {
-              if (data.title == null || data.title!.isEmpty) {
-                return const SizedBox.shrink();
-              }
-              return Padding(
-                padding: const EdgeInsets.only(left: 20.0, top: 2.0),
-                child: Text(
-                  data.title!,
-                  style: Theme.of(context).textTheme.titleLarge,
+      title: Padding(
+        padding: theme.sizes['padding'] as EdgeInsets? ?? EdgeInsets.zero,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 600;
+            return SizedBox(
+              height: kToolbarHeight,
+              child: ValueListenableBuilder<TopBarData>(
+                valueListenable: topBarNotifier,
+                builder: (context, data, child) => Row(
+                  children: [
+                    AppButton(
+                      onPressed: () => Scaffold.of(context).openDrawer(),
+                      icon: Icons.menu,
+                      size: 'l',
+                      theme: 'primary',
+                    ),
+                    const SizedBox(width: 8),
+                    Logo(
+                      size: compact ? 's' : 'l',
+                      onPressed: () => Scaffold.of(context).openDrawer(),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        data.title ?? '',
+                        style: Theme.of(context).textTheme.titleLarge,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (data.submenu?.isNotEmpty ?? false)
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: data.submenu!,
+                        ),
+                      ),
+                  ],
                 ),
-              );
-            },
-          ),
-          const Spacer(),
-
-          ValueListenableBuilder<TopBarData>(
-            valueListenable: topBarNotifier,
-            builder: (context, data, child) {
-              if (data.submenu == null || data.submenu!.isEmpty) {
-                return const SizedBox.shrink();
-              }
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [...data.submenu!],
-              );
-            },
-          ),
-        ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

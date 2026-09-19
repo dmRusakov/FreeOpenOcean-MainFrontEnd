@@ -5,7 +5,10 @@ import 'package:free_open_ocean/core/provider/app_theme_provider.dart';
 import 'package:free_open_ocean/widgets/footer.dart';
 import 'package:free_open_ocean/widgets/header.dart';
 import 'package:free_open_ocean/widgets/menu.dart';
+import 'package:free_open_ocean/widgets/ocean_map_background.dart';
 import 'package:free_open_ocean/widgets/top_header.dart';
+
+import '../widgets/page_width.dart';
 
 // Top bar data and notifier so pages can set a title and submenu that the header will render.
 class TopBarData {
@@ -81,52 +84,103 @@ class PageTemplate extends StatelessWidget {
   final Widget? floatingActionButton;
   final bool fullScreen;
 
+  /// Map compass; only Charts should enable this.
+  final bool showCompass;
+
   const PageTemplate({
     super.key,
     required this.body,
     this.floatingActionButton,
     this.fullScreen = false,
+    this.showCompass = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final sizes = context.getThemeSizes('pageLayout');
-
-    if (fullScreen) {
-      return Scaffold(
-        drawer: const AppMenu(),
-        body: Stack(
-          children: [
-            Positioned.fill(child: body),
-            Positioned(top: 0, left: 0, right: 0, child: const HeaderRow()),
-            if (sizes['footer'])
-              Positioned(bottom: 0, left: 0, right: 0, child: const Footer()),
-          ],
-        ),
-        floatingActionButton: floatingActionButton,
-      );
-    }
+    final footerTheme = context.getTheme('footer');
+    final showTopHeader = sizes['topHeader'] == true;
+    final showFooter = sizes['footer'] == true;
+    final topHeaderHeight = showTopHeader
+        ? (context.getTheme('topHeader').sizes['height'] as double? ?? 0)
+        : 0.0;
+    final footerHeight = showFooter
+        ? (footerTheme.sizes['height'] as double? ?? 30.0)
+        : 0.0;
+    final topChrome = kToolbarHeight + topHeaderHeight;
+    final background =
+        context.getThemeColor('background') as Color? ??
+        Theme.of(context).colorScheme.surface;
 
     return Scaffold(
-      appBar: const MyAppBar(),
+      backgroundColor: Colors.transparent,
       drawer: const AppMenu(),
-      body: Column(
-        children: [
-          sizes['topHeader'] ? const TopHeader() : const SizedBox(),
-          Expanded(child: body),
-          sizes['footer'] ? const Footer() : const SizedBox(),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final inset = PageWidth.outerInset(context, constraints.maxWidth);
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: OceanMapBackground(
+                  interactive: fullScreen,
+                  showCompass: showCompass,
+                  controlBottomInset: footerHeight,
+                ),
+              ),
+              // Charts: full-bleed interactive map. Other pages: content panel over map.
+              if (fullScreen)
+                Positioned(
+                  top: topChrome,
+                  left: 0,
+                  right: 0,
+                  bottom: footerHeight,
+                  child: IgnorePointer(child: body),
+                )
+              else
+                Positioned(
+                  top: topChrome,
+                  left: inset,
+                  right: inset,
+                  bottom: footerHeight,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: background.withValues(alpha: 0.94),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: body,
+                      ),
+                    ),
+                  ),
+                ),
+              // Header stays inside the content column.
+              Positioned(
+                top: 0,
+                left: inset,
+                right: inset,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const MyAppBar(),
+                    if (showTopHeader) const TopHeader(),
+                  ],
+                ),
+              ),
+              if (showFooter)
+                const Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Footer(),
+                ),
+            ],
+          );
+        },
       ),
       floatingActionButton: floatingActionButton,
     );
-  }
-}
-
-class HeaderRow extends StatelessWidget {
-  const HeaderRow({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const MyAppBar();
   }
 }

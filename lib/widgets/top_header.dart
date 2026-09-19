@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'page_width.dart';
 import '../core/provider/app_theme_provider.dart';
 
 class TopHeader extends StatelessWidget {
@@ -12,20 +14,22 @@ class TopHeader extends StatelessWidget {
       height: theme.sizes['height'],
       color: theme.color['background'],
       padding: theme.sizes['padding'],
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.info_outline,
-            color: theme.color['text'] as Color,
-            size: 16,
-          ),
-          const SizedBox(width: 8),
-          const Text(
-            'This is the top header for additional information.',
-            style: TextStyle(color: Colors.white, fontSize: 12),
-          ),
-        ],
+      child: PageWidth(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.info_outline,
+              color: theme.color['text'] as Color,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'This is the top header for additional information.',
+              style: TextStyle(color: Colors.white, fontSize: 12),
+            ),
+          ],
+        ),
       ),
     );
   }

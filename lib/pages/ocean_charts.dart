@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:free_open_ocean/pages/page_template.dart';
 import 'package:free_open_ocean/core/localization/app_localizations.dart';
-import 'package:maplibre_gl/maplibre_gl.dart';
-import 'package:free_open_ocean/services/map_service.dart';
 
 class OceanCharts extends StatefulWidget {
   final Map<String, String>? params;
@@ -37,31 +34,10 @@ class _OceanChartsState extends State<OceanCharts> {
 
   @override
   Widget build(BuildContext context) {
-    final styleUrl = MapService.getStyleUrl(Theme.of(context).brightness);
-    return PageTemplate(
+    return const PageTemplate(
       fullScreen: true,
-      body: kIsWeb
-          ? MapLibreMap(
-              styleString: styleUrl,
-              initialCameraPosition: const CameraPosition(
-                target: LatLng(0, 0),
-                zoom: 2,
-              ),
-              onMapCreated: (MapLibreMapController controller) {
-                MapService.getCurrentLocation(controller);
-              },
-            )
-          : MapLibreMap(
-              styleString: styleUrl,
-              initialCameraPosition: const CameraPosition(
-                target: LatLng(0, 0),
-                zoom: 2,
-              ),
-              myLocationRenderMode: MyLocationRenderMode.compass,
-              onMapCreated: (MapLibreMapController controller) {
-                // Add any additional setup here if needed
-              },
-            ),
+      showCompass: true,
+      body: SizedBox.expand(),
     );
   }
 }

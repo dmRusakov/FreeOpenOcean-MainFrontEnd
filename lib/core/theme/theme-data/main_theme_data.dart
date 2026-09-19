@@ -142,49 +142,53 @@ class MainThemeData extends AppTheme {
     // 'btn_xl': <String, dynamic>{'fontSize': 28.0, 'height': 45.0, 'iconSize': 36.0},
   };
 
+  // Charcoal cabinetry, cool stone, walnut and warm stair lighting.
+  static const charcoal = Color(0xFF101619);
+  static const graphite = Color(0xFF252D31);
+  static const stone = Color(0xFFB6BCBC);
+  static const ivory = Color(0xFFF2F0EB);
+  static const walnut = Color(0xFF795B4E);
+  static const ember = Color(0xFFAD4925);
+  static const warmAccent = Color(0xFFEFAB85);
+
   @override
   Map<String, dynamic> get colors => {
-    // layout
     'header': <String, dynamic>{'background': Colors.transparent},
     'footer': <String, dynamic>{
-      'background': Colors.transparent,
-      'text': Colors.white,
+      'background': const Color(0xE6101619),
+      'text': ivory,
     },
-
-    // main
-    'primary': const Color(0xff3d1e82),
-    'secondary': const Color(0xff446155),
-    'success': const Color(0xFF1F3284),
-    'error': const Color(0xFF8F3000),
-    'warning': const Color(0xFFA2762A),
-    'info': const Color(0xFF141515),
-
-    // buttons
-    'btn_primary': <String, dynamic>{'background': const Color(0xff3d1e82), 'text': Colors.white},
-    'btn_secondary': <String, dynamic>{'background': const Color(0xff446155), 'text': Colors.white},
-    'btn_success': <String, dynamic>{'background': const Color(0xFF1F3284), 'text': Colors.white},
-    'btn_warning': <String, dynamic>{'background': const Color(0xFFA2762A), 'text': Colors.white},
-    'btn_error': <String, dynamic>{'background': const Color(0xFF8F3000), 'text': Colors.white},
+    'primary': ember,
+    'secondary': walnut,
+    'success': const Color(0xFF466354),
+    'error': const Color(0xFFA63F36),
+    'warning': const Color(0xFF825E28),
+    'info': graphite,
+    'btn_primary': <String, dynamic>{'background': ember, 'text': ivory},
+    'btn_secondary': <String, dynamic>{'background': walnut, 'text': ivory},
+    'btn_success': <String, dynamic>{'background': const Color(0xFF466354), 'text': ivory},
+    'btn_warning': <String, dynamic>{'background': const Color(0xFF825E28), 'text': ivory},
+    'btn_error': <String, dynamic>{'background': const Color(0xFFA63F36), 'text': ivory},
   };
 
   @override
   Map<String, dynamic> get lightColors => {
-    'text': Colors.black,
-    'background': Colors.white,
-    'info': const Color(0xFF5b5b5b),
-    'topHeader': <String, dynamic>{'background': Colors.transparent, 'text': Colors.white},
-    'btn_info': <String, dynamic>{'background': const Color(0xFF4E4E4E), 'text': Colors.white},
-    'btn_logo': <String, dynamic>{'background': const Color(0xFF6532C2), 'text': Colors.white},
+    'text': charcoal,
+    'background': ivory,
+    'info': const Color(0xFF535F63),
+    'topHeader': <String, dynamic>{'background': Colors.transparent, 'text': charcoal},
+    'btn_info': <String, dynamic>{'background': const Color(0xFFDCE0DD), 'text': charcoal},
+    'btn_logo': <String, dynamic>{'background': ember, 'text': ivory},
   };
 
   @override
   Map<String, dynamic> get darkColors => {
-    'text': Colors.white,
-    'background': const Color(0xFF212121),
-    'info': Colors.white,
-    'topHeader': <String, dynamic>{'background': Colors.transparent, 'text': Colors.black},
-    'btn_logo': <String, dynamic>{'background': const Color(0xFF321665), 'text': Colors.white},
-    'btn_info': <String, dynamic>{'background': const Color(0x45877F7F), 'text': Colors.white},
+    'text': ivory,
+    'background': charcoal,
+    'info': stone,
+    'topHeader': <String, dynamic>{'background': Colors.transparent, 'text': ivory},
+    'btn_logo': <String, dynamic>{'background': ember, 'text': ivory},
+    'btn_info': <String, dynamic>{'background': graphite, 'text': ivory},
   };
 
   @override
@@ -207,6 +211,22 @@ class MainThemeData extends AppTheme {
       colorScheme: ColorScheme.fromSeed(
         seedColor: appTheme.colors['primary'],
         brightness: isDark ? Brightness.dark : Brightness.light,
+      ).copyWith(
+        primary: isDark ? warmAccent : ember,
+        onPrimary: isDark ? charcoal : ivory,
+        primaryContainer: isDark ? const Color(0xFF51372B) : const Color(0xFFF2D7C7),
+        onPrimaryContainer: isDark ? ivory : charcoal,
+        secondary: isDark ? const Color(0xFFC4A394) : walnut,
+        onSecondary: isDark ? charcoal : ivory,
+        surface: isDark ? charcoal : ivory,
+        onSurface: isDark ? ivory : charcoal,
+        onSurfaceVariant: isDark ? stone : const Color(0xFF535F63),
+        surfaceContainerLow: isDark ? const Color(0xFF192125) : const Color(0xFFE8E9E4),
+        surfaceContainer: isDark ? graphite : const Color(0xFFE0E3DF),
+        surfaceContainerHigh: isDark ? const Color(0xFF303A3E) : const Color(0xFFD7DCD8),
+        surfaceContainerHighest: isDark ? const Color(0xFF3B464A) : const Color(0xFFCCD2CE),
+        outline: isDark ? const Color(0xFF7B888B) : const Color(0xFF6C797C),
+        outlineVariant: isDark ? const Color(0xFF384448) : const Color(0xFFCBD1CE),
       ),
       textTheme: TextTheme(
         bodyLarge: TextStyle(color: colors['text']),

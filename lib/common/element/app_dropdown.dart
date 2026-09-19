@@ -83,7 +83,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
                   fontSize: sizes['fontSize'] ?? 14.0,
                 ),
               ),
-              const Icon(Icons.arrow_drop_down, color: Colors.white),
+              Icon(Icons.arrow_drop_down, color: color['text']),
             ],
           );
         } else {

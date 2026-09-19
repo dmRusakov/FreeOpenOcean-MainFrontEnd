@@ -51,11 +51,17 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
                       ),
                     ),
                     if (data.submenu?.isNotEmpty ?? false)
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: data.submenu!,
+                      Transform.translate(
+                        offset: const Offset(0,5),
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 5),
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: data.submenu!,
+                            ),
+                          ),
                         ),
                       ),
                   ],

@@ -10,6 +10,8 @@ class MainThemeData extends AppTheme {
     'pageLayout': <String, dynamic>{
       'topHeader': false,
       'footer': true,
+      'contentVerticalPadding': 30.0,
+      'contentHorizontalPadding': 30.0,
     },
     'topHeader': <String, dynamic>{
       'padding': const EdgeInsets.all(2),

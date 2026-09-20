@@ -36,6 +36,16 @@
   <title>FreeOpenOcean</title>
   <link rel="manifest" href="manifest.json">
   <style>
+    /* Decorative maps must not capture page clicks, scrolling or cursors. */
+    .map-background-only .maplibregl-map,
+    .map-background-only .maplibregl-canvas-container,
+    .map-background-only .maplibregl-canvas {
+      pointer-events: none !important;
+      cursor: default !important;
+    }
+    .map-background-only .maplibregl-ctrl {
+      pointer-events: auto;
+    }
     /* Pin attribution (and compass) flush to the lower-right corner. */
     .maplibregl-ctrl-bottom-right {
       right: 0 !important;

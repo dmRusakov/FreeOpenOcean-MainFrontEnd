@@ -19,6 +19,7 @@ class AboutPage extends StatefulWidget {
 
 class _AboutPageState extends State<AboutPage> {
   static const _ownerId = 'about_page';
+  final _scrollController = ScrollController();
 
   @override
   void didChangeDependencies() {
@@ -51,6 +52,7 @@ class _AboutPageState extends State<AboutPage> {
   @override
   void dispose() {
     clearTopBar(ownerId: _ownerId);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -64,48 +66,69 @@ class _AboutPageState extends State<AboutPage> {
         Theme.of(context).colorScheme.onSurface;
 
     return PageTemplate(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              AboutTempContent.title,
-              style: textTheme.headlineLarge?.copyWith(color: textColor),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxWidth * 0.5),
-              child: Text(
-                AboutTempContent.shortDescription,
-                style: textTheme.bodySmall?.copyWith(color: textColor),
-                textAlign: TextAlign.center,
+      body: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+        child: Scrollbar(
+          controller: _scrollController,
+          thumbVisibility: true,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              padding: const EdgeInsets.only(top: 20, bottom: 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    AboutTempContent.title,
+                    style: textTheme.headlineLarge?.copyWith(color: textColor),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 10),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: maxWidth * 0.5),
+                    child: Text(
+                      AboutTempContent.shortDescription,
+                      style: textTheme.bodySmall?.copyWith(color: textColor),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  Html(
+                    data: AboutTempContent.html,
+                    style: {
+                      ...themeProvider.theme.pageStyles,
+                      'body': Style(
+                        color: textColor,
+                        margin: Margins.zero,
+                        padding: HtmlPaddings.zero,
+                      ),
+                      'p': Style(
+                        color: textColor,
+                        textAlign: TextAlign.justify,
+                      ),
+                      'li': Style(
+                        color: textColor,
+                        textAlign: TextAlign.justify,
+                      ),
+                      'h2': Style(
+                        color: textColor,
+                        margin: Margins.only(top: 28, bottom: 10),
+                      ),
+                      'h3': Style(
+                        color: textColor,
+                        margin: Margins.only(top: 18, bottom: 8),
+                      ),
+                      'img': Style(
+                        width: Width(100, Unit.percent),
+                        margin: Margins.symmetric(vertical: 16),
+                      ),
+                    },
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 30),
-            Html(
-              data: AboutTempContent.html,
-              style: {
-                ...themeProvider.theme.pageStyles,
-                'body': Style(color: textColor),
-                'p': Style(color: textColor, textAlign: TextAlign.justify),
-                'li': Style(color: textColor, textAlign: TextAlign.justify),
-                'h2': Style(
-                  color: textColor,
-                  margin: Margins.only(top: 28, bottom: 10),
-                ),
-                'h3': Style(
-                  color: textColor,
-                  margin: Margins.only(top: 18, bottom: 8),
-                ),
-                'img': Style(
-                  width: Width(100, Unit.percent),
-                  margin: Margins.symmetric(vertical: 16),
-                ),
-              },
-            ),
-          ],
+          ),
         ),
       ),
     );

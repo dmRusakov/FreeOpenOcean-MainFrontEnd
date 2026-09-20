@@ -5,6 +5,11 @@ void setupWeb() {
   usePathUrlStrategy();
 }
 
+// IgnorePointer cannot disable the browser events of an HTML platform view.
+void setMapInteractive(bool interactive) {
+  html.document.documentElement?.classes.toggle('map-background-only', !interactive);
+}
+
 // MapLibre's web implementation does not implement compass/attribution margins.
 void setMapControlInsets(double right, [double bottom = 0]) {
   final style = html.document.documentElement?.style;

@@ -1,3 +1,4 @@
+import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/foundation.dart';
@@ -86,6 +87,8 @@ class PageTemplate extends StatelessWidget {
 
   /// Map compass; only Charts should enable this.
   final bool showCompass;
+  final ValueChanged<MapLibreMapController>? onMapCreated;
+  final ValueChanged<CameraPosition>? onCameraMove;
 
   const PageTemplate({
     super.key,
@@ -93,6 +96,8 @@ class PageTemplate extends StatelessWidget {
     this.floatingActionButton,
     this.fullScreen = false,
     this.showCompass = false,
+    this.onMapCreated,
+    this.onCameraMove,
   });
 
   @override
@@ -124,6 +129,8 @@ class PageTemplate extends StatelessWidget {
                 child: OceanMapBackground(
                   interactive: fullScreen,
                   showCompass: showCompass,
+                  onMapCreated: onMapCreated,
+                  onCameraMove: onCameraMove,
                 ),
               ),
               // Charts: full-bleed interactive map. Other pages: content panel over map.
@@ -150,7 +157,13 @@ class PageTemplate extends StatelessWidget {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: body,
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: sizes['contentHorizontalPadding'] as double? ?? 30.0,
+                            vertical: sizes['contentVerticalPadding'] as double? ?? 30.0,
+                          ),
+                          child: ClipRect(child: body),
+                        ),
                       ),
                     ),
                   ),

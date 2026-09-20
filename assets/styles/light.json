@@ -5,7 +5,7 @@
   "sprite": "https://protomaps.github.io/basemaps-assets/sprites/v3/light",
   "sources": {
     "protomaps": {
-      "attribution": "<a href=\"https://github.com/protomaps/basemaps\">Protomaps</a> © <a href=\"https://openstreetmap.org\">OpenStreetMap</a>",
+      "attribution": "<a href=\"https://github.com/protomaps/basemaps\">FreeOpenOcean</a> © <a href=\"https://openstreetmap.org\">FreeOpenOcean</a>",
       "type": "vector",
       "tiles": [
         "https://api.protomaps.com/tiles/v3/{z}/{x}/{y}.mvt?key=42f6ab2492a77fae"

@@ -106,6 +106,10 @@ class MainThemeData extends AppTheme {
 
   @override
   Map<String, dynamic> get mobileSizes => {
+    'pageLayout': <String, dynamic>{
+      'contentVerticalPadding': 10.0,
+      'contentHorizontalPadding': 10.0,
+    },
     // 'topHeader': <String, dynamic>{'height': 25.0},
     // 'header': <String, dynamic>{'height': 40.0},
     // 'btn_s': <String, dynamic>{'fontSize': 12.0, 'iconSize': 14.0},
@@ -116,6 +120,10 @@ class MainThemeData extends AppTheme {
 
   @override
   Map<String, dynamic> get tabletSizes => {
+    'pageLayout': <String, dynamic>{
+      'contentVerticalPadding': 20.0,
+      'contentHorizontalPadding': 20.0,
+    },
     // 'topHeader': <String, dynamic>{'height': 30.0},
     // 'header': <String, dynamic>{'height': 50.0},
     // 'btn_s': <String, dynamic>{'fontSize': 16.0, 'iconSize': 20.0},

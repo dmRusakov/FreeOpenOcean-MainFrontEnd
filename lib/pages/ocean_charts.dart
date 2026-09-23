@@ -18,92 +18,163 @@ class OceanCharts extends StatefulWidget {
 class _OceanChartsState extends State<OceanCharts> {
   MapLibreMapController? _mapController;
   final _bearing = ValueNotifier<double>(0);
+  final _zoom = ValueNotifier<double>(2);
   final _visibleZoom = ValueNotifier<double?>(null);
-  double _lastZoom = 2;
-  Timer? _zoomHideTimer;
   final _visibleBearing = ValueNotifier<double?>(null);
+  Timer? _zoomHideTimer;
   Timer? _bearingHideTimer;
 
   double _dragBearing = 0;
+  String? _shownZoom;
+  String? _shownBearing;
 
-  void _updateBearing(double bearing) {
+  double _normalizeBearing(double bearing) {
     final normalized = bearing % 360;
+    return normalized < 0 ? normalized + 360 : normalized;
+  }
+
+  void _holdVisible(
+    ValueNotifier<double?> visible,
+    Timer? timer,
+    double value,
+    void Function(Timer) store,
+  ) {
+    visible.value = value;
+    timer?.cancel();
+    store(Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      visible.value = null;
+      _publishHeader();
+    }));
+  }
+
+  void _updateBearing(double bearing, {bool reveal = true}) {
+    final normalized = _normalizeBearing(bearing);
     final difference = (normalized - _bearing.value + 180) % 360 - 180;
     if (difference.abs() < 0.000001) return;
     _bearing.value = normalized;
-    _visibleBearing.value = normalized;
-    _bearingHideTimer?.cancel();
-    _bearingHideTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted) _visibleBearing.value = null;
+    if (!reveal) return;
+    _holdVisible(_visibleBearing, _bearingHideTimer, normalized, (timer) {
+      _bearingHideTimer = timer;
     });
+    _publishHeader();
   }
 
-  Widget _buildBearingLabel() => ValueListenableBuilder<double?>(
-    valueListenable: _visibleBearing,
-    builder: (context, bearing, _) => SizedBox(
+  Widget _buildBearingLabel() {
+    final bearing = _visibleBearing.value;
+    if (bearing == null) return const SizedBox(width: 80, height: 18);
+    final degrees = bearing.round() % 360;
+    return SizedBox(
       width: 80,
-      child: bearing == null
-          ? null
-          : _buildIndicator(
-              null,
-              '${bearing.round() % 360}°',
-              'Compass angle ${bearing.round() % 360} degrees',
-            ),
-    ),
-  );
-
-  void _updateZoom(double zoom) {
-    if ((zoom - _lastZoom).abs() < 0.000001) return;
-    _lastZoom = zoom;
-    _visibleZoom.value = zoom;
-    _zoomHideTimer?.cancel();
-    _zoomHideTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted) _visibleZoom.value = null;
-    });
+      height: 18,
+      child: _buildIndicator(
+        null,
+        '$degrees°',
+        'Compass angle $degrees degrees',
+      ),
+    );
   }
 
-  Widget _buildZoomLabel() => ValueListenableBuilder<double?>(
-    valueListenable: _visibleZoom,
-    builder: (context, zoom, _) => SizedBox(
-      width: 72,
-      child: zoom == null
-          ? null
-          : _buildIndicator(
-              Icons.search,
-              zoom.toStringAsFixed(1),
-              'Current zoom ${zoom.toStringAsFixed(1)}',
-            ),
-    ),
-  );
+  void _updateZoom(double zoom, {bool reveal = true}) {
+    if ((zoom - _zoom.value).abs() < 0.000001) return;
+    _zoom.value = zoom;
+    if (!reveal) return;
+    _holdVisible(_visibleZoom, _zoomHideTimer, zoom, (timer) {
+      _zoomHideTimer = timer;
+    });
+    _publishHeader();
+  }
 
-  Widget _buildIndicator(IconData? icon, String value, String label) =>
-      Semantics(
-        label: label,
-        excludeSemantics: true,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (icon == null)
-              Text('∠', style: Theme.of(context).textTheme.labelSmall)
-            else
-              Icon(
-                icon,
-                size: 16,
-                color: Theme.of(context).textTheme.labelSmall?.color,
-              ),
-            const SizedBox(width: 4),
-            Text(value, style: Theme.of(context).textTheme.labelSmall),
-          ],
+  Widget _buildZoomLabel() {
+    final zoom = _visibleZoom.value;
+    if (zoom == null) return const SizedBox(width: 88, height: 18);
+    return SizedBox(
+      width: 88,
+      height: 18,
+      child: _buildIndicator(
+        Icons.search,
+        zoom.toStringAsFixed(1),
+        'Current zoom ${zoom.toStringAsFixed(1)}',
+      ),
+    );
+  }
+
+  void _publishHeader({bool force = false}) {
+    if (!mounted) return;
+    final localizations = AppLocalizations.of(context);
+    if (localizations == null) return;
+    final zoomText = _visibleZoom.value?.toStringAsFixed(1);
+    final bearingText = _visibleBearing.value == null
+        ? null
+        : '${_visibleBearing.value!.round() % 360}';
+    if (!force && zoomText == _shownZoom && bearingText == _shownBearing) {
+      return;
+    }
+    _shownZoom = zoomText;
+    _shownBearing = bearingText;
+    setTopBar(
+      title: localizations.translate('ocean_charts'),
+      ownerId: 'ocean_charts',
+      submenu: [
+        _controlWithLabel(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _zoomButton('Zoom in', Icons.add, 1),
+              const SizedBox(width: 8),
+              _zoomButton('Zoom out', Icons.remove, -1),
+            ],
+          ),
+          _buildZoomLabel(),
         ),
-      );
+        const SizedBox(width: 8),
+        _controlWithLabel(_buildCompass(), _buildBearingLabel()),
+      ],
+    );
+  }
+
+  Widget _buildIndicator(IconData? icon, String value, String label) {
+    final style = Theme.of(context).textTheme.labelSmall?.copyWith(
+      color: Theme.of(context).colorScheme.onSurface,
+    );
+    final color = style?.color;
+    return Semantics(
+      label: label,
+      excludeSemantics: true,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon == null)
+            Text('∠', style: style)
+          else
+            Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(value, style: style),
+        ],
+      ),
+    );
+  }
+
+  ButtonStyle get _headerButtonStyle => IconButton.styleFrom(
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    minimumSize: const Size(40, 40),
+    fixedSize: const Size(40, 40),
+    padding: EdgeInsets.zero,
+    iconSize: 20,
+  );
 
   Widget _zoomButton(String label, IconData icon, double delta) =>
       PointerInterceptor(
-        child: IconButton.filledTonal(
-          tooltip: label,
-          onPressed: () =>
-              _mapController?.animateCamera(CameraUpdate.zoomBy(delta)),
-          icon: Icon(icon),
+        child: Semantics(
+          label: label,
+          button: true,
+          child: IconButton.filledTonal(
+            style: _headerButtonStyle,
+            onPressed: () =>
+                _mapController?.animateCamera(CameraUpdate.zoomBy(delta)),
+            icon: Icon(icon),
+          ),
         ),
       );
 
@@ -118,16 +189,15 @@ class _OceanChartsState extends State<OceanCharts> {
       child: ValueListenableBuilder<double>(
         valueListenable: _bearing,
         builder: (context, bearing, _) => IconButton(
+          style: _headerButtonStyle,
           padding: EdgeInsets.zero,
-          iconSize: 40,
-          tooltip:
-              'Red: north; blue: south. Click to face north; drag to rotate',
+          iconSize: 36,
           onPressed: () =>
               _mapController?.animateCamera(CameraUpdate.bearingTo(0)),
           icon: Transform.rotate(
             angle: -bearing * pi / 180,
             child: CustomPaint(
-              size: const Size.square(40),
+              size: const Size.square(36),
               painter: _CompassPainter(
                 rimColor: Theme.of(context).colorScheme.onSecondaryContainer,
               ),
@@ -143,26 +213,7 @@ class _OceanChartsState extends State<OceanCharts> {
     super.didChangeDependencies();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final localizations = AppLocalizations.of(context)!;
-      setTopBar(
-        title: localizations.translate('ocean_charts'),
-        ownerId: 'ocean_charts',
-        submenu: [
-          _controlWithLabel(
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _zoomButton('Zoom in', Icons.add, 1),
-                const SizedBox(width: 8),
-                _zoomButton('Zoom out', Icons.remove, -1),
-              ],
-            ),
-            _buildZoomLabel(),
-          ),
-          const SizedBox(width: 8),
-          _controlWithLabel(_buildCompass(), _buildBearingLabel()),
-        ],
-      );
+      _publishHeader(force: true);
     });
   }
 
@@ -170,7 +221,8 @@ class _OceanChartsState extends State<OceanCharts> {
     mainAxisSize: MainAxisSize.min,
     children: [
       SizedBox(height: 40, child: control),
-      SizedBox(height: 16, child: IgnorePointer(child: label)),
+      const SizedBox(height: 2),
+      SizedBox(height: 18, child: Center(child: label)),
     ],
   );
 
@@ -178,10 +230,11 @@ class _OceanChartsState extends State<OceanCharts> {
   void dispose() {
     clearTopBar(ownerId: 'ocean_charts');
     _mapController = null;
-    _bearing.dispose();
     _zoomHideTimer?.cancel();
-    _visibleZoom.dispose();
     _bearingHideTimer?.cancel();
+    _bearing.dispose();
+    _zoom.dispose();
+    _visibleZoom.dispose();
     _visibleBearing.dispose();
     super.dispose();
   }
@@ -192,7 +245,10 @@ class _OceanChartsState extends State<OceanCharts> {
       fullScreen: true,
       onMapCreated: (controller) {
         _mapController = controller;
-        _lastZoom = controller.cameraPosition?.zoom ?? 2;
+        final camera = controller.cameraPosition;
+        if (camera == null) return;
+        _updateZoom(camera.zoom, reveal: false);
+        _updateBearing(camera.bearing, reveal: false);
       },
       onCameraMove: (position) {
         if (mounted) {

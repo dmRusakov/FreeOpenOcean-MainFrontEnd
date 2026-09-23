@@ -9,6 +9,7 @@ import 'package:free_open_ocean/config/config.dart';
 class MapService {
   static final _islandShapes = _loadGeoJson('island_shapes');
   static final _islandPoints = _loadGeoJson('island_points');
+  static final _islandGroups = _loadGeoJson('island_groups');
 
   static Future<Map<String, dynamic>> _loadGeoJson(String name) async =>
       jsonDecode(await rootBundle.loadString('assets/maps/$name.geojson'))
@@ -19,8 +20,9 @@ class MapService {
     return 'https://api.protomaps.com/styles/v5/$colorSchema/en.json?key=${Config.apiKey}';
   }
 
-  /// Supplement generalized low-zoom tiles without drawing overview geometry
-  /// over the detailed coastlines supplied by Protomaps at navigation scales.
+  /// Keep islands the size of Samos and the smaller Fiji islands on the map at
+  /// every zoom. Protomaps drops those coastlines from the low-zoom tiles, and
+  /// the overview shapes used to fade out by zoom 8.
   static Future<void> addIslandOverlay(
     MapLibreMapController controller,
     Brightness brightness,
@@ -29,6 +31,7 @@ class MapService {
     try {
       final shapes = await _islandShapes;
       final points = await _islandPoints;
+      final groups = await _islandGroups;
       if (!isCurrent()) return;
       final layers = await controller.getLayerIds();
       if (!isCurrent()) return;
@@ -44,7 +47,7 @@ class MapService {
         GeojsonSourceProperties(
           data: shapes,
           tolerance: 0,
-          maxzoom: 7,
+          maxzoom: 14,
           attribution:
               '<a href="https://www.naturalearthdata.com/">Natural Earth</a>',
         ),
@@ -53,20 +56,8 @@ class MapService {
       await controller.addFillLayer(
         'island-shapes',
         'island-overview',
-        FillLayerProperties(
-          fillColor: landColor,
-          fillOpacity: const [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            6,
-            1,
-            7,
-            0,
-          ],
-        ),
+        FillLayerProperties(fillColor: landColor, fillOpacity: 1),
         belowLayerId: 'water_stream',
-        maxzoom: 7,
         enableInteraction: false,
       );
       if (!isCurrent()) return;
@@ -80,23 +71,58 @@ class MapService {
         'island-visibility',
         CircleLayerProperties(
           circleColor: landColor,
-          circleRadius: 1.5,
-          circleOpacity: const [
+          circleRadius: const [
             'interpolate',
             ['linear'],
             ['zoom'],
-            7,
-            1,
-            8,
             0,
+            1.3, //
+            6,
+            2, //
+            12,
+            1, //
           ],
+          circleOpacity: 1,
         ),
-        filter: const [
-          '<',
-          ['zoom'],
-          ['get', 'dotUntil'],
-        ],
         belowLayerId: 'water_stream',
+        enableInteraction: false,
+      );
+      if (!isCurrent()) return;
+      // Open-ocean group names for passagemaking. Coastal archipelagos are
+      // omitted. Shown at planning scale, then left to the basemap labels.
+      final labelColor = brightness == Brightness.dark ? '#8a8a8a' : '#5c564f';
+      final labelHalo = brightness == Brightness.dark ? '#141414' : '#f4f1ec';
+      await controller.addSource(
+        'island-groups',
+        GeojsonSourceProperties(data: groups),
+      );
+      if (!isCurrent()) return;
+      await controller.addSymbolLayer(
+        'island-groups',
+        'island-group-labels',
+        SymbolLayerProperties(
+          textField: const ['get', 'name'],
+          textFont: const ['Noto Sans Italic'],
+          textSize: const [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            3,
+            11,
+            6,
+            14,
+          ],
+          textColor: labelColor,
+          textHaloColor: labelHalo,
+          textHaloWidth: 1.2,
+          textMaxWidth: 10,
+          textPadding: 6,
+          textAllowOverlap: false,
+        ),
+        belowLayerId: layers.contains('places_country')
+            ? 'places_country'
+            : null,
+        minzoom: 2,
         maxzoom: 8,
         enableInteraction: false,
       );

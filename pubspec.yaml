@@ -60,3 +60,4 @@ flutter:
     - assets/icons/
     - assets/maps/island_shapes.geojson
     - assets/maps/island_points.geojson
+    - assets/maps/island_groups.geojson

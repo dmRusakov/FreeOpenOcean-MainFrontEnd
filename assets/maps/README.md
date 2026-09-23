@@ -8,10 +8,16 @@ Public-domain Natural Earth 1:10m land and minor-island polygons:
 
 Generated with `tool/build_island_overlay.py`. Coordinates are rounded to five
 decimal places. Continental polygons larger than 3 million square kilometres
-are excluded. Small dots are anchored on each polygon's coastline and shown
-only while its approximate size is below three pixels.
+are excluded. Islands of 150 km² and larger keep the Protomaps landcover
+(vegetation green and urban gray) on Cuba, the Bahamas, and other islands of
+that size. Islands up to about 600 km², including Samos and the smaller Fiji
+islands, also get a coastline marker. Shapes and markers stay drawn at every
+zoom.
 
 These are generalized overview shapes, not survey-grade coastlines or an
-exhaustive inventory of every rock/islet. The overlay fades out at zooms 6–8,
-where Protomaps supplies detailed coastlines. Do not extend these generalized
-polygons to navigation-scale zooms.
+exhaustive inventory of every rock/islet.
+
+`island_groups.geojson` labels open-ocean groups used for passagemaking
+(Canary Islands, Azores, Madeira, Galápagos Islands, and the other groups
+offshore). Islands along a continental coast are omitted. Country names
+already drawn by the basemap, such as Cabo Verde, are not repeated.

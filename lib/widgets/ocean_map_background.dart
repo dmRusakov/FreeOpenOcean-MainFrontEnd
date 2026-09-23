@@ -10,7 +10,7 @@ import '../web_setup_stub.dart'
     as web_setup;
 
 /// Full-bleed MapLibre map used as the app background (and ocean charts surface).
-class OceanMapBackground extends StatelessWidget {
+class OceanMapBackground extends StatefulWidget {
   final bool interactive;
 
   /// Compass is only shown on Charts; other pages keep attribution only.
@@ -27,7 +27,39 @@ class OceanMapBackground extends StatelessWidget {
   });
 
   @override
+  State<OceanMapBackground> createState() => _OceanMapBackgroundState();
+}
+
+class _OceanMapBackgroundState extends State<OceanMapBackground> {
+  MapLibreMapController? _controller;
+  int _styleGeneration = 0;
+  Brightness? _brightness;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final brightness = Theme.of(context).brightness;
+    if (_brightness != brightness) {
+      _brightness = brightness;
+      _styleGeneration++;
+    }
+  }
+
+  Future<void> _onStyleLoaded() async {
+    final controller = _controller;
+    if (controller == null || !mounted) return;
+    final generation = ++_styleGeneration;
+    await MapService.addIslandOverlay(
+      controller,
+      _brightness!,
+      () => mounted && generation == _styleGeneration,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final interactive = widget.interactive;
+    final showCompass = widget.showCompass;
     final styleUrl = MapService.getStyleUrl(Theme.of(context).brightness);
     if (kIsWeb) {
       web_setup.setMapControlInsets(0, 0);
@@ -47,19 +79,19 @@ class OceanMapBackground extends StatelessWidget {
       tiltGesturesEnabled: interactive,
       doubleClickZoomEnabled: interactive,
       dragEnabled: interactive,
-      trackCameraPosition: onCameraMove != null,
-      onCameraMove: onCameraMove,
+      trackCameraPosition: widget.onCameraMove != null,
+      onCameraMove: widget.onCameraMove,
       compassEnabled: showCompass,
-      compassViewPosition:
-          showCompass ? CompassViewPosition.bottomRight : null,
-      compassViewMargins:
-          showCompass && !kIsWeb ? const Point(0, 0) : null,
+      compassViewPosition: showCompass ? CompassViewPosition.bottomRight : null,
+      compassViewMargins: showCompass && !kIsWeb ? const Point(0, 0) : null,
       attributionButtonPosition: AttributionButtonPosition.bottomRight,
       attributionButtonMargins: kIsWeb ? null : const Point(0, 0),
       onMapCreated: (controller) {
-        onMapCreated?.call(controller);
+        _controller = controller;
+        widget.onMapCreated?.call(controller);
         if (kIsWeb) MapService.getCurrentLocation(controller);
       },
+      onStyleLoadedCallback: _onStyleLoaded,
     );
 
     if (!interactive) {

@@ -21,8 +21,36 @@ class _OceanChartsState extends State<OceanCharts> {
   final _visibleZoom = ValueNotifier<double?>(null);
   double _lastZoom = 2;
   Timer? _zoomHideTimer;
+  final _visibleBearing = ValueNotifier<double?>(null);
+  Timer? _bearingHideTimer;
 
   double _dragBearing = 0;
+
+  void _updateBearing(double bearing) {
+    final normalized = bearing % 360;
+    final difference = (normalized - _bearing.value + 180) % 360 - 180;
+    if (difference.abs() < 0.000001) return;
+    _bearing.value = normalized;
+    _visibleBearing.value = normalized;
+    _bearingHideTimer?.cancel();
+    _bearingHideTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) _visibleBearing.value = null;
+    });
+  }
+
+  Widget _buildBearingLabel() => ValueListenableBuilder<double?>(
+    valueListenable: _visibleBearing,
+    builder: (context, bearing, _) => SizedBox(
+      width: 80,
+      child: bearing == null
+          ? null
+          : _buildIndicator(
+              null,
+              '${bearing.round() % 360}°',
+              'Compass angle ${bearing.round() % 360} degrees',
+            ),
+    ),
+  );
 
   void _updateZoom(double zoom) {
     if ((zoom - _lastZoom).abs() < 0.000001) return;
@@ -37,18 +65,37 @@ class _OceanChartsState extends State<OceanCharts> {
   Widget _buildZoomLabel() => ValueListenableBuilder<double?>(
     valueListenable: _visibleZoom,
     builder: (context, zoom, _) => SizedBox(
-      width: 52,
+      width: 72,
       child: zoom == null
           ? null
-          : Center(
-              child: Text(
-                zoom.toStringAsFixed(1),
-                semanticsLabel: 'Current zoom ${zoom.toStringAsFixed(1)}',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
+          : _buildIndicator(
+              Icons.search,
+              zoom.toStringAsFixed(1),
+              'Current zoom ${zoom.toStringAsFixed(1)}',
             ),
     ),
   );
+
+  Widget _buildIndicator(IconData? icon, String value, String label) =>
+      Semantics(
+        label: label,
+        excludeSemantics: true,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon == null)
+              Text('∠', style: Theme.of(context).textTheme.labelSmall)
+            else
+              Icon(
+                icon,
+                size: 16,
+                color: Theme.of(context).textTheme.labelSmall?.color,
+              ),
+            const SizedBox(width: 4),
+            Text(value, style: Theme.of(context).textTheme.labelSmall),
+          ],
+        ),
+      );
 
   Widget _zoomButton(String label, IconData icon, double delta) =>
       PointerInterceptor(
@@ -101,16 +148,31 @@ class _OceanChartsState extends State<OceanCharts> {
         title: localizations.translate('ocean_charts'),
         ownerId: 'ocean_charts',
         submenu: [
-          _buildZoomLabel(),
-          _zoomButton('Zoom in', Icons.add, 1),
+          _controlWithLabel(
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _zoomButton('Zoom in', Icons.add, 1),
+                const SizedBox(width: 8),
+                _zoomButton('Zoom out', Icons.remove, -1),
+              ],
+            ),
+            _buildZoomLabel(),
+          ),
           const SizedBox(width: 8),
-          _zoomButton('Zoom out', Icons.remove, -1),
-          const SizedBox(width: 8),
-          _buildCompass(),
+          _controlWithLabel(_buildCompass(), _buildBearingLabel()),
         ],
       );
     });
   }
+
+  Widget _controlWithLabel(Widget control, Widget label) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      SizedBox(height: 40, child: control),
+      SizedBox(height: 16, child: IgnorePointer(child: label)),
+    ],
+  );
 
   @override
   void dispose() {
@@ -119,6 +181,8 @@ class _OceanChartsState extends State<OceanCharts> {
     _bearing.dispose();
     _zoomHideTimer?.cancel();
     _visibleZoom.dispose();
+    _bearingHideTimer?.cancel();
+    _visibleBearing.dispose();
     super.dispose();
   }
 
@@ -132,7 +196,7 @@ class _OceanChartsState extends State<OceanCharts> {
       },
       onCameraMove: (position) {
         if (mounted) {
-          _bearing.value = position.bearing;
+          _updateBearing(position.bearing);
           _updateZoom(position.zoom);
         }
       },

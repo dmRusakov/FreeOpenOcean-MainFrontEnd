@@ -88,6 +88,8 @@ class MapService {
         enableInteraction: false,
       );
       if (!isCurrent()) return;
+      await _addLandElevation(controller, brightness, layers, isCurrent);
+      if (!isCurrent()) return;
       // Open-ocean group names for passagemaking. Coastal archipelagos are
       // omitted. Shown at planning scale, then left to the basemap labels.
       final labelColor = brightness == Brightness.dark ? '#8a8a8a' : '#5c564f';
@@ -128,6 +130,62 @@ class MapService {
       );
     } catch (error) {
       if (isCurrent()) debugPrint('Unable to load island overlay: $error');
+    }
+  }
+
+  /// Shade terrain from AWS tiles. Over the ocean the shade stops at zoom 8
+  /// so closer charts keep a flat water color. Land stays shaded at every
+  /// zoom, under the ocean fill and above the earth and landcover.
+  static Future<void> _addLandElevation(
+    MapLibreMapController controller,
+    Brightness brightness,
+    List<dynamic> layers,
+    bool Function() isCurrent,
+  ) async {
+    const landLayerId = 'land-elevation';
+    const oceanLayerId = 'ocean-elevation';
+    if (layers.contains(landLayerId) || layers.contains(oceanLayerId)) return;
+    final dark = brightness == Brightness.dark;
+    final shade = HillshadeLayerProperties(
+      hillshadeExaggeration: 0.3,
+      hillshadeShadowColor: dark ? '#000000' : '#3f3a34',
+      hillshadeHighlightColor: dark ? '#5c5c5c' : '#e0dcd6',
+      hillshadeAccentColor: dark ? '#101010' : '#c8c2b8',
+    );
+    try {
+      await controller.addSource(
+        'land-elevation-dem',
+        const RasterDemSourceProperties(
+          tiles: [
+            'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
+          ],
+          encoding: 'terrarium',
+          tileSize: 256,
+          maxzoom: 15,
+          attribution:
+              '<a href="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a>',
+        ),
+      );
+      if (!isCurrent()) return;
+      // From zoom 8 up, only land shows through holes in the ocean polygon.
+      await controller.addHillshadeLayer(
+        'land-elevation-dem',
+        landLayerId,
+        shade,
+        belowLayerId: layers.contains('water') ? 'water' : 'water_stream',
+        minzoom: 8,
+      );
+      if (!isCurrent()) return;
+      // Through zoom 8 the same shade sits on the water as well.
+      await controller.addHillshadeLayer(
+        'land-elevation-dem',
+        oceanLayerId,
+        shade,
+        belowLayerId: 'water_stream',
+        maxzoom: 8,
+      );
+    } catch (error) {
+      if (isCurrent()) debugPrint('Unable to load land elevation: $error');
     }
   }
 

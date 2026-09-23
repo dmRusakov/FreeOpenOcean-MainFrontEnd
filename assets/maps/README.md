@@ -15,7 +15,9 @@ islands, also get a coastline marker. Shapes and markers stay drawn at every
 zoom.
 
 These are generalized overview shapes, not survey-grade coastlines or an
-exhaustive inventory of every rock/islet.
+exhaustive inventory of every rock/islet. A hillshade from AWS Terrain Tiles
+covers the basemap land at every zoom. The same shade is drawn over the ocean
+until zoom 8, then the water returns to a flat color.
 
 `island_groups.geojson` labels open-ocean groups used for passagemaking
 (Canary Islands, Azores, Madeira, Galápagos Islands, and the other groups

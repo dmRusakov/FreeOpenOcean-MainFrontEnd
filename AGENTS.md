@@ -42,5 +42,5 @@
 - Static analysis: `flutter analyze`
 - Tests (if/when present): `flutter test`
 - Run web locally: `flutter run -d chrome`
+- After every app update, reload or restart the running Flutter app so the latest code is compiled, then refresh the app in both Chrome and the ChatGPT/Codex in-app browser. Reuse the current development server and app tabs where possible, preserve the current route, and verify the updated UI in both browsers before reporting completion.
 - If editing codegen/proto flow, check `build.yaml` + run your usual `build_runner` command for this repo setup.
-

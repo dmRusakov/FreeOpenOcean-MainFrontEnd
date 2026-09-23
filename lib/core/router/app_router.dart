@@ -53,6 +53,13 @@ class AppRouter {
       ),
     ],
     redirect: (context, state) {
+      if (state.uri.path.endsWith('/about') &&
+          state.uri.queryParameters['section'] == 'typography') {
+        return state.uri.replace(
+          path: state.uri.path.replaceFirst(RegExp(r'/about$'), '/settings'),
+          queryParameters: {...state.uri.queryParameters, 'section': 'style'},
+        ).toString();
+      }
       final rawCountry = state.pathParameters['country'];
       final rawLanguage = state.pathParameters['language'];
       if (rawCountry == null || rawLanguage == null) return null;

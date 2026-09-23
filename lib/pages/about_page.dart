@@ -20,19 +20,23 @@ class AboutPage extends StatefulWidget {
 class _AboutPageState extends State<AboutPage> {
   static const _ownerId = 'about_page';
   final _scrollController = ScrollController();
+  void _updateHeader() {
+    if (!mounted) return;
+    final localizations = AppLocalizations.of(context)!;
+    setTopBar(
+      title: localizations.translate('about'),
+      ownerId: _ownerId,
+      submenu: [],
+    );
+    _applySeo();
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final localizations = AppLocalizations.of(context)!;
-      setTopBar(
-        title: localizations.translate('about'),
-        ownerId: _ownerId,
-        submenu: [],
-      );
-      _applySeo();
+      _updateHeader();
     });
   }
 

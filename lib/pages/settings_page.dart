@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:go_router/go_router.dart';
 import 'package:free_open_ocean/core/provider/app_provider.dart';
-import 'page_content.dart';
+import '../widgets/typography_content.dart';
 
 enum SettingSection { general, theme, language, style }
 
@@ -22,6 +22,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   SettingSection _selectedSection = SettingSection.general;
+  final _styleScrollController = ScrollController();
 
   void _readSection() {
     _selectedSection = SettingSection.values.firstWhere(
@@ -53,6 +54,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void dispose() {
     clearTopBar(ownerId: 'settings');
+    _styleScrollController.dispose();
     super.dispose();
   }
 
@@ -274,7 +276,20 @@ class _SettingsPageState extends State<SettingsPage> {
 
       // typography
       case SettingSection.style:
-        return PageContent(slug: 'style-guide');
+        return ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+          child: Scrollbar(
+            controller: _styleScrollController,
+            thumbVisibility: true,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: SingleChildScrollView(
+                controller: _styleScrollController,
+                child: const TypographyContent(),
+              ),
+            ),
+          ),
+        );
     }
   }
 }

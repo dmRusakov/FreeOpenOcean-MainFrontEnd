@@ -62,10 +62,9 @@ class _OceanChartsState extends State<OceanCharts> {
 
   Widget _buildBearingLabel() {
     final bearing = _visibleBearing.value;
-    if (bearing == null) return const SizedBox(width: 80, height: 18);
+    if (bearing == null) return const SizedBox(height: 18);
     final degrees = bearing.round() % 360;
     return SizedBox(
-      width: 80,
       height: 18,
       child: _buildIndicator(
         null,
@@ -217,12 +216,28 @@ class _OceanChartsState extends State<OceanCharts> {
     });
   }
 
-  Widget _controlWithLabel(Widget control, Widget label) => Column(
-    mainAxisSize: MainAxisSize.min,
+  Widget _controlWithLabel(Widget control, Widget label) => Stack(
+    alignment: Alignment.topCenter,
+    clipBehavior: Clip.none,
     children: [
-      SizedBox(height: 40, child: control),
-      const SizedBox(height: 2),
-      SizedBox(height: 18, child: Center(child: label)),
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(height: 40, child: control),
+          const SizedBox(height: 20),
+        ],
+      ),
+      Positioned(
+        top: 42,
+        left: 0,
+        right: 0,
+        height: 18,
+        child: OverflowBox(
+          maxWidth: 120,
+          alignment: Alignment.topCenter,
+          child: label,
+        ),
+      ),
     ],
   );
 

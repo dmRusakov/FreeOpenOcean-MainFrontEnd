@@ -32,6 +32,19 @@
   <!-- MapLibre GL JS -->
   <link href='https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.css' rel='stylesheet' />
   <script src='https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.js'></script>
+  <script src='https://unpkg.com/maplibre-contour@0.1.0/dist/index.min.js'></script>
+  <script>
+    // Turns the same terrain tiles the hillshade uses into contour vectors.
+    if (window.maplibregl && window.mlcontour) {
+      var demSource = new mlcontour.DemSource({
+        url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
+        encoding: 'terrarium',
+        maxzoom: 15,
+        worker: true
+      });
+      demSource.setupMaplibre(maplibregl);
+    }
+  </script>
 
   <title>FreeOpenOcean</title>
   <link rel="manifest" href="manifest.json">

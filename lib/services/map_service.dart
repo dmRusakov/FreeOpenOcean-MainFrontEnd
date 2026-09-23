@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -133,9 +134,10 @@ class MapService {
     }
   }
 
-  /// Shade terrain from AWS tiles. Over the ocean the shade stops at zoom 11
-  /// so closer charts keep a flat water color. Land stays shaded at every
-  /// zoom, under the ocean fill and above the earth and landcover.
+  /// Shade terrain from AWS tiles, and draw land contour lines with the
+  /// elevation in meters on the major lines. Over the ocean the shade stops
+  /// at zoom 11 so closer charts keep a flat water color. Contours are land
+  /// only: heights at or below sea level are left off the chart.
   static Future<void> _addLandElevation(
     MapLibreMapController controller,
     Brightness brightness,
@@ -184,9 +186,80 @@ class MapService {
         belowLayerId: 'water_stream',
         maxzoom: 11,
       );
+      if (!isCurrent() || !kIsWeb) return;
+      await _addLandContours(controller, dark, layers);
     } catch (error) {
       if (isCurrent()) debugPrint('Unable to load land elevation: $error');
     }
+  }
+
+  /// Contour vectors are generated in the browser from the terrain tiles.
+  /// The protocol is registered in web/index.html.
+  static Future<void> _addLandContours(
+    MapLibreMapController controller,
+    bool dark,
+    List<dynamic> layers,
+  ) async {
+    const sourceId = 'land-contours';
+    if (layers.contains('land-contour-lines')) return;
+    final belowWater = layers.contains('water') ? 'water' : 'water_stream';
+    final lineColor = dark ? '#343434' : '#d4cfc8';
+    final textColor = dark ? '#6a6a6a' : '#7a736b';
+    final textHalo = dark ? '#141414' : '#f7f4ef';
+    await controller.addSource(
+      sourceId,
+      const VectorSourceProperties(
+        tiles: [
+          'dem-contour://{z}/{x}/{y}?contourLayer=contours&elevationKey=ele&levelKey=level&multiplier=1&overzoom=1&thresholds=4%2A500%2A1000%7E7%2A200%2A1000%7E9%2A100%2A500%7E11%2A50%2A200%7E13%2A20%2A100',
+        ],
+        maxzoom: 15,
+        attribution:
+            '<a href="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a>',
+      ),
+    );
+    await controller.addLineLayer(
+      sourceId,
+      'land-contour-lines',
+      LineLayerProperties(
+        lineColor: lineColor,
+        lineWidth: const ['match', ['get', 'level'], 1, 1.15, 0.55],
+        lineOpacity: 0.7,
+      ),
+      sourceLayer: 'contours',
+      belowLayerId: belowWater,
+      minzoom: 4,
+      filter: const ['>', ['get', 'ele'], 0],
+      enableInteraction: false,
+    );
+    await controller.addSymbolLayer(
+      sourceId,
+      'land-contour-labels',
+      SymbolLayerProperties(
+        textField: const [
+          'concat',
+          ['number-format', ['get', 'ele'], {'max-fraction-digits': 0}],
+          ' m',
+        ],
+        textFont: const ['Noto Sans Regular'],
+        textSize: 11,
+        textColor: textColor,
+        textOpacity: 0.55,
+        textHaloColor: textHalo,
+        textHaloWidth: 1.2,
+        symbolPlacement: 'line',
+        textAllowOverlap: false,
+        textPadding: 8,
+      ),
+      sourceLayer: 'contours',
+      belowLayerId: belowWater,
+      minzoom: 4,
+      filter: const [
+        'all',
+        ['>', ['get', 'level'], 0],
+        ['>', ['get', 'ele'], 0],
+      ],
+      enableInteraction: false,
+    );
   }
 
   static Future<void> getCurrentLocation(

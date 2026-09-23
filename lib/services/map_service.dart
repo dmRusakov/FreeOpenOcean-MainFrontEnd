@@ -133,7 +133,7 @@ class MapService {
     }
   }
 
-  /// Shade terrain from AWS tiles. Over the ocean the shade stops at zoom 8
+  /// Shade terrain from AWS tiles. Over the ocean the shade stops at zoom 11
   /// so closer charts keep a flat water color. Land stays shaded at every
   /// zoom, under the ocean fill and above the earth and landcover.
   static Future<void> _addLandElevation(
@@ -167,22 +167,22 @@ class MapService {
         ),
       );
       if (!isCurrent()) return;
-      // From zoom 8 up, only land shows through holes in the ocean polygon.
+      // From zoom 11 up, only land shows through holes in the ocean polygon.
       await controller.addHillshadeLayer(
         'land-elevation-dem',
         landLayerId,
         shade,
         belowLayerId: layers.contains('water') ? 'water' : 'water_stream',
-        minzoom: 8,
+        minzoom: 11,
       );
       if (!isCurrent()) return;
-      // Through zoom 8 the same shade sits on the water as well.
+      // Through zoom 11 the same shade sits on the water as well.
       await controller.addHillshadeLayer(
         'land-elevation-dem',
         oceanLayerId,
         shade,
         belowLayerId: 'water_stream',
-        maxzoom: 8,
+        maxzoom: 11,
       );
     } catch (error) {
       if (isCurrent()) debugPrint('Unable to load land elevation: $error');

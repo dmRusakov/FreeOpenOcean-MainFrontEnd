@@ -203,8 +203,8 @@ class MapService {
     const sourceId = 'land-contours';
     if (layers.contains('land-contour-lines')) return;
     final belowWater = layers.contains('water') ? 'water' : 'water_stream';
-    final lineColor = dark ? '#343434' : '#d4cfc8';
-    final textColor = dark ? '#6a6a6a' : '#7a736b';
+    final lineColor = dark ? '#8a8a8a' : '#9a938a';
+    final textColor = dark ? '#c4c4c4' : '#4a453f';
     final textHalo = dark ? '#141414' : '#f7f4ef';
     await controller.addSource(
       sourceId,
@@ -223,11 +223,11 @@ class MapService {
       LineLayerProperties(
         lineColor: lineColor,
         lineWidth: const ['match', ['get', 'level'], 1, 1.15, 0.55],
-        lineOpacity: 0.7,
+        lineOpacity: 0.4,
       ),
       sourceLayer: 'contours',
       belowLayerId: belowWater,
-      minzoom: 4,
+      minzoom: 7,
       filter: const ['>', ['get', 'ele'], 0],
       enableInteraction: false,
     );
@@ -243,7 +243,7 @@ class MapService {
         textFont: const ['Noto Sans Regular'],
         textSize: 11,
         textColor: textColor,
-        textOpacity: 0.55,
+        textOpacity: 0.5,
         textHaloColor: textHalo,
         textHaloWidth: 1.2,
         symbolPlacement: 'line',
@@ -252,7 +252,7 @@ class MapService {
       ),
       sourceLayer: 'contours',
       belowLayerId: belowWater,
-      minzoom: 4,
+      minzoom: 7,
       filter: const [
         'all',
         ['>', ['get', 'level'], 0],

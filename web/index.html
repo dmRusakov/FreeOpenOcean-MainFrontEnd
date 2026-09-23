@@ -30,8 +30,25 @@
   <link rel="icon" type="image/png" href="favicon.png"/>
 
   <!-- MapLibre GL JS -->
-  <link href='https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.css' rel='stylesheet' />
-  <script src='https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.js'></script>
+  <link href='https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css' rel='stylesheet' />
+  <script src='https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js'></script>
+  <script>
+    // MapLibre 5 draws a sphere when zoomed out and eases back to a flat
+    // chart between zoom 11 and 12. The Flutter plugin does not set this.
+    (function () {
+      if (!window.maplibregl || !maplibregl.Map || !maplibregl.Map.prototype.setProjection) return;
+      var Original = maplibregl.Map;
+      function MapWithGlobe(options) {
+        var map = new Original(options);
+        map.on('style.load', function () {
+          map.setProjection({type: 'globe'});
+        });
+        return map;
+      }
+      MapWithGlobe.prototype = Original.prototype;
+      maplibregl.Map = MapWithGlobe;
+    })();
+  </script>
   <script src='https://unpkg.com/maplibre-contour@0.1.0/dist/index.min.js'></script>
   <script>
     // Turns the same terrain tiles the hillshade uses into contour vectors.

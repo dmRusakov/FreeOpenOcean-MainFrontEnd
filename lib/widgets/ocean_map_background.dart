@@ -72,7 +72,7 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
         target: LatLng(0, 0),
         zoom: 5,
       ),
-      minMaxZoomPreference: const MinMaxZoomPreference(5, null),
+      minMaxZoomPreference: const MinMaxZoomPreference(2, null),
       // Only Charts (interactive) may pan/zoom; other pages treat map as backdrop.
       scrollGesturesEnabled: interactive,
       zoomGesturesEnabled: interactive,

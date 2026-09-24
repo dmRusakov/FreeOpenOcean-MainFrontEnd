@@ -33,15 +33,49 @@
   <link href='https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css' rel='stylesheet' />
   <script src='https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js'></script>
   <script>
-    // MapLibre 5 draws a sphere when zoomed out and eases back to a flat
-    // chart between zoom 11 and 12. The Flutter plugin does not set this.
+    // Keep a straight-down globe through zoom 19, then ease to a flat chart.
+    // The Flutter plugin does not set projection or pitch.
     (function () {
       if (!window.maplibregl || !maplibregl.Map || !maplibregl.Map.prototype.setProjection) return;
       var Original = maplibregl.Map;
+      var verticalUntilZoom = 19;
+      function applyVerticalView(map) {
+        map.setProjection({
+          type: [
+            'interpolate', ['linear'], ['zoom'],
+            verticalUntilZoom, 'vertical-perspective',
+            verticalUntilZoom + 1, 'mercator'
+          ]
+        });
+        if (map.getZoom() <= verticalUntilZoom) {
+          map.setMaxPitch(0);
+          if (map.getPitch() > 0) map.setPitch(0);
+        } else {
+          map.setMaxPitch(60);
+        }
+      }
       function MapWithGlobe(options) {
         var map = new Original(options);
+        // Flutter's web plugin creates GeoJSON source objects with null
+        // prototypes. MapLibre 5's worker serializer expects plain objects,
+        // including when it resends source options as the camera changes.
+        var addSource = map.addSource;
+        map.addSource = function (id, source) {
+          if (source && source.type === 'geojson') {
+            source = JSON.parse(JSON.stringify(source));
+          }
+          return addSource.call(this, id, source);
+        };
         map.on('style.load', function () {
-          map.setProjection({type: 'globe'});
+          applyVerticalView(map);
+        });
+        map.on('zoom', function () {
+          if (map.getZoom() <= verticalUntilZoom) {
+            if (map.getMaxPitch() !== 0) map.setMaxPitch(0);
+            if (map.getPitch() > 0) map.setPitch(0);
+          } else if (map.getMaxPitch() === 0) {
+            map.setMaxPitch(60);
+          }
         });
         return map;
       }

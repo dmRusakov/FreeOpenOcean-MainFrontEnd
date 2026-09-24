@@ -1,36 +1,41 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:free_open_ocean/config/config.dart';
+import '../web_setup_stub.dart'
+    if (dart.library.html) '../web_setup.dart'
+    as web_setup;
 
 class MapService {
-  static final _islandShapes = _loadGeoJson('island_shapes');
   static final _islandPoints = _loadGeoJson('island_points');
   static final _islandGroups = _loadGeoJson('island_groups');
 
-  static Future<Map<String, dynamic>> _loadGeoJson(String name) async =>
-      jsonDecode(await rootBundle.loadString('assets/maps/$name.geojson'))
-          as Map<String, dynamic>;
+  static Future<Object> _loadGeoJson(String name) async {
+    final asset = 'assets/maps/$name.geojson';
+    // Fetch plain JSON on web: the plugin converts inline maps to objects
+    // without prototypes, which MapLibre 5's worker serializer rejects.
+    if (kIsWeb) return web_setup.mapAssetUrl(asset);
+    return jsonDecode(await rootBundle.loadString(asset))
+        as Map<String, dynamic>;
+  }
 
   static String getStyleUrl(Brightness brightness) {
     final colorSchema = brightness == Brightness.dark ? 'dark' : 'light';
     return 'https://api.protomaps.com/styles/v5/$colorSchema/en.json?key=${Config.apiKey}';
   }
 
-  /// Keep islands the size of Samos and the smaller Fiji islands on the map at
-  /// every zoom. Protomaps drops those coastlines from the low-zoom tiles, and
-  /// the overview shapes used to fade out by zoom 8.
+  /// Coastline dots for islands under about 600 km², plus hillshade, land
+  /// contours, and open-ocean island group names. The dots stay on at every
+  /// zoom so Samos and the smaller Fiji islands do not drop out of the chart.
   static Future<void> addIslandOverlay(
     MapLibreMapController controller,
     Brightness brightness,
     bool Function() isCurrent,
   ) async {
     try {
-      final shapes = await _islandShapes;
       final points = await _islandPoints;
       final groups = await _islandGroups;
       if (!isCurrent()) return;
@@ -41,27 +46,7 @@ class MapService {
         debugPrint('Island overlay: expected Protomaps water layer missing');
         return;
       }
-      // Match the earth fill in the hosted Protomaps v5 themes.
       final landColor = brightness == Brightness.dark ? '#1f1f1f' : '#e2dfda';
-      await controller.addSource(
-        'island-shapes',
-        GeojsonSourceProperties(
-          data: shapes,
-          tolerance: 0,
-          maxzoom: 14,
-          attribution:
-              '<a href="https://www.naturalearthdata.com/">Natural Earth</a>',
-        ),
-      );
-      if (!isCurrent()) return;
-      await controller.addFillLayer(
-        'island-shapes',
-        'island-overview',
-        FillLayerProperties(fillColor: landColor, fillOpacity: 1),
-        belowLayerId: 'water_stream',
-        enableInteraction: false,
-      );
-      if (!isCurrent()) return;
       await controller.addSource(
         'island-points',
         GeojsonSourceProperties(data: points, cluster: false),
@@ -77,11 +62,11 @@ class MapService {
             ['linear'],
             ['zoom'],
             0,
-            1.3, //
+            1.3,
             6,
-            2, //
+            2,
             12,
-            1, //
+            1,
           ],
           circleOpacity: 1,
         ),
@@ -92,7 +77,7 @@ class MapService {
       await _addLandElevation(controller, brightness, layers, isCurrent);
       if (!isCurrent()) return;
       // Open-ocean group names for passagemaking. Coastal archipelagos are
-      // omitted. Shown at planning scale, then left to the basemap labels.
+      // omitted. Keep names visible throughout zoom levels 2 through 8.
       final labelColor = brightness == Brightness.dark ? '#8a8a8a' : '#5c564f';
       final labelHalo = brightness == Brightness.dark ? '#141414' : '#f4f1ec';
       await controller.addSource(
@@ -120,13 +105,15 @@ class MapService {
           textHaloWidth: 1.2,
           textMaxWidth: 10,
           textPadding: 6,
-          textAllowOverlap: false,
+          textAllowOverlap: true,
+          textIgnorePlacement: true,
         ),
         belowLayerId: layers.contains('places_country')
             ? 'places_country'
             : null,
         minzoom: 2,
-        maxzoom: 8,
+        // MapLibre's upper bound is exclusive; include the whole zoom-8 band.
+        maxzoom: 9,
         enableInteraction: false,
       );
     } catch (error) {
@@ -222,13 +209,23 @@ class MapService {
       'land-contour-lines',
       LineLayerProperties(
         lineColor: lineColor,
-        lineWidth: const ['match', ['get', 'level'], 1, 1.15, 0.55],
+        lineWidth: const [
+          'match',
+          ['get', 'level'],
+          1,
+          1.15,
+          0.55,
+        ],
         lineOpacity: 0.4,
       ),
       sourceLayer: 'contours',
       belowLayerId: belowWater,
       minzoom: 7,
-      filter: const ['>', ['get', 'ele'], 0],
+      filter: const [
+        '>',
+        ['get', 'ele'],
+        0,
+      ],
       enableInteraction: false,
     );
     await controller.addSymbolLayer(
@@ -237,7 +234,11 @@ class MapService {
       SymbolLayerProperties(
         textField: const [
           'concat',
-          ['number-format', ['get', 'ele'], {'max-fraction-digits': 0}],
+          [
+            'number-format',
+            ['get', 'ele'],
+            {'max-fraction-digits': 0},
+          ],
           ' m',
         ],
         textFont: const ['Noto Sans Regular'],
@@ -255,8 +256,16 @@ class MapService {
       minzoom: 7,
       filter: const [
         'all',
-        ['>', ['get', 'level'], 0],
-        ['>', ['get', 'ele'], 0],
+        [
+          '>',
+          ['get', 'level'],
+          0,
+        ],
+        [
+          '>',
+          ['get', 'ele'],
+          0,
+        ],
       ],
       enableInteraction: false,
     );

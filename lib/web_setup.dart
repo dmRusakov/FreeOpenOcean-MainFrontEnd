@@ -5,9 +5,16 @@ void setupWeb() {
   usePathUrlStrategy();
 }
 
+String mapAssetUrl(String asset) => Uri.parse(
+  html.document.baseUri ?? Uri.base.toString(),
+).resolve('assets/$asset').toString();
+
 // IgnorePointer cannot disable the browser events of an HTML platform view.
 void setMapInteractive(bool interactive) {
-  html.document.documentElement?.classes.toggle('map-background-only', !interactive);
+  html.document.documentElement?.classes.toggle(
+    'map-background-only',
+    !interactive,
+  );
 }
 
 // MapLibre's web implementation does not implement compass/attribution margins.

@@ -46,7 +46,12 @@ class MapService {
         debugPrint('Island overlay: expected Protomaps water layer missing');
         return;
       }
-      final landColor = brightness == Brightness.dark ? '#1f1f1f' : '#e2dfda';
+      final dark = brightness == Brightness.dark;
+      // Same greens as the Protomaps forest landcover, dark and light.
+      final islandColor = dark ? '#1c2925' : '#c4e7d2';
+      final islandOutline = dark ? '#121c18' : '#8fbfa4';
+      await _addLandElevation(controller, brightness, layers, isCurrent);
+      if (!isCurrent()) return;
       await controller.addSource(
         'island-points',
         GeojsonSourceProperties(data: points, cluster: false),
@@ -56,25 +61,36 @@ class MapService {
         'island-points',
         'island-visibility',
         CircleLayerProperties(
-          circleColor: landColor,
+          circleColor: islandColor,
           circleRadius: const [
             'interpolate',
             ['linear'],
             ['zoom'],
             0,
-            1.3,
+            2.3,
             6,
-            2,
+            3,
+            8,
+            2.5,
             12,
             1,
           ],
           circleOpacity: 1,
+          circleStrokeColor: islandOutline,
+          circleStrokeWidth: const [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            8,
+            0.8,
+            12,
+            0,
+          ],
         ),
         belowLayerId: 'water_stream',
+        minzoom: 8.01,
         enableInteraction: false,
       );
-      if (!isCurrent()) return;
-      await _addLandElevation(controller, brightness, layers, isCurrent);
       if (!isCurrent()) return;
       // Open-ocean group names for passagemaking. Coastal archipelagos are
       // omitted. Keep names visible throughout zoom levels 2 through 8.

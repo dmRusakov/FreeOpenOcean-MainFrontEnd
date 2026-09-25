@@ -12,6 +12,8 @@ import '../web_setup_stub.dart'
 class MapService {
   static final _islandPoints = _loadGeoJson('island_points');
   static final _islandGroups = _loadGeoJson('island_groups');
+  static final _maritimeBoundaries = _loadGeoJson('maritime_boundaries');
+  static final _territorial30 = _loadGeoJson('territorial_30nm');
 
   static Future<Object> _loadGeoJson(String name) async {
     final asset = 'assets/maps/$name.geojson';
@@ -38,6 +40,8 @@ class MapService {
     try {
       final points = await _islandPoints;
       final groups = await _islandGroups;
+      final maritime = await _maritimeBoundaries;
+      final territorial = await _territorial30;
       if (!isCurrent()) return;
       final layers = await controller.getLayerIds();
       if (!isCurrent()) return;
@@ -130,6 +134,49 @@ class MapService {
         minzoom: 2,
         // MapLibre's upper bound is exclusive; include the whole zoom-8 band.
         maxzoom: 9,
+        enableInteraction: false,
+      );
+      if (!isCurrent()) return;
+      // Country limits that continue offshore: median lines, treaties, and
+      // the 200-mile nautical limit. Same dash and color as the land borders.
+      final boundaryColor = dark ? '#5b6374' : '#adadad';
+      // await controller.addSource(
+      //   'maritime-boundaries',
+      //   GeojsonSourceProperties(
+      //     data: maritime,
+      //     attribution:
+      //         '<a href="https://www.naturalearthdata.com/">Natural Earth</a>',
+      //   ),
+      // );
+      if (!isCurrent()) return;
+      await controller.addLineLayer(
+        'maritime-boundaries',
+        'maritime-boundaries',
+        LineLayerProperties(
+          lineColor: boundaryColor,
+          lineWidth: 0.7,
+          lineDasharray: const [2, 1],
+        ),
+        belowLayerId: 'water_stream',
+        enableInteraction: false,
+      );
+      if (!isCurrent()) return;
+      // Fixed line 30 nautical miles off the coastline.
+      final territoryColor = dark ? '#505e73' : '#6d7c90';
+      await controller.addSource(
+        'territorial-30nm',
+        GeojsonSourceProperties(data: territorial),
+      );
+      if (!isCurrent()) return;
+      await controller.addLineLayer(
+        'territorial-30nm',
+        'territorial-30nm',
+        LineLayerProperties(
+          lineColor: territoryColor,
+          lineWidth: 1,
+          lineDasharray: const [1, 2],
+        ),
+        belowLayerId: 'water_stream',
         enableInteraction: false,
       );
     } catch (error) {

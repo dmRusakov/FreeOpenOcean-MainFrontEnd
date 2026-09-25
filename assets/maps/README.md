@@ -17,8 +17,9 @@ already drawn by the basemap, such as Cabo Verde, are not repeated.
 between neighboring seas, treaty lines, and the 200-mile nautical limit.
 They use the same dash and color as the land borders.
 
-`territorial_30nm.geojson` is a line 30 nautical miles offshore, measured from
-the Natural Earth coastline. OpenStreetMap does not include this line.
+`island_names.geojson` repeats small-island names that Protomaps draws only
+from zoom 6 or 7, including Umnak Island and Kanaga Island. Each name is
+drawn from zoom 4 until the basemap label takes over.
 
 Group labels remain visible from zoom 2 through the full zoom-8 band (hidden
 at zoom 9). They are not suppressed by collisions with other map labels.

@@ -13,7 +13,7 @@ class MapService {
   static final _islandPoints = _loadGeoJson('island_points');
   static final _islandGroups = _loadGeoJson('island_groups');
   static final _maritimeBoundaries = _loadGeoJson('maritime_boundaries');
-  static final _territorial30 = _loadGeoJson('territorial_30nm');
+  static final _islandNames = _loadGeoJson('island_names');
 
   static Future<Object> _loadGeoJson(String name) async {
     final asset = 'assets/maps/$name.geojson';
@@ -41,7 +41,7 @@ class MapService {
       final points = await _islandPoints;
       final groups = await _islandGroups;
       final maritime = await _maritimeBoundaries;
-      final territorial = await _territorial30;
+      final islandNames = await _islandNames;
       if (!isCurrent()) return;
       final layers = await controller.getLayerIds();
       if (!isCurrent()) return;
@@ -161,22 +161,79 @@ class MapService {
         enableInteraction: false,
       );
       if (!isCurrent()) return;
-      // Fixed line 30 nautical miles off the coastline.
-      final territoryColor = dark ? '#505e73' : '#6d7c90';
+      // Protomaps adds these island names only at zoom 6 or 7.
+      // Draw each name from zoom 4 until that basemap label takes over.
+      final islandNameColor = dark ? '#525252' : '#5c564f';
+      final islandNameHalo = dark ? '#1f1f1f' : '#f4f1ec';
       await controller.addSource(
-        'territorial-30nm',
-        GeojsonSourceProperties(data: territorial),
+        'island-names',
+        GeojsonSourceProperties(data: islandNames),
       );
       if (!isCurrent()) return;
-      await controller.addLineLayer(
-        'territorial-30nm',
-        'territorial-30nm',
-        LineLayerProperties(
-          lineColor: territoryColor,
-          lineWidth: 1,
-          lineDasharray: const [1, 2],
+      final belowNames = layers.contains('places_country')
+          ? 'places_country'
+          : null;
+      await controller.addSymbolLayer(
+        'island-names',
+        'island-names',
+        SymbolLayerProperties(
+          textField: const ['get', 'name'],
+          textFont: const ['Noto Sans Italic'],
+          textSize: 10,
+          textLetterSpacing: 0.1,
+          textMaxWidth: 8,
+          textColor: islandNameColor,
+          textHaloColor: islandNameHalo,
+          textHaloWidth: 1,
+          textPadding: 0,
+          textRadialOffset: 0.6,
+          textVariableAnchor: const [
+            'top',
+            'bottom',
+            'left',
+            'right',
+            'top-left',
+            'top-right',
+            'bottom-left',
+            'bottom-right',
+          ],
         ),
-        belowLayerId: 'water_stream',
+        belowLayerId: belowNames,
+        filter: const ['==', ['get', 'until'], 6],
+        minzoom: 4,
+        maxzoom: 6,
+        enableInteraction: false,
+      );
+      if (!isCurrent()) return;
+      await controller.addSymbolLayer(
+        'island-names',
+        'island-names-later',
+        SymbolLayerProperties(
+          textField: const ['get', 'name'],
+          textFont: const ['Noto Sans Italic'],
+          textSize: 10,
+          textLetterSpacing: 0.1,
+          textMaxWidth: 8,
+          textColor: islandNameColor,
+          textHaloColor: islandNameHalo,
+          textHaloWidth: 1,
+          textPadding: 0,
+          textRadialOffset: 0.6,
+          textVariableAnchor: const [
+            'top',
+            'bottom',
+            'left',
+            'right',
+            'top-left',
+            'top-right',
+            'bottom-left',
+            'bottom-right',
+          ],
+        ),
+        belowLayerId: belowNames,
+        filter: const ['==', ['get', 'until'], 7],
+        minzoom: 4,
+        maxzoom: 7,
         enableInteraction: false,
       );
     } catch (error) {

@@ -275,6 +275,13 @@
             </list>
           </value>
         </entry>
+        <entry key="foo_grpc">
+          <value>
+            <list>
+              <option value="$PROJECT_DIR$/../FooGRPC/contracts/dart/lib" />
+            </list>
+          </value>
+        </entry>
         <entry key="free_open_ocean_grpc">
           <value>
             <list>
@@ -1184,6 +1191,7 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/xdg_directories-1.1.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/xml-7.0.1/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/yaml-3.1.4/lib" />
+      <root url="file://$PROJECT_DIR$/../FooGRPC/contracts/dart/lib" />
       <root url="file:///opt/homebrew/share/flutter/bin/cache/pkg/sky_engine/lib" />
       <root url="file:///opt/homebrew/share/flutter/packages/flutter/lib" />
       <root url="file:///opt/homebrew/share/flutter/packages/flutter_localizations/lib" />

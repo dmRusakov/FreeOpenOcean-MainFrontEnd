@@ -29,6 +29,46 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
+  <!-- Google Analytics: FreeOpenOcean (web), https://freeopenocean.com -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-V0PWEJP2F6"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-V0PWEJP2F6', { send_page_view: false });
+
+    // Flutter web changes the address without a new document, so record each
+    // settled route. The country/language redirect would otherwise count twice.
+    var analyticsPath = '';
+    var analyticsTimer = null;
+    function sendPageView() {
+      var path = location.pathname + location.search;
+      if (path === analyticsPath) return;
+      analyticsPath = path;
+      gtag('event', 'page_view', {
+        page_title: document.title,
+        page_location: location.href,
+        page_path: path
+      });
+    }
+    function schedulePageView() {
+      clearTimeout(analyticsTimer);
+      analyticsTimer = setTimeout(sendPageView, 300);
+    }
+    var pushState = history.pushState;
+    var replaceState = history.replaceState;
+    history.pushState = function () {
+      pushState.apply(history, arguments);
+      schedulePageView();
+    };
+    history.replaceState = function () {
+      replaceState.apply(history, arguments);
+      schedulePageView();
+    };
+    window.addEventListener('popstate', schedulePageView);
+    schedulePageView();
+  </script>
+
   <!-- MapLibre GL JS -->
   <link href='https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css' rel='stylesheet' />
   <script src='https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js'></script>

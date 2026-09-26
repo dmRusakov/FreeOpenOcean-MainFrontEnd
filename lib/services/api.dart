@@ -4,8 +4,7 @@ import 'package:grpc/grpc.dart';
 import 'package:http/http.dart' as http;
 // The contracts package currently exposes generated files only.
 // ignore: implementation_imports
-import 'package:free_open_ocean_grpc/src/grpc/status/v1/status.pbgrpc.dart'
-    as status_pb;
+import 'package:foo_grpc/src/grpc/v1/status.pbgrpc.dart' as status_pb;
 import '../config/config.dart';
 import '../models/endpoint.dart';
 import '../models/connection_exception.dart';

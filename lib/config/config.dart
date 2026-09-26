@@ -37,8 +37,8 @@ class Config {
       final host = !isWeb && platform == TargetPlatform.android
           ? '10.0.2.2'
           : 'localhost';
-      http.addAll(['http://$host:8081', 'http://$host:8082']);
-      grpc.addAll(['grpc://$host:50051', 'grpc://$host:50052']);
+      http.addAll(['http://$host:8082', 'http://$host:8081']);
+      grpc.addAll(['grpc://$host:50061', 'grpc://$host:50051']);
     }
     final selected = isWeb ? http : grpc;
     return List.generate(selected.length, (i) {

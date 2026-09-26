@@ -17,6 +17,16 @@ already drawn by the basemap, such as Cabo Verde, are not repeated.
 between neighboring seas, treaty lines, and the 200-mile nautical limit.
 They use the same dash and color as the land borders.
 
+`graticule.geojson` draws a line every 10° of latitude and longitude. The
+solid line is the latitude where the sun is overhead at the moment the chart
+opens, calculated on the device. A label marks that latitude at the sun's
+longitude. One dot marks where the sun is overhead right now, from zoom 0
+through 4.
+
+The moon's overhead track for one pass around the Earth stays hidden until
+the moon dot is clicked, then stays visible for 5 seconds. The dot itself
+is drawn from zoom 0 through 4. Both are calculated on the device.
+
 `island_names.geojson` repeats small-island names that Protomaps draws only
 from zoom 6 or 7, including Umnak Island and Kanaga Island. Each name is
 drawn from zoom 4 until the basemap label takes over.

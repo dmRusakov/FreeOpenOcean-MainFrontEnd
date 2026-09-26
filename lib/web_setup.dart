@@ -9,6 +9,11 @@ String mapAssetUrl(String asset) => Uri.parse(
   html.document.baseUri ?? Uri.base.toString(),
 ).resolve('assets/$asset').toString();
 
+// A URL MapLibre can fetch. Inline Dart maps lose their prototype and the
+// MapLibre 5 worker refuses to serialize them.
+String mapGeoJsonUrl(String json) =>
+    'data:application/geo+json;charset=utf-8,${Uri.encodeComponent(json)}';
+
 // IgnorePointer cannot disable the browser events of an HTML platform view.
 void setMapInteractive(bool interactive) {
   html.document.documentElement?.classes.toggle(

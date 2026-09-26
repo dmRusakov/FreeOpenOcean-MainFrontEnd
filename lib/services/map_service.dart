@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +15,7 @@ class MapService {
   static final _islandGroups = _loadGeoJson('island_groups');
   static final _maritimeBoundaries = _loadGeoJson('maritime_boundaries');
   static final _islandNames = _loadGeoJson('island_names');
+  static final _graticule = _loadGeoJson('graticule');
 
   static Future<Object> _loadGeoJson(String name) async {
     final asset = 'assets/maps/$name.geojson';
@@ -22,6 +24,171 @@ class MapService {
     if (kIsWeb) return web_setup.mapAssetUrl(asset);
     return jsonDecode(await rootBundle.loadString(asset))
         as Map<String, dynamic>;
+  }
+
+  /// Latitude where the sun is overhead at [utc], in degrees.
+  /// Spencer's series, evaluated on the device from the clock.
+  static double _solarDeclination(DateTime utc) {
+    final yearStart = DateTime.utc(utc.year, 1, 1);
+    final days = DateTime.utc(utc.year + 1, 1, 1).difference(yearStart).inDays;
+    final n = utc.difference(yearStart).inMicroseconds /
+            Duration.microsecondsPerDay +
+        1;
+    final g = 2 * pi * (n - 1) / days;
+    final decl = 0.006918 -
+        0.399912 * cos(g) +
+        0.070257 * sin(g) -
+        0.006758 * cos(2 * g) +
+        0.000907 * sin(2 * g) -
+        0.002697 * cos(3 * g) +
+        0.00148 * sin(3 * g);
+    return decl * 180 / pi;
+  }
+
+  /// Longitude where the sun is overhead at [utc], degrees east.
+  static double _subsolarLongitude(DateTime utc) {
+    final yearStart = DateTime.utc(utc.year, 1, 1);
+    final days = DateTime.utc(utc.year + 1, 1, 1).difference(yearStart).inDays;
+    final n = utc.difference(yearStart).inMicroseconds /
+            Duration.microsecondsPerDay +
+        1;
+    final g = 2 * pi * (n - 1) / days;
+    final eqtime = 229.18 *
+        (0.000075 +
+            0.001868 * cos(g) -
+            0.032077 * sin(g) -
+            0.014615 * cos(2 * g) -
+            0.040849 * sin(2 * g));
+    final utcMinutes = utc.hour * 60 + utc.minute + utc.second / 60;
+    var lon = (720 - utcMinutes - eqtime) / 4;
+    while (lon > 180) {
+      lon -= 360;
+    }
+    while (lon < -180) {
+      lon += 360;
+    }
+    return lon;
+  }
+
+  static String _sunLatitudeLabel(double latitude) {
+    final hemisphere = latitude >= 0 ? 'N' : 'S';
+    return 'Sun ${latitude.abs().toStringAsFixed(1)}°$hemisphere';
+  }
+
+  static Object _sunEquatorData(DateTime utc) {
+    final latitude = _solarDeclination(utc);
+    final longitude = _subsolarLongitude(utc);
+    final line = <List<double>>[
+      for (var lon = -180; lon <= 180; lon += 2)
+        [lon.toDouble(), double.parse(latitude.toStringAsFixed(4))],
+    ];
+    final sun = [
+      double.parse(longitude.toStringAsFixed(4)),
+      double.parse(latitude.toStringAsFixed(4)),
+    ];
+    final collection = {
+      'type': 'FeatureCollection',
+      'features': [
+        {
+          'type': 'Feature',
+          'properties': {'kind': 'sun'},
+          'geometry': {'type': 'LineString', 'coordinates': line},
+        },
+        {
+          'type': 'Feature',
+          'properties': {
+            'kind': 'label',
+            'name': _sunLatitudeLabel(latitude),
+          },
+          'geometry': {'type': 'Point', 'coordinates': sun},
+        },
+        {
+          'type': 'Feature',
+          'properties': {'kind': 'position'},
+          'geometry': {'type': 'Point', 'coordinates': sun},
+        },
+      ],
+    };
+    if (kIsWeb) return web_setup.mapGeoJsonUrl(jsonEncode(collection));
+    return collection;
+  }
+
+  /// Latitude and longitude where the moon is overhead at [utc].
+  /// Low-precision lunar series, evaluated on the device from the clock.
+  static (double, double) _moonOverhead(DateTime utc) {
+    final d = utc.millisecondsSinceEpoch / 86400000.0 - 10957.5;
+    final e = (23.4397 - 0.00000036 * d) * pi / 180;
+    double wrap(double degrees) {
+      final turns = degrees % 360;
+      return turns < 0 ? turns + 360 : turns;
+    }
+
+    final l0 = wrap(218.316 + 13.176396 * d) * pi / 180;
+    final anomaly = wrap(134.963 + 13.064993 * d) * pi / 180;
+    final node = wrap(93.272 + 13.229350 * d) * pi / 180;
+    final l = l0 + 6.289 * sin(anomaly) * pi / 180;
+    final b = 5.128 * sin(node) * pi / 180;
+    final ra = atan2(sin(l) * cos(e) - tan(b) * sin(e), cos(l));
+    final dec = asin(sin(b) * cos(e) + cos(b) * sin(e) * sin(l));
+    final gmst = wrap(280.16 + 360.9856235 * d) * pi / 180;
+    var longitude = (ra - gmst) * 180 / pi;
+    while (longitude > 180) {
+      longitude -= 360;
+    }
+    while (longitude < -180) {
+      longitude += 360;
+    }
+    return (dec * 180 / pi, longitude);
+  }
+
+  static String _moonLabel(double latitude) {
+    final hemisphere = latitude >= 0 ? 'N' : 'S';
+    return 'Moon ${latitude.abs().toStringAsFixed(1)}°$hemisphere';
+  }
+
+  /// One pass of the moon around the Earth, plus where it is overhead now.
+  static Object _moonOrbitData(DateTime utc) {
+    final samples = <(double, double)>[
+      for (var minutes = -745; minutes <= 745; minutes += 20)
+        _moonOverhead(utc.add(Duration(minutes: minutes))),
+    ];
+    final segments = <List<List<double>>>[<List<double>>[]];
+    double? previousLongitude;
+    for (final sample in samples) {
+      final latitude = double.parse(sample.$1.toStringAsFixed(4));
+      final longitude = double.parse(sample.$2.toStringAsFixed(4));
+      if (previousLongitude != null &&
+          (longitude - previousLongitude).abs() > 180 &&
+          segments.last.isNotEmpty) {
+        segments.add(<List<double>>[]);
+      }
+      segments.last.add([longitude, latitude]);
+      previousLongitude = longitude;
+    }
+    final here = _moonOverhead(utc);
+    final moon = [
+      double.parse(here.$2.toStringAsFixed(4)),
+      double.parse(here.$1.toStringAsFixed(4)),
+    ];
+    final collection = {
+      'type': 'FeatureCollection',
+      'features': [
+        for (final segment in segments)
+          if (segment.length > 1)
+            {
+              'type': 'Feature',
+              'properties': {'kind': 'orbit'},
+              'geometry': {'type': 'LineString', 'coordinates': segment},
+            },
+        {
+          'type': 'Feature',
+          'properties': {'kind': 'moon', 'name': _moonLabel(here.$1)},
+          'geometry': {'type': 'Point', 'coordinates': moon},
+        },
+      ],
+    };
+    if (kIsWeb) return web_setup.mapGeoJsonUrl(jsonEncode(collection));
+    return collection;
   }
 
   static String getStyleUrl(Brightness brightness) {
@@ -42,6 +209,7 @@ class MapService {
       final groups = await _islandGroups;
       final maritime = await _maritimeBoundaries;
       final islandNames = await _islandNames;
+      final graticule = await _graticule;
       if (!isCurrent()) return;
       final layers = await controller.getLayerIds();
       if (!isCurrent()) return;
@@ -137,17 +305,180 @@ class MapService {
         enableInteraction: false,
       );
       if (!isCurrent()) return;
+      // Latitude and longitude every 10 degrees. The solid line is the
+      // latitude where the sun is overhead right now, not latitude 0.
+      final gridColor = dark ? '#7d8b9e' : '#8a8a8a';
+      final equatorColor = dark ? '#a3a3a3' : '#6a6a6a';
+      await controller.addSource(
+        'graticule',
+        GeojsonSourceProperties(data: graticule),
+      );
+      if (!isCurrent()) return;
+      await controller.addLineLayer(
+        'graticule',
+        'graticule',
+        LineLayerProperties(
+          lineColor: gridColor,
+          lineWidth: 0.7,
+          lineOpacity: 0.85,
+          lineDasharray: const [1, 2],
+        ),
+        belowLayerId: 'water_stream',
+        enableInteraction: false,
+      );
+      if (!isCurrent()) return;
+      final sunEquator = _sunEquatorData(DateTime.now().toUtc());
+      await controller.addSource(
+        'sun-equator',
+        GeojsonSourceProperties(data: sunEquator),
+      );
+      if (!isCurrent()) return;
+      await controller.addLineLayer(
+        'sun-equator',
+        'equator',
+        LineLayerProperties(
+          lineColor: equatorColor,
+          lineWidth: 0.8,
+          lineOpacity: 0.95,
+        ),
+        belowLayerId: 'water_stream',
+        filter: const ['==', ['get', 'kind'], 'sun'],
+        enableInteraction: false,
+      );
+      if (!isCurrent()) return;
+      // The sun's overhead position right now, on the wide chart through zoom 4.
+      await controller.addCircleLayer(
+        'sun-equator',
+        'sun-positions',
+        const CircleLayerProperties(
+          circleColor: '#f2c14d',
+          circleRadius: 7,
+          circleOpacity: 0.95,
+          circleStrokeColor: '#fff6d0',
+          circleStrokeWidth: 1.4,
+        ),
+        belowLayerId: layers.contains('places_country')
+            ? 'places_country'
+            : null,
+        filter: const ['==', ['get', 'kind'], 'position'],
+        minzoom: 0,
+        maxzoom: 5,
+        enableInteraction: false,
+      );
+      if (!isCurrent()) return;
+      await controller.addSymbolLayer(
+        'sun-equator',
+        'sun-equator-label',
+        SymbolLayerProperties(
+          textField: const ['get', 'name'],
+          textFont: const ['Noto Sans Italic'],
+          textSize: 11,
+          textColor: equatorColor,
+          textHaloColor: dark ? '#141414' : '#f4f1ec',
+          textHaloWidth: 1.2,
+          textAllowOverlap: true,
+          textIgnorePlacement: true,
+        ),
+        belowLayerId: layers.contains('places_country')
+            ? 'places_country'
+            : null,
+        filter: const ['==', ['get', 'kind'], 'label'],
+        enableInteraction: false,
+      );
+      if (!isCurrent()) return;
+      // Moon's overhead track for one pass around the Earth, and where it
+      // is right now. Both stay on the wide chart, zoom 0 through 4.
+      final moonColor = dark ? '#c5ced8' : '#6d7580';
+      final moonOrbit = _moonOrbitData(DateTime.now().toUtc());
+      await controller.addSource(
+        'moon-orbit',
+        GeojsonSourceProperties(data: moonOrbit),
+      );
+      if (!isCurrent()) return;
+      await controller.addLineLayer(
+        'moon-orbit',
+        'moon-orbit',
+        LineLayerProperties(
+          lineColor: moonColor,
+          lineWidth: 0.9,
+          lineOpacity: 0.9,
+        ),
+        belowLayerId: 'water_stream',
+        filter: const ['==', ['get', 'kind'], 'orbit'],
+        minzoom: 0,
+        maxzoom: 5,
+        enableInteraction: false,
+      );
+      if (!isCurrent()) return;
+      await controller.setLayerVisibility('moon-orbit', false);
+      if (!isCurrent()) return;
+      await controller.addCircleLayer(
+        'moon-orbit',
+        'moon-position',
+        const CircleLayerProperties(
+          circleColor: '#e7eef6',
+          circleRadius: 6,
+          circleOpacity: 0.95,
+          circleStrokeColor: '#9aa6b5',
+          circleStrokeWidth: 1.2,
+        ),
+        belowLayerId: layers.contains('places_country')
+            ? 'places_country'
+            : null,
+        filter: const ['==', ['get', 'kind'], 'moon'],
+        minzoom: 0,
+        maxzoom: 5,
+        enableInteraction: false,
+      );
+      if (!isCurrent()) return;
+      await controller.addCircleLayer(
+        'moon-orbit',
+        'moon-hit',
+        const CircleLayerProperties(
+          circleColor: '#e7eef6',
+          circleRadius: 18,
+          circleOpacity: 0.01,
+        ),
+        filter: const ['==', ['get', 'kind'], 'moon'],
+        minzoom: 0,
+        maxzoom: 5,
+        enableInteraction: true,
+      );
+      if (!isCurrent()) return;
+      await controller.addSymbolLayer(
+        'moon-orbit',
+        'moon-label',
+        SymbolLayerProperties(
+          textField: const ['get', 'name'],
+          textFont: const ['Noto Sans Italic'],
+          textSize: 11,
+          textColor: moonColor,
+          textHaloColor: dark ? '#141414' : '#f4f1ec',
+          textHaloWidth: 1.2,
+          textOffset: const [0, 1.1],
+          textAllowOverlap: true,
+          textIgnorePlacement: true,
+        ),
+        belowLayerId: layers.contains('places_country')
+            ? 'places_country'
+            : null,
+        filter: const ['==', ['get', 'kind'], 'moon'],
+        minzoom: 0,
+        maxzoom: 5,
+        enableInteraction: false,
+      );
+      if (!isCurrent()) return;
       // Country limits that continue offshore: median lines, treaties, and
       // the 200-mile nautical limit. Same dash and color as the land borders.
       final boundaryColor = dark ? '#5b6374' : '#adadad';
-      // await controller.addSource(
-      //   'maritime-boundaries',
-      //   GeojsonSourceProperties(
-      //     data: maritime,
-      //     attribution:
-      //         '<a href="https://www.naturalearthdata.com/">Natural Earth</a>',
-      //   ),
-      // );
+      await controller.addSource(
+        'maritime-boundaries',
+        GeojsonSourceProperties(
+          data: maritime,
+          attribution:
+              '<a href="https://www.naturalearthdata.com/">Natural Earth</a>',
+        ),
+      );
       if (!isCurrent()) return;
       await controller.addLineLayer(
         'maritime-boundaries',

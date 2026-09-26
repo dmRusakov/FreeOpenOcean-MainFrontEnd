@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' show Point;
 
 import 'package:flutter/foundation.dart';
@@ -34,6 +35,32 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
   MapLibreMapController? _controller;
   int _styleGeneration = 0;
   Brightness? _brightness;
+  bool _moonOrbitVisible = false;
+  Timer? _moonOrbitTimer;
+
+  void _onFeatureTapped(
+    Point<double> point,
+    LatLng coordinates,
+    String id,
+    String layerId,
+    Annotation? annotation,
+  ) {
+    if (layerId != 'moon-hit') return;
+    _moonOrbitTimer?.cancel();
+    _moonOrbitVisible = true;
+    _controller?.setLayerVisibility('moon-orbit', true);
+    _moonOrbitTimer = Timer(const Duration(seconds: 5), () {
+      _moonOrbitVisible = false;
+      _controller?.setLayerVisibility('moon-orbit', false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _moonOrbitTimer?.cancel();
+    _controller?.onFeatureTapped.remove(_onFeatureTapped);
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
@@ -49,6 +76,8 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
     final controller = _controller;
     if (controller == null || !mounted) return;
     final generation = ++_styleGeneration;
+    _moonOrbitTimer?.cancel();
+    _moonOrbitVisible = false;
     await MapService.addIslandOverlay(
       controller,
       _brightness!,
@@ -89,6 +118,7 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
       attributionButtonMargins: kIsWeb ? null : const Point(0, 0),
       onMapCreated: (controller) {
         _controller = controller;
+        controller.onFeatureTapped.add(_onFeatureTapped);
         widget.onMapCreated?.call(controller);
         if (kIsWeb) MapService.getCurrentLocation(controller);
       },

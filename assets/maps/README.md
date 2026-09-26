@@ -10,8 +10,9 @@ flat color.
 
 `island_groups.geojson` labels open-ocean groups used for passagemaking
 (Canary Islands, Azores, Madeira, Galápagos Islands, and the other groups
-offshore). Islands along a continental coast are omitted. Country names
-already drawn by the basemap, such as Cabo Verde, are not repeated.
+offshore). Islands along a continental coast are omitted. Cabo Verde is
+the exception: the basemap country name starts at zoom 3, so the group
+label fills zoom 2 only.
 
 `maritime_boundaries.geojson` draws country limits on the water: the lines
 between neighboring seas, treaty lines, and the 200-mile nautical limit.

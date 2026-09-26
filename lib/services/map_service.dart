@@ -299,9 +299,44 @@ class MapService {
         belowLayerId: layers.contains('places_country')
             ? 'places_country'
             : null,
+        filter: const ['!', ['has', 'until']],
         minzoom: 2,
         // MapLibre's upper bound is exclusive; include the whole zoom-8 band.
         maxzoom: 9,
+        enableInteraction: false,
+      );
+      if (!isCurrent()) return;
+      // Cabo Verde is a country label on the basemap from zoom 3. The
+      // basemap omits it at zoom 2, so this label covers only that gap.
+      await controller.addSymbolLayer(
+        'island-groups',
+        'island-group-labels-early',
+        SymbolLayerProperties(
+          textField: const ['get', 'name'],
+          textFont: const ['Noto Sans Italic'],
+          textSize: const [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            2,
+            12,
+            3,
+            12,
+          ],
+          textColor: labelColor,
+          textHaloColor: labelHalo,
+          textHaloWidth: 1.2,
+          textMaxWidth: 10,
+          textPadding: 6,
+          textAllowOverlap: true,
+          textIgnorePlacement: true,
+        ),
+        belowLayerId: layers.contains('places_country')
+            ? 'places_country'
+            : null,
+        filter: const ['==', ['get', 'until'], 3],
+        minzoom: 2,
+        maxzoom: 3,
         enableInteraction: false,
       );
       if (!isCurrent()) return;

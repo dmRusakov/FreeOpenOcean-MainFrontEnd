@@ -378,8 +378,12 @@ class MapService {
         ),
         belowLayerId: 'water_stream',
         filter: const ['==', ['get', 'kind'], 'sun'],
+        minzoom: 0,
+        maxzoom: 5,
         enableInteraction: false,
       );
+      if (!isCurrent()) return;
+      await controller.setLayerVisibility('equator', false);
       if (!isCurrent()) return;
       // The sun's overhead position right now, on the wide chart through zoom 4.
       await controller.addCircleLayer(
@@ -399,6 +403,20 @@ class MapService {
         minzoom: 0,
         maxzoom: 5,
         enableInteraction: false,
+      );
+      if (!isCurrent()) return;
+      await controller.addCircleLayer(
+        'sun-equator',
+        'sun-hit',
+        const CircleLayerProperties(
+          circleColor: '#f2c14d',
+          circleRadius: 18,
+          circleOpacity: 0.01,
+        ),
+        filter: const ['==', ['get', 'kind'], 'position'],
+        minzoom: 0,
+        maxzoom: 5,
+        enableInteraction: true,
       );
       if (!isCurrent()) return;
       await controller.addSymbolLayer(

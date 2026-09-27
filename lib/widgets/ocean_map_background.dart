@@ -35,8 +35,22 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
   MapLibreMapController? _controller;
   int _styleGeneration = 0;
   Brightness? _brightness;
-  bool _moonOrbitVisible = false;
   Timer? _moonOrbitTimer;
+  Timer? _sunOrbitTimer;
+
+  void _showOrbit(String layerId, bool sun) {
+    final timer = sun ? _sunOrbitTimer : _moonOrbitTimer;
+    timer?.cancel();
+    _controller?.setLayerVisibility(layerId, true);
+    final hide = Timer(const Duration(seconds: 5), () {
+      _controller?.setLayerVisibility(layerId, false);
+    });
+    if (sun) {
+      _sunOrbitTimer = hide;
+    } else {
+      _moonOrbitTimer = hide;
+    }
+  }
 
   void _onFeatureTapped(
     Point<double> point,
@@ -45,19 +59,17 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
     String layerId,
     Annotation? annotation,
   ) {
-    if (layerId != 'moon-hit') return;
-    _moonOrbitTimer?.cancel();
-    _moonOrbitVisible = true;
-    _controller?.setLayerVisibility('moon-orbit', true);
-    _moonOrbitTimer = Timer(const Duration(seconds: 5), () {
-      _moonOrbitVisible = false;
-      _controller?.setLayerVisibility('moon-orbit', false);
-    });
+    if (layerId == 'moon-hit') {
+      _showOrbit('moon-orbit', false);
+    } else if (layerId == 'sun-hit') {
+      _showOrbit('equator', true);
+    }
   }
 
   @override
   void dispose() {
     _moonOrbitTimer?.cancel();
+    _sunOrbitTimer?.cancel();
     _controller?.onFeatureTapped.remove(_onFeatureTapped);
     super.dispose();
   }
@@ -77,7 +89,7 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
     if (controller == null || !mounted) return;
     final generation = ++_styleGeneration;
     _moonOrbitTimer?.cancel();
-    _moonOrbitVisible = false;
+    _sunOrbitTimer?.cancel();
     await MapService.addIslandOverlay(
       controller,
       _brightness!,

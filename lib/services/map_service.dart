@@ -13,7 +13,6 @@ import '../web_setup_stub.dart'
 class MapService {
   static final _islandPoints = _loadGeoJson('island_points');
   static final _islandGroups = _loadGeoJson('island_groups');
-  static final _maritimeBoundaries = _loadGeoJson('maritime_boundaries');
   static final _islandNames = _loadGeoJson('island_names');
   static final _graticule = _loadGeoJson('graticule');
 
@@ -207,7 +206,6 @@ class MapService {
     try {
       final points = await _islandPoints;
       final groups = await _islandGroups;
-      final maritime = await _maritimeBoundaries;
       final islandNames = await _islandNames;
       final graticule = await _graticule;
       if (!isCurrent()) return;
@@ -518,30 +516,6 @@ class MapService {
         filter: const ['==', ['get', 'kind'], 'moon'],
         minzoom: 0,
         maxzoom: 5,
-        enableInteraction: false,
-      );
-      if (!isCurrent()) return;
-      // Country limits that continue offshore: median lines, treaties, and
-      // the 200-mile nautical limit. Same dash and color as the land borders.
-      final boundaryColor = dark ? '#5b6374' : '#adadad';
-      await controller.addSource(
-        'maritime-boundaries',
-        GeojsonSourceProperties(
-          data: maritime,
-          attribution:
-              '<a href="https://www.naturalearthdata.com/">Natural Earth</a>',
-        ),
-      );
-      if (!isCurrent()) return;
-      await controller.addLineLayer(
-        'maritime-boundaries',
-        'maritime-boundaries',
-        LineLayerProperties(
-          lineColor: boundaryColor,
-          lineWidth: 0.7,
-          lineDasharray: const [2, 1],
-        ),
-        belowLayerId: 'water_stream',
         enableInteraction: false,
       );
       if (!isCurrent()) return;

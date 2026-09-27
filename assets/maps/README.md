@@ -14,10 +14,6 @@ offshore). Islands along a continental coast are omitted. Cabo Verde is
 the exception: the basemap country name starts at zoom 3, so the group
 label fills zoom 2 only.
 
-`maritime_boundaries.geojson` draws country limits on the water: the lines
-between neighboring seas, treaty lines, and the 200-mile nautical limit.
-They use the same dash and color as the land borders.
-
 `graticule.geojson` draws a line every 10° of latitude and longitude. The
 solid line is the latitude where the sun is overhead at the moment the chart
 opens, calculated on the device. A label marks that latitude at the sun's

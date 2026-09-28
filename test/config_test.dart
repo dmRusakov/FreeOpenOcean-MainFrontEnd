@@ -3,17 +3,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:free_open_ocean/config/config.dart';
 
 void main() {
-  test('release never silently targets localhost', () {
-    expect(
-      Config.buildEndpoints(
+  test('web status is posted to the public app API', () {
+    for (final release in [false, true]) {
+      final endpoints = Config.buildEndpoints(
         httpUrls: '',
         grpcUrls: '',
         isWeb: true,
-        isRelease: true,
-        platform: TargetPlatform.android,
-      ),
-      isEmpty,
-    );
+        isRelease: release,
+        platform: TargetPlatform.macOS,
+      );
+      expect(endpoints, hasLength(1));
+      expect(
+        endpoints.single.httpStatusUri('/status.v1.Status/Get').toString(),
+        'https://app-api.freeopenocean.com/status.v1.Status/Get',
+      );
+    }
+  });
+  test('release never silently targets localhost', () {
     expect(
       Config.buildEndpoints(
         httpUrls: '',

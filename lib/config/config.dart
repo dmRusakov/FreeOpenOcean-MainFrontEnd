@@ -17,8 +17,12 @@ class Config {
     platform: defaultTargetPlatform,
   );
 
-  /// Release builds have no implicit development backend. Supply matching,
+  /// Public status endpoint: POST /status.v1.Status/Get.
+  static const statusHttpUrl = 'https://app-api.freeopenocean.com';
+
+  /// Release mobile builds have no implicit backend. Supply matching,
   /// comma-separated HTTP(S) and grpc(s) URLs through --dart-define.
+  /// Web always falls back to [statusHttpUrl].
   static List<Endpoint> buildEndpoints({
     required String httpUrls,
     required String grpcUrls,
@@ -33,12 +37,15 @@ class Config {
         .toList();
     final http = split(httpUrls);
     final grpc = split(grpcUrls);
-    if (http.isEmpty && grpc.isEmpty && !isRelease) {
-      final host = !isWeb && platform == TargetPlatform.android
-          ? '10.0.2.2'
-          : 'localhost';
-      http.addAll(['http://$host:8082', 'http://$host:8081']);
-      grpc.addAll(['grpc://$host:50061', 'grpc://$host:50051']);
+    if (http.isEmpty && grpc.isEmpty) {
+      if (isWeb) {
+        http.add(statusHttpUrl);
+      } else if (!isRelease) {
+        final host = platform == TargetPlatform.android
+            ? '10.0.2.2'
+            : 'localhost';
+        grpc.addAll(['grpc://$host:50061', 'grpc://$host:50051']);
+      }
     }
     final selected = isWeb ? http : grpc;
     return List.generate(selected.length, (i) {

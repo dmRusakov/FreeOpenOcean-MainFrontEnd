@@ -4,9 +4,11 @@
 the smaller Fiji islands. Each dot sits on the coastline and stays drawn at
 every zoom.
 
-A hillshade from AWS Terrain Tiles covers the basemap land at every zoom. The
-same shade is drawn over the ocean until zoom 11, then the water returns to a
-flat color.
+Boat places are drawn from zoom 12: marinas, fuel, ferries, cruise terminals,
+slipways, boat service, customs, and port offices. Named bridges are labeled
+from zoom 13. The chart tiles do not include a clearance height.
+Cafes, parks, trains, buildings, and other land places are hidden.
+Beaches, piers, and dams stay.
 
 `island_groups.geojson` labels open-ocean groups used for passagemaking
 (Canary Islands, Azores, Madeira, Galápagos Islands, and the other groups
@@ -17,8 +19,8 @@ label fills zoom 2 only.
 `graticule.geojson` draws a line every 10° of latitude and longitude. The
 solid line is the latitude where the sun is overhead at the moment the chart
 opens, calculated on the device. A label marks that latitude at the sun's
-longitude. One dot marks where the sun is overhead right now, from zoom 0
-through 4.
+longitude through zoom 5. One dot marks where the sun is overhead right now,
+from zoom 0 through 4.
 
 The moon's overhead track for one pass around the Earth stays hidden until
 the moon dot is clicked, then stays visible for 5 seconds. The dot itself

@@ -73,24 +73,20 @@
   <link href='https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css' rel='stylesheet' />
   <script src='https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js'></script>
   <script>
-    // Keep a straight-down globe through zoom 19, then ease to a flat chart.
-    // The Flutter plugin does not set projection or pitch.
+    // Keep a straight-down globe through zoom 15. The globe stops drawing
+    // tiles just past zoom 16, so the closer chart is flat Mercator.
     (function () {
       if (!window.maplibregl || !maplibregl.Map || !maplibregl.Map.prototype.setProjection) return;
       var Original = maplibregl.Map;
-      var verticalUntilZoom = 19;
+      var flatFromZoom = 16;
       function applyVerticalView(map) {
         map.setProjection({
-          type: [
-            'interpolate', ['linear'], ['zoom'],
-            verticalUntilZoom, 'vertical-perspective',
-            verticalUntilZoom + 1, 'mercator'
-          ]
+          type: ['step', ['zoom'], 'vertical-perspective', flatFromZoom, 'mercator']
         });
-        if (map.getZoom() <= verticalUntilZoom) {
+        if (map.getZoom() < flatFromZoom) {
           map.setMaxPitch(0);
           if (map.getPitch() > 0) map.setPitch(0);
-        } else {
+        } else if (map.getMaxPitch() === 0) {
           map.setMaxPitch(60);
         }
       }
@@ -110,7 +106,7 @@
           applyVerticalView(map);
         });
         map.on('zoom', function () {
-          if (map.getZoom() <= verticalUntilZoom) {
+          if (map.getZoom() < flatFromZoom) {
             if (map.getMaxPitch() !== 0) map.setMaxPitch(0);
             if (map.getPitch() > 0) map.setPitch(0);
           } else if (map.getMaxPitch() === 0) {
@@ -122,19 +118,6 @@
       MapWithGlobe.prototype = Original.prototype;
       maplibregl.Map = MapWithGlobe;
     })();
-  </script>
-  <script src='https://unpkg.com/maplibre-contour@0.1.0/dist/index.min.js'></script>
-  <script>
-    // Turns the same terrain tiles the hillshade uses into contour vectors.
-    if (window.maplibregl && window.mlcontour) {
-      var demSource = new mlcontour.DemSource({
-        url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
-        encoding: 'terrarium',
-        maxzoom: 15,
-        worker: true
-      });
-      demSource.setupMaplibre(maplibregl);
-    }
   </script>
 
   <title>FreeOpenOcean</title>

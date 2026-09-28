@@ -195,9 +195,9 @@ class MapService {
     return 'https://api.protomaps.com/styles/v5/$colorSchema/en.json?key=${Config.apiKey}';
   }
 
-  /// Coastline dots for islands under about 600 km², plus hillshade, land
-  /// contours, and open-ocean island group names. The dots stay on at every
-  /// zoom so Samos and the smaller Fiji islands do not drop out of the chart.
+  /// Coastline dots for islands under about 600 km², plus open-ocean island
+  /// group names. The dots stay on at every zoom so Samos and the smaller
+  /// Fiji islands do not drop out of the chart.
   static Future<void> addIslandOverlay(
     MapLibreMapController controller,
     Brightness brightness,
@@ -220,8 +220,6 @@ class MapService {
       // Same greens as the Protomaps forest landcover, dark and light.
       final islandColor = dark ? '#1c2925' : '#c4e7d2';
       final islandOutline = dark ? '#121c18' : '#8fbfa4';
-      await _addLandElevation(controller, brightness, layers, isCurrent);
-      if (!isCurrent()) return;
       await controller.addSource(
         'island-points',
         GeojsonSourceProperties(data: points, cluster: false),
@@ -434,6 +432,10 @@ class MapService {
             ? 'places_country'
             : null,
         filter: const ['==', ['get', 'kind'], 'label'],
+        minzoom: 0,
+        // Hidden once zoom passes 5. The bound is exclusive, so zoom 5
+        // still shows the label.
+        maxzoom: 5.01,
         enableInteraction: false,
       );
       if (!isCurrent()) return;
@@ -594,157 +596,271 @@ class MapService {
         maxzoom: 7,
         enableInteraction: false,
       );
+      if (!isCurrent()) return;
+      await _hideSmallCityDetail(controller, layers);
+      await _hideLandObjects(controller, layers);
+      await _addBoatPlaces(controller, dark, layers, isCurrent);
     } catch (error) {
       if (isCurrent()) debugPrint('Unable to load island overlay: $error');
     }
   }
 
-  /// Shade terrain from AWS tiles, and draw land contour lines with the
-  /// elevation in meters on the major lines. Over the ocean the shade stops
-  /// at zoom 11 so closer charts keep a flat water color. Contours are land
-  /// only: heights at or below sea level are left off the chart.
-  static Future<void> _addLandElevation(
+  /// Drops local streets. Bridge layers are separate and stay on, including
+  /// bridges that carry a small road.
+  static Future<void> _hideSmallCityDetail(
     MapLibreMapController controller,
-    Brightness brightness,
     List<dynamic> layers,
-    bool Function() isCurrent,
   ) async {
-    const landLayerId = 'land-elevation';
-    const oceanLayerId = 'ocean-elevation';
-    if (layers.contains(landLayerId) || layers.contains(oceanLayerId)) return;
-    final dark = brightness == Brightness.dark;
-    final shade = HillshadeLayerProperties(
-      hillshadeExaggeration: 0.3,
-      hillshadeShadowColor: dark ? '#000000' : '#3f3a34',
-      hillshadeHighlightColor: dark ? '#5c5c5c' : '#e0dcd6',
-      hillshadeAccentColor: dark ? '#101010' : '#c8c2b8',
-    );
-    try {
-      await controller.addSource(
-        'land-elevation-dem',
-        const RasterDemSourceProperties(
-          tiles: [
-            'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
+    const smallRoads = [
+      'roads_tunnels_other_casing',
+      'roads_tunnels_minor_casing',
+      'roads_tunnels_other',
+      'roads_tunnels_minor',
+      'roads_minor_service_casing',
+      'roads_minor_casing',
+      'roads_other',
+      'roads_minor_service',
+      'roads_minor',
+      'roads_labels_minor',
+    ];
+    for (final id in smallRoads) {
+      if (layers.contains(id)) {
+        await controller.setLayerVisibility(id, false);
+      }
+    }
+    if (layers.contains('roads_oneway')) {
+      await controller.setFilter('roads_oneway', const [
+        'all',
+        ['==', ['get', 'oneway'], 'yes'],
+        [
+          'in',
+          ['get', 'kind'],
+          [
+            'literal',
+            ['highway', 'major_road'],
           ],
-          encoding: 'terrarium',
-          tileSize: 256,
-          maxzoom: 15,
-          attribution:
-              '<a href="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a>',
-        ),
-      );
-      if (!isCurrent()) return;
-      // From zoom 11 up, only land shows through holes in the ocean polygon.
-      await controller.addHillshadeLayer(
-        'land-elevation-dem',
-        landLayerId,
-        shade,
-        belowLayerId: layers.contains('water') ? 'water' : 'water_stream',
-        minzoom: 11,
-      );
-      if (!isCurrent()) return;
-      // Through zoom 11 the same shade sits on the water as well.
-      await controller.addHillshadeLayer(
-        'land-elevation-dem',
-        oceanLayerId,
-        shade,
-        belowLayerId: 'water_stream',
-        maxzoom: 11,
-      );
-      if (!isCurrent() || !kIsWeb) return;
-      await _addLandContours(controller, dark, layers);
-    } catch (error) {
-      if (isCurrent()) debugPrint('Unable to load land elevation: $error');
+        ],
+      ]);
     }
   }
 
-  /// Contour vectors are generated in the browser from the terrain tiles.
-  /// The protocol is registered in web/index.html.
-  static Future<void> _addLandContours(
+  /// Parks, cafes, trains, buildings, and the other land places are hidden.
+  /// Water, beaches, piers, dams, and ferry terminals stay.
+  static Future<void> _hideLandObjects(
+    MapLibreMapController controller,
+    List<dynamic> layers,
+  ) async {
+    const landObjects = [
+      'landcover',
+      'landuse_park',
+      'landuse_urban_green',
+      'landuse_hospital',
+      'landuse_industrial',
+      'landuse_school',
+      'landuse_zoo',
+      'landuse_aerodrome',
+      'landuse_runway',
+      'roads_runway',
+      'roads_taxiway',
+      'roads_rail',
+      'buildings',
+      'address_label',
+    ];
+    for (final id in landObjects) {
+      if (layers.contains(id)) {
+        await controller.setLayerVisibility(id, false);
+      }
+    }
+    if (layers.contains('landuse_pedestrian')) {
+      await controller.setFilter('landuse_pedestrian', const [
+        '==',
+        ['get', 'kind'],
+        'dam',
+      ]);
+    }
+  }
+
+  /// Boat places from the chart tiles: marinas, fuel, ferries, slipways,
+  /// customs, port offices, and the other harbour kinds. Bridge lines stay
+  /// in the road layers; this adds their names. The tiles have no clearance
+  /// height, so the label is the bridge name.
+  static const _boatKinds = [
+    'anchorage',
+    'beacon',
+    'boat',
+    'boat_rental',
+    'boat_repair',
+    'boat_storage',
+    'cruise_terminal',
+    'customs',
+    'dock',
+    'ferry_terminal',
+    'fuel',
+    'harbourmaster',
+    'lighthouse',
+    'life_ring',
+    'lock',
+    'marina',
+    'mooring',
+    'naval_base',
+    'ship_chandler',
+    'slipway',
+  ];
+
+  static Future<void> _addBoatPlaces(
     MapLibreMapController controller,
     bool dark,
     List<dynamic> layers,
+    bool Function() isCurrent,
   ) async {
-    const sourceId = 'land-contours';
-    if (layers.contains('land-contour-lines')) return;
-    final belowWater = layers.contains('water') ? 'water' : 'water_stream';
-    final lineColor = dark ? '#8a8a8a' : '#9a938a';
-    final textColor = dark ? '#c4c4c4' : '#4a453f';
-    final textHalo = dark ? '#141414' : '#f7f4ef';
-    await controller.addSource(
-      sourceId,
-      const VectorSourceProperties(
-        tiles: [
-          'dem-contour://{z}/{x}/{y}?contourLayer=contours&elevationKey=ele&levelKey=level&multiplier=1&overzoom=1&thresholds=4%2A500%2A1000%7E7%2A200%2A1000%7E9%2A100%2A500%7E11%2A50%2A200%7E13%2A20%2A100',
-        ],
-        maxzoom: 15,
-        attribution:
-            '<a href="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a>',
-      ),
-    );
-    await controller.addLineLayer(
-      sourceId,
-      'land-contour-lines',
-      LineLayerProperties(
-        lineColor: lineColor,
-        lineWidth: const [
-          'match',
-          ['get', 'level'],
-          1,
-          1.15,
-          0.55,
-        ],
-        lineOpacity: 0.4,
-      ),
-      sourceLayer: 'contours',
-      belowLayerId: belowWater,
-      minzoom: 7,
-      filter: const [
-        '>',
-        ['get', 'ele'],
-        0,
-      ],
-      enableInteraction: false,
-    );
-    await controller.addSymbolLayer(
-      sourceId,
-      'land-contour-labels',
-      SymbolLayerProperties(
-        textField: const [
-          'concat',
+    if (layers.contains('boat-places')) return;
+    for (final old in ['boat-marinas', 'boat-fuel']) {
+      if (layers.contains(old)) {
+        await controller.setLayerVisibility(old, false);
+      }
+    }
+    if (layers.contains('pois')) {
+      await controller.setFilter('pois', const [
+        'all',
+        [
+          'in',
+          ['get', 'kind'],
           [
-            'number-format',
-            ['get', 'ele'],
-            {'max-fraction-digits': 0},
+            'literal',
+            ['beach'],
           ],
-          ' m',
         ],
-        textFont: const ['Noto Sans Regular'],
+        [
+          '>=',
+          ['zoom'],
+          ['+', ['get', 'min_zoom'], 0],
+        ],
+      ]);
+    }
+    if (!isCurrent()) return;
+    const icons = {
+      'boat-fuel': 'assets/icons/boat_fuel.png',
+      'boat-anchor': 'assets/icons/boat_anchor.png',
+      'boat-customs': 'assets/icons/boat_customs.png',
+      'boat-port': 'assets/icons/boat_port.png',
+      'boat-service': 'assets/icons/boat_service.png',
+      'boat-slipway': 'assets/icons/boat_slipway.png',
+    };
+    for (final entry in icons.entries) {
+      final bytes = await rootBundle.load(entry.value);
+      await controller.addImage(
+        entry.key,
+        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+      );
+      if (!isCurrent()) return;
+    }
+    final textColor = dark ? '#e4e4e4' : '#24302c';
+    final halo = dark ? '#141414' : '#f7f4ef';
+    final below = layers.contains('places_country') ? 'places_country' : null;
+    await controller.addSymbolLayer(
+      'protomaps',
+      'boat-places',
+      SymbolLayerProperties(
+        iconImage: [
+          'match',
+          ['get', 'kind'],
+          'marina',
+          'marina',
+          'fuel',
+          'boat-fuel',
+          'ferry_terminal',
+          'ferry_terminal',
+          'cruise_terminal',
+          'ferry_terminal',
+          'customs',
+          'boat-customs',
+          'harbourmaster',
+          'boat-port',
+          'naval_base',
+          'boat-port',
+          'ship_chandler',
+          'boat-service',
+          'boat',
+          'boat-service',
+          'boat_rental',
+          'boat-service',
+          'boat_repair',
+          'boat-service',
+          'boat_storage',
+          'boat-service',
+          'slipway',
+          'boat-slipway',
+          'dock',
+          'boat-slipway',
+          'boat-anchor',
+        ],
+        iconSize: [
+          'match',
+          ['get', 'kind'],
+          'marina',
+          1.15,
+          'ferry_terminal',
+          1.1,
+          'cruise_terminal',
+          1.1,
+          0.42,
+        ],
+        iconAllowOverlap: true,
+        iconOptional: true,
+        textField: ['get', 'name'],
+        textFont: ['Noto Sans Regular'],
         textSize: 11,
+        textAnchor: 'left',
+        textOffset: [0.8, 0],
+        textOptional: true,
+        textMaxWidth: 8,
         textColor: textColor,
-        textOpacity: 0.5,
-        textHaloColor: textHalo,
+        textHaloColor: halo,
         textHaloWidth: 1.2,
-        symbolPlacement: 'line',
-        textAllowOverlap: false,
-        textPadding: 8,
+        textPadding: 2,
       ),
-      sourceLayer: 'contours',
-      belowLayerId: belowWater,
-      minzoom: 7,
+      sourceLayer: 'pois',
+      belowLayerId: below,
       filter: const [
         'all',
         [
-          '>',
-          ['get', 'level'],
-          0,
+          'in',
+          ['get', 'kind'],
+          ['literal', _boatKinds],
         ],
         [
-          '>',
-          ['get', 'ele'],
-          0,
+          '>=',
+          ['zoom'],
+          ['coalesce', ['to-number', ['get', 'min_zoom'], 12], 12],
         ],
       ],
+      minzoom: 12,
+      enableInteraction: false,
+    );
+    if (!isCurrent()) return;
+    await controller.addSymbolLayer(
+      'protomaps',
+      'boat-bridge-labels',
+      SymbolLayerProperties(
+        symbolPlacement: 'line',
+        textField: const ['get', 'name'],
+        textFont: const ['Noto Sans Regular'],
+        textSize: 11,
+        textColor: dark ? '#9ec9e0' : '#1d4e6e',
+        textHaloColor: halo,
+        textHaloWidth: 1.2,
+        textMaxAngle: 35,
+        symbolSpacing: 280,
+      ),
+      sourceLayer: 'roads',
+      belowLayerId: below,
+      filter: const [
+        'all',
+        ['has', 'is_bridge'],
+        ['has', 'name'],
+        ['!=', ['get', 'kind'], 'rail'],
+      ],
+      minzoom: 13,
       enableInteraction: false,
     );
   }

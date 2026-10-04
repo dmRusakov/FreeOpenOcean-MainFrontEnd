@@ -1,0 +1,10 @@
+/:country/en/about /USA/en/about/index.html 200
+/:country/es/about /USA/es/about/index.html 200
+/:country/fr/about /USA/fr/about/index.html 200
+/:country/pt/about /USA/pt/about/index.html 200
+/:country/ru/about /USA/ru/about/index.html 200
+/:country/en/contact /USA/en/contact/index.html 200
+/:country/es/contact /USA/es/contact/index.html 200
+/:country/fr/contact /USA/fr/contact/index.html 200
+/:country/pt/contact /USA/pt/contact/index.html 200
+/:country/ru/contact /USA/ru/contact/index.html 200

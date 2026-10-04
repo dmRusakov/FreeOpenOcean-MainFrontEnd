@@ -72,6 +72,13 @@ class AppMenu extends StatelessWidget {
                       //   },
                       // ),
                       ListTile(
+                        leading: const Icon(Icons.mail_outline),
+                        title: Text(localizations.translate('contact')),
+                        onTap: () {
+                          context.routerGoTo('contact');
+                        },
+                      ),
+                      ListTile(
                         leading: const Icon(Icons.info),
                         title: Text(localizations.translate('about')),
                         onTap: () {

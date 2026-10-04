@@ -1,0 +1,16 @@
+name = "images"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+account_id = "e80f7161e7cdefe95a5e6def918eb163"
+
+[[routes]]
+pattern = "images.freeopenocean.com"
+custom_domain = true
+
+[[r2_buckets]]
+binding = "IMAGES_BUCKET"
+bucket_name = "foo-images"
+
+# On-the-fly resize/format. Originals stay in R2.
+[images]
+binding = "IMAGES"

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../localization/countries.dart';
 import 'package:free_open_ocean/core/localization/app_localizations.dart';
 import 'package:free_open_ocean/pages/about_page.dart';
+import 'package:free_open_ocean/pages/contact_page.dart';
 import 'package:free_open_ocean/pages/ocean_charts.dart';
 import 'package:free_open_ocean/pages/settings_page.dart';
 import 'package:free_open_ocean/pages/user_page.dart';
@@ -50,6 +51,10 @@ class AppRouter {
       _buildRoute(
         '/:country/:language/about',
         (params) => AboutPage(params: params),
+      ),
+      _buildRoute(
+        '/:country/:language/contact',
+        (params) => ContactPage(params: params),
       ),
     ],
     redirect: (context, state) {

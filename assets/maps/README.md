@@ -4,6 +4,11 @@
 the smaller Fiji islands. Each dot sits on the coastline and stays drawn at
 every zoom.
 
+A hillshade covers the basemap land at every zoom. The same shade is drawn
+over the ocean until zoom 11, then the water returns to a flat color. Land
+contour lines start at zoom 7. Depth contour lines are drawn on the water at
+every zoom. Major depth lines are labeled in meters.
+
 Boat places are drawn from zoom 12: marinas, fuel, ferries, cruise terminals,
 slipways, boat service, customs, and port offices. Named bridges are labeled
 from zoom 13. The chart tiles do not include a clearance height.

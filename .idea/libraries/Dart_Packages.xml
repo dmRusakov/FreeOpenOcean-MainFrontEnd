@@ -569,6 +569,13 @@
             </list>
           </value>
         </entry>
+        <entry key="markdown">
+          <value>
+            <list>
+              <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/markdown-7.3.1/lib" />
+            </list>
+          </value>
+        </entry>
         <entry key="matcher">
           <value>
             <list>
@@ -1124,6 +1131,7 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/maplibre_gl-0.25.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/maplibre_gl_platform_interface-0.25.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/maplibre_gl_web-0.25.0/lib" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/markdown-7.3.1/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/matcher-0.12.20/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/material_color_utilities-0.13.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/meta-1.19.0/lib" />

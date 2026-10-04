@@ -167,6 +167,7 @@ class AppThemeProvider extends InheritedWidget {
     void Function(ThemeModeOptionEnum?) onChanged, {
     String color = 'secondary',
     String size = 'm',
+    bool showTextAlways = true,
   }) {
     final localizations = AppLocalizations.of(context)!;
 
@@ -177,7 +178,7 @@ class AppThemeProvider extends InheritedWidget {
       theme: color,
       icon: Icons.brightness_6,
       size: size,
-      showTextAlways: true,
+      showTextAlways: showTextAlways,
     );
   }
 

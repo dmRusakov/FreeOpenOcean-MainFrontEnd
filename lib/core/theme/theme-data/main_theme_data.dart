@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../app_theme.dart';
+import '../marine_palette.dart';
 import 'package:flutter_html/flutter_html.dart';
 
 class MainThemeData extends AppTheme {
@@ -20,7 +21,7 @@ class MainThemeData extends AppTheme {
       'padding': const EdgeInsets.symmetric(horizontal: 20)
     },
     'footer': <String, dynamic>{
-      'height': 30.0,
+      'height': 40.0,
       'fontSize': 10.0,
       'padding': const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
     },
@@ -152,54 +153,67 @@ class MainThemeData extends AppTheme {
     // 'btn_xl': <String, dynamic>{'fontSize': 28.0, 'height': 45.0, 'iconSize': 36.0},
   };
 
-  // Charcoal cabinetry, cool stone, walnut and warm stair lighting.
-  static const charcoal = Color(0xFF101619);
-  static const graphite = Color(0xFF252D31);
-  static const stone = Color(0xFFB6BCBC);
-  static const ivory = Color(0xFFF2F0EB);
-  static const walnut = Color(0xFF795B4E);
-  static const ember = Color(0xFFAD4925);
-  static const warmAccent = Color(0xFFEFAB85);
+  static const _day = MarinePalette.day;
+  static const _night = MarinePalette.night;
 
   @override
   Map<String, dynamic> get colors => {
     'header': <String, dynamic>{'background': Colors.transparent},
-    'footer': <String, dynamic>{
-      'background': Colors.transparent,
-      'text': ivory,
-    },
-    'primary': ember,
-    'secondary': walnut,
-    'success': const Color(0xFF466354),
-    'error': const Color(0xFFA63F36),
-    'warning': const Color(0xFF825E28),
-    'info': graphite,
-    'btn_primary': <String, dynamic>{'background': ember, 'text': ivory},
-    'btn_secondary': <String, dynamic>{'background': walnut, 'text': ivory},
-    'btn_success': <String, dynamic>{'background': const Color(0xFF466354), 'text': ivory},
-    'btn_warning': <String, dynamic>{'background': const Color(0xFF825E28), 'text': ivory},
-    'btn_error': <String, dynamic>{'background': const Color(0xFFA63F36), 'text': ivory},
+    'footer': <String, dynamic>{'background': Colors.transparent},
   };
 
   @override
-  Map<String, dynamic> get lightColors => {
-    'text': charcoal,
-    'background': ivory,
-    'info': const Color(0xFF535F63),
-    'topHeader': <String, dynamic>{'background': Colors.transparent, 'text': charcoal},
-    'btn_info': <String, dynamic>{'background': const Color(0xFFDCE0DD), 'text': charcoal},
-    'btn_logo': <String, dynamic>{'background': ember, 'text': ivory},
-  };
+  Map<String, dynamic> get lightColors => _modeColors(_day);
 
   @override
-  Map<String, dynamic> get darkColors => {
-    'text': ivory,
-    'background': charcoal,
-    'info': stone,
-    'topHeader': <String, dynamic>{'background': Colors.transparent, 'text': ivory},
-    'btn_logo': <String, dynamic>{'background': ember, 'text': ivory},
-    'btn_info': <String, dynamic>{'background': graphite, 'text': ivory},
-  };
+  Map<String, dynamic> get darkColors => _modeColors(_night);
+
+  static Map<String, dynamic> _modeColors(MarinePalette palette) {
+    final chrome = palette.chrome;
+    return <String, dynamic>{
+      'text': chrome.ink,
+      'background': chrome.surface,
+      'primary': chrome.primary,
+      'secondary': chrome.secondary,
+      'success': chrome.positive,
+      'error': chrome.danger,
+      'warning': chrome.caution,
+      'info': chrome.inkMuted,
+      'footer': <String, dynamic>{'text': chrome.inkMuted},
+      'topHeader': <String, dynamic>{
+        'background': Colors.transparent,
+        'text': chrome.ink,
+      },
+      'btn_primary': <String, dynamic>{
+        'background': chrome.primary,
+        'text': chrome.onPrimary,
+      },
+      'btn_secondary': <String, dynamic>{
+        'background': chrome.secondary,
+        'text': chrome.onSecondary,
+      },
+      'btn_success': <String, dynamic>{
+        'background': chrome.positive,
+        'text': chrome.onPrimary,
+      },
+      'btn_warning': <String, dynamic>{
+        'background': chrome.caution,
+        'text': chrome.onPrimary,
+      },
+      'btn_error': <String, dynamic>{
+        'background': chrome.danger,
+        'text': chrome.onPrimary,
+      },
+      'btn_info': <String, dynamic>{
+        'background': chrome.surfaceSunken,
+        'text': chrome.ink,
+      },
+      'btn_logo': <String, dynamic>{
+        'background': chrome.primary,
+        'text': chrome.onPrimary,
+      },
+    };
+  }
 
   @override
   double get maxWidth => 1200.0;
@@ -212,34 +226,105 @@ class MainThemeData extends AppTheme {
   };
 
   static ThemeData buildThemeData(bool isDark) {
-    final appTheme = MainThemeData();
-    final colors = isDark ? appTheme.darkColors : appTheme.lightColors;
+    final brightness = isDark ? Brightness.dark : Brightness.light;
+    final palette = MarinePalette.of(brightness);
+    final chrome = palette.chrome;
+    // Each container step is the surface lifted towards the ink, so the dark
+    // ladder stays inside the night luminance budget instead of climbing
+    // towards grey the way a seeded scheme would.
+    Color layer(double amount) =>
+        Color.lerp(chrome.surface, chrome.ink, amount)!;
+
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: chrome.primary,
+          brightness: brightness,
+        ).copyWith(
+          primary: chrome.primary,
+          onPrimary: chrome.onPrimary,
+          primaryContainer: Color.lerp(chrome.surface, chrome.primary, 0.22)!,
+          onPrimaryContainer: chrome.ink,
+          secondary: chrome.secondary,
+          onSecondary: chrome.onSecondary,
+          secondaryContainer: Color.lerp(
+            chrome.surface,
+            chrome.secondary,
+            0.22,
+          )!,
+          onSecondaryContainer: chrome.ink,
+          tertiary: chrome.beacon,
+          onTertiary: chrome.onPrimary,
+          error: chrome.danger,
+          onError: chrome.onPrimary,
+          surface: chrome.surface,
+          onSurface: chrome.ink,
+          onSurfaceVariant: chrome.inkMuted,
+          surfaceContainerLowest: chrome.surfaceSunken,
+          surfaceContainerLow: layer(0.04),
+          surfaceContainer: layer(0.08),
+          surfaceContainerHigh: layer(0.13),
+          surfaceContainerHighest: layer(0.18),
+          outline: chrome.outline,
+          outlineVariant: chrome.outlineFaint,
+        );
+
     return ThemeData(
-      brightness: isDark ? Brightness.dark : Brightness.light,
-      primaryColor: appTheme.colors['primary'],
-      scaffoldBackgroundColor: colors['background'],
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: appTheme.colors['primary'],
-        brightness: isDark ? Brightness.dark : Brightness.light,
-      ).copyWith(
-        primary: isDark ? warmAccent : ember,
-        onPrimary: isDark ? charcoal : ivory,
-        primaryContainer: isDark ? const Color(0xFF51372B) : const Color(0xFFF2D7C7),
-        onPrimaryContainer: isDark ? ivory : charcoal,
-        secondary: isDark ? const Color(0xFFC4A394) : walnut,
-        onSecondary: isDark ? charcoal : ivory,
-        surface: isDark ? charcoal : ivory,
-        onSurface: isDark ? ivory : charcoal,
-        onSurfaceVariant: isDark ? stone : const Color(0xFF535F63),
-        surfaceContainerLow: isDark ? const Color(0xFF192125) : const Color(0xFFE8E9E4),
-        surfaceContainer: isDark ? graphite : const Color(0xFFE0E3DF),
-        surfaceContainerHigh: isDark ? const Color(0xFF303A3E) : const Color(0xFFD7DCD8),
-        surfaceContainerHighest: isDark ? const Color(0xFF3B464A) : const Color(0xFFCCD2CE),
-        outline: isDark ? const Color(0xFF7B888B) : const Color(0xFF6C797C),
-        outlineVariant: isDark ? const Color(0xFF384448) : const Color(0xFFCBD1CE),
+      brightness: brightness,
+      primaryColor: chrome.primary,
+      scaffoldBackgroundColor: chrome.surface,
+      colorScheme: colorScheme,
+      dividerTheme: DividerThemeData(
+        color: chrome.outlineFaint,
+        thickness: 1,
+        space: 1,
+      ),
+      drawerTheme: DrawerThemeData(
+        backgroundColor: chrome.surfaceRaised,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: chrome.surfaceRaised,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: chrome.outline),
+        ),
+      ),
+      listTileTheme: ListTileThemeData(
+        iconColor: chrome.inkMuted,
+        textColor: chrome.ink,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      iconTheme: IconThemeData(color: chrome.inkMuted),
+      textSelectionTheme: TextSelectionThemeData(cursorColor: chrome.primary),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: chrome.surfaceSunken,
+        hintStyle: TextStyle(color: chrome.inkFaint),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: chrome.outline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: chrome.outlineFaint),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: chrome.primary, width: 1.5),
+        ),
       ),
       textTheme: TextTheme(
-        bodyLarge: TextStyle(color: colors['text']),
+        titleLarge: TextStyle(
+          color: chrome.ink,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.1,
+        ),
+        bodyLarge: TextStyle(color: chrome.ink),
+        bodyMedium: TextStyle(color: chrome.ink),
+        labelSmall: TextStyle(color: chrome.inkMuted),
       ),
     );
   }

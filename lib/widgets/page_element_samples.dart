@@ -45,7 +45,7 @@ class _PageElementSamplesState extends State<PageElementSamples> {
             onPressed: () => AppRouter.goTo(context, 'about'),
             child: const Text(
               'Read about FreeOpenOcean',
-              style: TextStyle(decoration: TextDecoration.underline),
+              style: TextStyle(decoration: TextDecoration.none),
             ),
           ),
         ),

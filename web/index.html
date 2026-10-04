@@ -18,12 +18,12 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="FreeOpenOcean: open marine information, ocean data and nautical charts.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="free_open_onean">
+  <meta name="apple-mobile-web-app-title" content="FreeOpenOcean">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
@@ -104,6 +104,12 @@
         };
         map.on('style.load', function () {
           applyVerticalView(map);
+          // The hosted style holds minor street names until zoom 15 and major
+          // names from zoom 11. Drop that floor so the app can show both
+          // once the camera is past zoom 14.
+          ['roads_labels_major', 'roads_labels_minor', 'roads_shields'].forEach(function (id) {
+            if (map.getLayer(id)) map.setLayerZoomRange(id, 0, 24);
+          });
         });
         map.on('zoom', function () {
           if (map.getZoom() < flatFromZoom) {
@@ -117,7 +123,103 @@
       }
       MapWithGlobe.prototype = Original.prototype;
       maplibregl.Map = MapWithGlobe;
+      // setData gets the same prototype-less objects as addSource. Clone
+      // them into plain JSON so symbol layers actually draw the update.
+      var geoJsonSource = maplibregl.GeoJSONSource;
+      if (geoJsonSource && geoJsonSource.prototype.setData) {
+        var originalSetData = geoJsonSource.prototype.setData;
+        geoJsonSource.prototype.setData = function (data) {
+          if (data && typeof data === 'object') {
+            try { data = JSON.parse(JSON.stringify(data)); } catch (e) {}
+          }
+          return originalSetData.call(this, data);
+        };
+      }
     })();
+  </script>
+  <script>
+    // Terrain tiles are cleaned by dem_clean_sw.js before contours are built.
+    if ('serviceWorker' in navigator) {
+      var demCleanVersion = '1';
+      if (sessionStorage.getItem('demClean') !== demCleanVersion) {
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (sessionStorage.getItem('demClean') === demCleanVersion) return;
+          sessionStorage.setItem('demClean', demCleanVersion);
+          location.reload();
+        });
+      }
+      navigator.serviceWorker.register('dem_clean_sw.js');
+    }
+  </script>
+  <script src='https://unpkg.com/maplibre-contour@0.1.0/dist/index.min.js'></script>
+  <script>
+    // Turns the same terrain tiles the hillshade uses into contour vectors.
+    if (window.maplibregl && window.mlcontour) {
+      var demSource = new mlcontour.DemSource({
+        url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
+        encoding: 'terrarium',
+        maxzoom: 15,
+        worker: true
+      });
+      demSource.setupMaplibre(maplibregl);
+      // The running chart may predate the depth-contour layer. Once the
+      // terrain contours source exists, draw below-sea-level lines on the
+      // water if that layer is not already there.
+      var originalAddSource = maplibregl.Map.prototype.addSource;
+      maplibregl.Map.prototype.addSource = function (id, source) {
+        var added = originalAddSource.apply(this, arguments);
+        if (id === 'land-contours') {
+          var map = this;
+          setTimeout(function () {
+            if (!map.getStyle() || !map.getSource('land-contours')) return;
+            var sprite = '';
+            try { sprite = String((map.getStyle().sprite) || ''); } catch (e) {}
+            var dark = sprite.indexOf('light') === -1;
+            var before = map.getLayer('water_stream') ? 'water_stream' : undefined;
+            if (!map.getLayer('ocean-contour-lines')) {
+              map.addLayer({
+                id: 'ocean-contour-lines',
+                type: 'line',
+                source: 'land-contours',
+                'source-layer': 'contours',
+                minzoom: 6,
+                filter: ['<', ['get', 'ele'], 0],
+                paint: {
+                  'line-color': dark ? '#14161c' : '#5a9ba4',
+                  'line-width': ['match', ['get', 'level'], 1, 0.805, 0.385],
+                  'line-opacity': 1
+                }
+              }, before);
+            }
+            if (!map.getLayer('ocean-contour-labels')) {
+              map.addLayer({
+                id: 'ocean-contour-labels',
+                type: 'symbol',
+                source: 'land-contours',
+                'source-layer': 'contours',
+                minzoom: 6,
+                filter: ['all', ['>', ['get', 'level'], 0], ['<', ['get', 'ele'], 0]],
+                layout: {
+                  'text-field': ['concat', ['number-format', ['abs', ['get', 'ele']], {'max-fraction-digits': 0}], ' m'],
+                  'text-font': ['Noto Sans Regular'],
+                  'text-size': 11,
+                  'symbol-placement': 'line',
+                  'text-allow-overlap': false,
+                  'text-padding': 8
+                },
+                paint: {
+                  'text-color': dark ? '#a3a3a3' : '#4a453f',
+                  'text-opacity': 0.85,
+                  'text-halo-color': dark ? '#141414' : '#f7f4ef',
+                  'text-halo-width': 1.2
+                }
+              }, before);
+            }
+          }, 400);
+        }
+        return added;
+      };
+    }
   </script>
 
   <title>FreeOpenOcean</title>
@@ -135,8 +237,8 @@
     }
     /* Pin attribution (and compass) flush to the lower-right corner. */
     .maplibregl-ctrl-bottom-right {
-      right: 0 !important;
-      bottom: 0 !important;
+      right: var(--map-controls-right, 0px) !important;
+      bottom: var(--map-controls-bottom, 0px) !important;
       z-index: 2;
     }
     .maplibregl-ctrl-bottom-right .maplibregl-ctrl {
@@ -161,21 +263,18 @@
       left: 0;
       z-index: 9999;
     }
+    #loading .mark {
+      width: min(280px, 70vw);
+      height: auto;
+    }
     #loading .spinner {
-      width: 80px;
-      height: 80px;
-      border: 4px solid rgba(255,255,255,0.1);
-      border-top: 4px solid #efab85;
+      width: 22px;
+      height: 22px;
+      margin-top: 18px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top: 2px solid #efab85;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    #loading .spinner .icon {
-      font-size: 45px;
-      color: #efab85;
-      animation: anti-spin 1s linear infinite;
     }
     #loading .loading {
       margin-top: 24px;
@@ -205,17 +304,18 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-    @keyframes anti-spin {
-      0% { transform: rotate(360deg); }
-      100% { transform: rotate(0deg); }
-    }
   </style>
 </head>
 <body>
+  <noscript>
+    <style>#loading {display:none} body {overflow:auto;color:#d3dce0;font-family:system-ui} a {color:#79c5df;text-decoration:none}</style>
+    <h1>FreeOpenOcean</h1>
+    <p>Read about FreeOpenOcean: <a href="/USA/en/about">English</a> · <a href="/USA/es/about">Español</a> · <a href="/USA/fr/about">Français</a> · <a href="/USA/pt/about">Português</a> · <a href="/USA/ru/about">Русский</a>.</p>
+    <p><a href="/pages/pages_about_en.md">Markdown</a></p>
+  </noscript>
   <div id="loading">
-    <div class="spinner">
-      <span class="icon">⛵</span>
-    </div>
+    <img class="mark" src="free-open-ocean.png" alt="FreeOpenOcean">
+    <div class="spinner"></div>
     <div class="loading">Loading ...</div>
     <div class="title">FreeOpenOcean.com</div>
     <div class="sub-title">Modern Ocean Charting and Weather Applications.</div>

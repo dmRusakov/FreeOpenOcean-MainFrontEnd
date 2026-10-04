@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:free_open_ocean/common/element/app_button.dart';
 import '../../services/app.dart';
@@ -70,6 +71,7 @@ class AppProvider extends InheritedWidget {
       theme: color,
       size: size,
       showTextAlways: showTextAlways,
+      enabled: !kIsWeb,
     );
   }
 

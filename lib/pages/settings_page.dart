@@ -8,8 +8,9 @@ import 'package:universal_html/html.dart' as html;
 import 'package:go_router/go_router.dart';
 import 'package:free_open_ocean/core/provider/app_provider.dart';
 import '../widgets/typography_content.dart';
+import 'map_settings_section.dart';
 
-enum SettingSection { general, theme, language, style }
+enum SettingSection { general, style, map }
 
 class SettingsPage extends StatefulWidget {
   final Map<String, String>? params;
@@ -22,13 +23,13 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   SettingSection _selectedSection = SettingSection.general;
-  final _styleScrollController = ScrollController();
 
   void _readSection() {
-    _selectedSection = SettingSection.values.firstWhere(
-      (section) => section.name == widget.params?['section'],
-      orElse: () => SettingSection.general,
-    );
+    _selectedSection = switch (widget.params?['section']) {
+      'style' => SettingSection.style,
+      'map' => SettingSection.map,
+      _ => SettingSection.general,
+    };
   }
 
   @override
@@ -54,7 +55,6 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void dispose() {
     clearTopBar(ownerId: 'settings');
-    _styleScrollController.dispose();
     super.dispose();
   }
 
@@ -89,24 +89,11 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         const SizedBox(width: 8.0),
         AppButton(
-          icon: Icons.palette,
+          icon: Icons.map_outlined,
           size: 's',
-          text: localizations.translate('theme'),
-          onPressed: () => _selectSection(SettingSection.theme),
-          theme: _selectedSection == SettingSection.theme
-              ? 'secondary'
-              : 'info',
-          showTextOnBigScreen: true,
-        ),
-        const SizedBox(width: 8.0),
-        AppButton(
-          icon: Icons.language,
-          size: 's',
-          text: localizations.translate('language'),
-          onPressed: () => _selectSection(SettingSection.language),
-          theme: _selectedSection == SettingSection.language
-              ? 'secondary'
-              : 'info',
+          text: localizations.translate('map_chart'),
+          onPressed: () => _selectSection(SettingSection.map),
+          theme: _selectedSection == SettingSection.map ? 'secondary' : 'info',
           showTextOnBigScreen: true,
         ),
         const SizedBox(width: 8.0),
@@ -153,141 +140,142 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _settingsColumn(List<Widget> children) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    );
+  }
+
+  Widget _prose(String text) {
+    return Text(
+      text,
+      style: Theme.of(context).textTheme.bodyLarge,
+    );
+  }
+
+  Widget _sectionHeading(String text, IconData icon) {
+    final style = Theme.of(context).textTheme.headlineMedium;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 12),
+      child: Semantics(
+        header: true,
+        child: Row(
+          children: [
+            Icon(icon, size: 28, color: style?.color),
+            const SizedBox(width: 10),
+            Text(text, style: style),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _settingRow(String label, Widget control) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          const SizedBox(width: 16),
+          control,
+        ],
+      ),
+    );
+  }
+
   Widget _buildSectionContent(AppThemeProvider themeProvider) {
     final localizations = AppLocalizations.of(context)!;
     switch (_selectedSection) {
-      // general settings
       case SettingSection.general:
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  localizations.translate('connection_mode'),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(width: 16),
-                AppProvider.buildConnectionModeDropdown(
-                  context,
-                  themeProvider.connectionMode,
-                  themeProvider.onConnectionModeChanged,
-                  showTextAlways: true,
-                ),
-              ],
+        return _settingsColumn([
+          Text(
+            localizations.translate('general'),
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          _sectionHeading(
+            localizations.translate('connection_heading'),
+            Icons.cloud_outlined,
+          ),
+          _prose(localizations.translate('connection_lead')),
+          const SizedBox(height: 24),
+          _settingRow(
+            localizations.translate('connection_mode'),
+            AppProvider.buildConnectionModeDropdown(
+              context,
+              themeProvider.connectionMode,
+              themeProvider.onConnectionModeChanged,
+              showTextAlways: true,
             ),
-          ],
-        );
-
-      // theme settings
-      case SettingSection.theme:
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  localizations.translate('app_theme_label'),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(width: 16),
-                AppThemeProvider.buildAppThemeDropdown(
-                  context,
-                  themeProvider.appTheme,
-                  themeProvider.onAppThemeChanged,
-                ),
-              ],
+          ),
+          const SizedBox(height: 20),
+          _sectionHeading(localizations.translate('theme'), Icons.palette_outlined),
+          _prose(localizations.translate('appearance_lead')),
+          const SizedBox(height: 24),
+          _settingRow(
+            localizations.translate('app_theme_label'),
+            AppThemeProvider.buildAppThemeDropdown(
+              context,
+              themeProvider.appTheme,
+              themeProvider.onAppThemeChanged,
             ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  localizations.translate('theme_mode_label'),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(width: 16),
-                AppThemeProvider.buildThemeModeDropdown(
-                  context,
-                  themeProvider.themeMode,
-                  themeProvider.onThemeModeChanged,
-                ),
-              ],
+          ),
+          _settingRow(
+            localizations.translate('theme_mode_label'),
+            AppThemeProvider.buildThemeModeDropdown(
+              context,
+              themeProvider.themeMode,
+              themeProvider.onThemeModeChanged,
             ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  localizations.translate('device_type_override_label'),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(width: 16),
-                AppThemeProvider.buildDeviceTypeOverrideDropdown(
-                  context,
-                  themeProvider.deviceTypeOverride,
-                  themeProvider.onDeviceTypeOverrideChanged,
-                ),
-              ],
+          ),
+          _settingRow(
+            localizations.translate('device_type_override_label'),
+            AppThemeProvider.buildDeviceTypeOverrideDropdown(
+              context,
+              themeProvider.deviceTypeOverride,
+              themeProvider.onDeviceTypeOverrideChanged,
             ),
-          ],
-        );
-
-      // language settings
-      case SettingSection.language:
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  localizations.translate('language_label'),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(width: 16),
-                AppLocalizations.buildLanguageDropdown(
-                  context,
-                  themeProvider.locale,
-                  (locale) => themeProvider.onLocaleChanged(locale, true),
-                ),
-              ],
+          ),
+          const SizedBox(height: 20),
+          _sectionHeading(localizations.translate('language'), Icons.language),
+          _prose(localizations.translate('appearance_language')),
+          const SizedBox(height: 24),
+          _settingRow(
+            localizations.translate('language_label'),
+            AppLocalizations.buildLanguageDropdown(
+              context,
+              themeProvider.locale,
+              (locale) => themeProvider.onLocaleChanged(locale, true),
             ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  localizations.translate('country_label'),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(width: 16),
-                AppLocalizations.buildCountryDropdown(
-                  context,
-                  themeProvider.country,
-                  themeProvider.onCountryChanged,
-                ),
-              ],
+          ),
+          _settingRow(
+            localizations.translate('country_label'),
+            AppLocalizations.buildCountryDropdown(
+              context,
+              themeProvider.country,
+              themeProvider.onCountryChanged,
             ),
-          ],
-        );
+          ),
+        ]);
 
       // typography
+      case SettingSection.map:
+        return const MapSettingsSection();
       case SettingSection.style:
         return ScrollConfiguration(
           behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-          child: Scrollbar(
-            controller: _styleScrollController,
-            thumbVisibility: true,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: SingleChildScrollView(
-                controller: _styleScrollController,
-                child: const TypographyContent(),
-              ),
-            ),
+          child: const SingleChildScrollView(
+            primary: true,
+            child: TypographyContent(),
           ),
         );
     }

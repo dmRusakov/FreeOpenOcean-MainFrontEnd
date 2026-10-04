@@ -1,8 +1,11 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/foundation.dart';
 import 'package:free_open_ocean/core/provider/app_theme_provider.dart';
+import 'package:free_open_ocean/core/theme/app_theme.dart';
 import 'package:free_open_ocean/widgets/footer.dart';
 import 'package:free_open_ocean/widgets/header.dart';
 import 'package:free_open_ocean/widgets/menu.dart';
@@ -24,34 +27,29 @@ final ValueNotifier<TopBarData> topBarNotifier = ValueNotifier(
   const TopBarData(),
 );
 
-/// Helper that updates the notifier immediately if safe, or schedules it for the next frame.
-void _updateTopBarNotifier(TopBarData data) {
-  final phase = SchedulerBinding.instance.schedulerPhase;
-  void doUpdate() {
-    if (kDebugMode) {
-      final prev = topBarNotifier.value;
-      // print a concise debug message showing previous and new top bar states
-      // include a short stack trace for context
-      final trace = StackTrace.current
-          .toString()
-          .split('\n')
-          .take(3)
-          .join(' | ');
-      // ignore long prints in non-debug builds
-      debugPrint(
-        '[TopBar] update: prev(owner=${prev.ownerId}, title=${prev.title}) -> new(owner=${data.ownerId}, title=${data.title}) ; trace: $trace',
-      );
-    }
-    topBarNotifier.value = data;
-  }
+int _topBarSerial = 0;
 
-  // Only update immediately when the framework is idle; otherwise schedule a post-frame callback
+/// Parks the page on the right third of a wide screen so the map can be used.
+final ValueNotifier<bool> contentDockedRight = ValueNotifier(false);
+
+/// Desktop and TV only, and only when a third of the window is still usable.
+bool contentDockAvailable(
+  BuildContext context,
+  double width, {
+  required bool fullScreen,
+}) {
+  if (fullScreen || width < 1200) return false;
+  final device = context.getDeviceType();
+  return device == DeviceType.desktop || device == DeviceType.tv;
+}
+
+/// Applies [update] now, or on the next frame when a build is in progress.
+void _scheduleTopBar(void Function() update) {
+  final phase = SchedulerBinding.instance.schedulerPhase;
   if (phase == SchedulerPhase.idle) {
-    doUpdate();
+    update();
   } else {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      doUpdate();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => update());
   }
 }
 
@@ -64,19 +62,114 @@ void setTopBar({String? title, List<Widget>? submenu, String? ownerId}) {
     submenu: submenu ?? current.submenu,
     ownerId: ownerId ?? current.ownerId,
   );
-  _updateTopBarNotifier(merged);
+  final serial = ++_topBarSerial;
+  _scheduleTopBar(() {
+    // A newer setTopBar wins. A clear from the page we just left must not
+    // erase this one: that clear checks the owner again when it runs.
+    if (serial != _topBarSerial) return;
+    topBarNotifier.value = merged;
+  });
 }
 
 /// Clear top bar content.
 void clearTopBar({String? ownerId}) {
-  // If ownerId is provided, only clear if current owner matches. If no ownerId, clear unconditionally.
-  final current = topBarNotifier.value;
-  if (ownerId != null) {
-    if (current.ownerId == ownerId) {
-      _updateTopBarNotifier(const TopBarData());
-    }
-  } else {
-    _updateTopBarNotifier(const TopBarData());
+  _scheduleTopBar(() {
+    final current = topBarNotifier.value;
+    // Checked at apply time. The page we left often disposes in the same
+    // frame the next page sets the bar, and a deferred clear used to wipe
+    // the new submenu.
+    if (ownerId != null && current.ownerId != ownerId) return;
+    topBarNotifier.value = const TopBarData();
+  });
+}
+
+/// Content panel with the scrollbar 10px to the right of the box.
+class _ContentFrame extends StatefulWidget {
+  final Widget child;
+  final Color background;
+  final double horizontalPadding;
+  final double verticalPadding;
+  final double? topPadding;
+
+  const _ContentFrame({
+    required this.child,
+    required this.background,
+    required this.horizontalPadding,
+    required this.verticalPadding,
+    this.topPadding,
+  });
+
+  @override
+  State<_ContentFrame> createState() => _ContentFrameState();
+}
+
+class _ContentFrameState extends State<_ContentFrame> {
+  static const _thumb = 6.0;
+  static const _gap = 10.0;
+
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final outline = Theme.of(context).colorScheme.outline.withValues(alpha: 0.5);
+    final box = ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: widget.background.withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: outline),
+          ),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              widget.horizontalPadding,
+              widget.topPadding ?? widget.verticalPadding,
+              widget.horizontalPadding,
+              widget.verticalPadding,
+            ),
+            child: ClipRect(child: widget.child),
+          ),
+        ),
+      ),
+    );
+    return PrimaryScrollController(
+      controller: _scroll,
+      child: ListenableBuilder(
+        listenable: _scroll,
+        builder: (context, child) {
+          final framed = Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 0, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: child!),
+                const SizedBox(width: _gap + _thumb),
+              ],
+            ),
+          );
+          return RawScrollbar(
+            controller: _scroll,
+            thumbVisibility: _scroll.hasClients,
+            thickness: _thumb,
+            radius: const Radius.circular(3),
+            thumbColor: const Color(0xFFB7C0C8),
+            crossAxisMargin: 0,
+            mainAxisMargin: 12,
+            interactive: true,
+            child: framed,
+          );
+        },
+        child: box,
+      ),
+    );
   }
 }
 
@@ -87,8 +180,16 @@ class PageTemplate extends StatelessWidget {
 
   /// Map compass; only Charts should enable this.
   final bool showCompass;
+
+  /// When set, replaces the theme's side padding inside the content panel.
+  final double? contentHorizontalPadding;
+
+  /// When set, replaces the space above the first element in the panel.
+  final double? contentTopPadding;
   final ValueChanged<MapLibreMapController>? onMapCreated;
   final ValueChanged<CameraPosition>? onCameraMove;
+  final VoidCallback? onCameraIdle;
+  final CameraPosition? initialCamera;
 
   const PageTemplate({
     super.key,
@@ -96,8 +197,12 @@ class PageTemplate extends StatelessWidget {
     this.floatingActionButton,
     this.fullScreen = false,
     this.showCompass = false,
+    this.contentHorizontalPadding,
+    this.contentTopPadding,
     this.onMapCreated,
     this.onCameraMove,
+    this.onCameraIdle,
+    this.initialCamera,
   });
 
   @override
@@ -122,15 +227,31 @@ class PageTemplate extends StatelessWidget {
       drawer: const AppMenu(),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final inset = PageWidth.outerInset(context, constraints.maxWidth);
-          return Stack(
+          final width = constraints.maxWidth;
+          final inset = PageWidth.outerInset(context, width);
+          return ValueListenableBuilder<bool>(
+            valueListenable: contentDockedRight,
+            builder: (context, dockPref, _) {
+              final docked = dockPref &&
+                  contentDockAvailable(
+                    context,
+                    width,
+                    fullScreen: fullScreen,
+                  );
+              // Right third of the screen. The left stays an open chart.
+              final slotLeft = docked ? width * 2 / 3 : inset;
+              final slotRight = docked ? 0.0 : inset;
+              return Stack(
             children: [
               Positioned.fill(
                 child: OceanMapBackground(
-                  interactive: fullScreen,
+                  interactive: fullScreen || docked,
                   showCompass: showCompass,
+                  controlRightInset: docked ? width / 3 : 0,
+                  initialCamera: initialCamera,
                   onMapCreated: onMapCreated,
                   onCameraMove: onCameraMove,
+                  onCameraIdle: onCameraIdle,
                 ),
               ),
               // Charts: full-bleed interactive map. Other pages: content panel over map.
@@ -145,40 +266,34 @@ class PageTemplate extends StatelessWidget {
               else
                 Positioned(
                   top: topChrome,
-                  left: inset,
-                  right: inset,
+                  left: slotLeft,
+                  right: slotRight,
                   bottom: footerHeight,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: background.withValues(alpha: 0.94),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: sizes['contentHorizontalPadding'] as double? ?? 30.0,
-                            vertical: sizes['contentVerticalPadding'] as double? ?? 30.0,
-                          ),
-                          child: ClipRect(child: body),
-                        ),
-                      ),
-                    ),
+                  child: PointerInterceptor(
+                    child: _ContentFrame(
+                    background: background,
+                    horizontalPadding: contentHorizontalPadding ??
+                        (sizes['contentHorizontalPadding'] as double? ?? 30.0),
+                    verticalPadding:
+                        sizes['contentVerticalPadding'] as double? ?? 30.0,
+                    topPadding: contentTopPadding,
+                    child: body,
+                  ),
                   ),
                 ),
-              // Header stays inside the content column.
+              // Header stays with the content column.
               Positioned(
                 top: 0,
-                left: inset,
-                right: inset,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const MyAppBar(),
-                    if (showTopHeader) const TopHeader(),
-                  ],
+                left: slotLeft,
+                right: slotRight,
+                child: PointerInterceptor(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const MyAppBar(),
+                      if (showTopHeader) const TopHeader(),
+                    ],
+                  ),
                 ),
               ),
               if (showFooter)
@@ -189,6 +304,8 @@ class PageTemplate extends StatelessWidget {
                   child: Footer(),
                 ),
             ],
+          );
+            },
           );
         },
       ),

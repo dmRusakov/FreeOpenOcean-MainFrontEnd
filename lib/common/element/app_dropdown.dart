@@ -17,6 +17,7 @@ class AppDropdown<T> extends StatefulWidget {
     this.size = "m",
     this.showTextOnBigScreen = false,
     this.showTextAlways = false,
+    this.enabled = true,
   });
 
   final List<DropdownMenuItem<T>>? items;
@@ -30,6 +31,7 @@ class AppDropdown<T> extends StatefulWidget {
   final String? size;
   final bool showTextOnBigScreen;
   final bool showTextAlways;
+  final bool enabled;
 
   @override
   State<AppDropdown<T>> createState() => _AppDropdownState<T>();
@@ -97,10 +99,13 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
 
         final height = sizes['height'] ?? 30.0;
 
+        final enabled = widget.enabled;
         return MouseRegion(
-          onEnter: (_) => setState(() => _isHovered = true),
-          onExit: (_) => setState(() => _isHovered = false),
-          child: Container(
+          onEnter: enabled ? (_) => setState(() => _isHovered = true) : null,
+          onExit: enabled ? (_) => setState(() => _isHovered = false) : null,
+          child: Opacity(
+            opacity: enabled ? 1 : 0.45,
+            child: Container(
             height: height,
             width: showText ? null : height,
             padding: showText ? sizes['padding'] : const EdgeInsets.all(0),
@@ -110,7 +115,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
             ),
             child: widget.onPressed != null
                 ? InkWell(
-                    onTap: widget.onPressed,
+                    onTap: enabled ? widget.onPressed : null,
                     borderRadius: sizes['borderRadius'],
                     child: ClipRect(
                       child: Align(
@@ -142,6 +147,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
                       },
                     ),
                   ),
+            ),
           ),
         );
       },

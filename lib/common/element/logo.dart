@@ -33,8 +33,11 @@ class _LogoState extends State<Logo> {
       'l': 1.15,
     }[widget.size] ?? 1.0;
 
-    final background = color?['background'];
-    final hoverBackground = Color.lerp(background, Colors.black, 0.2);
+    final background = color?['background'] as Color?;
+    final foreground = color?['text'] as Color? ?? Colors.white;
+    final hoverBackground = Color.lerp(background, foreground, 0.16);
+    final fill = (_isHovered ? hoverBackground : background) ?? Colors.grey;
+    final borderColor = Color.lerp(fill, foreground, 0.26)!;
 
     final logoWidget = IntrinsicWidth(
       child: Container(
@@ -43,8 +46,9 @@ class _LogoState extends State<Logo> {
         padding: sizes['padding'],
         alignment: Alignment.center, // vertical centering
         decoration: BoxDecoration(
-          color: _isHovered ? (hoverBackground ?? background) : background,
+          color: fill,
           borderRadius: sizes['borderRadius'],
+          border: Border.all(color: borderColor, width: 1),
         ),
         child: Align(
           alignment: sizes['alignment'],

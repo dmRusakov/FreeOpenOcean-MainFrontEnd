@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="FreeOpenOcean">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <!-- Google Analytics: FreeOpenOcean (web), https://freeopenocean.com -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-V0PWEJP2F6"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-V0PWEJP2F6', { send_page_view: false });
+
+    // Flutter web changes the address without a new document, so record each
+    // settled route. The country/language redirect would otherwise count twice.
+    var analyticsPath = '';
+    var analyticsTimer = null;
+    function sendPageView() {
+      var path = location.pathname + location.search;
+      if (path === analyticsPath) return;
+      analyticsPath = path;
+      gtag('event', 'page_view', {
+        page_title: document.title,
+        page_location: location.href,
+        page_path: path
+      });
+    }
+    function schedulePageView() {
+      clearTimeout(analyticsTimer);
+      analyticsTimer = setTimeout(sendPageView, 300);
+    }
+    var pushState = history.pushState;
+    var replaceState = history.replaceState;
+    history.pushState = function () {
+      pushState.apply(history, arguments);
+      schedulePageView();
+    };
+    history.replaceState = function () {
+      replaceState.apply(history, arguments);
+      schedulePageView();
+    };
+    window.addEventListener('popstate', schedulePageView);
+    schedulePageView();
+  </script>
+
+  <!-- MapLibre GL JS -->
+  <link href='https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css' rel='stylesheet' />
+  <script src='https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js'></script>
+  <script>
+    // Keep a straight-down globe through zoom 15. The globe stops drawing
+    // tiles just past zoom 16, so the closer chart is flat Mercator.
+    (function () {
+      if (!window.maplibregl || !maplibregl.Map || !maplibregl.Map.prototype.setProjection) return;
+      var Original = maplibregl.Map;
+      var flatFromZoom = 16;
+      function applyVerticalView(map) {
+        map.setProjection({
+          type: ['step', ['zoom'], 'vertical-perspective', flatFromZoom, 'mercator']
+        });
+        if (map.getZoom() < flatFromZoom) {
+          map.setMaxPitch(0);
+          if (map.getPitch() > 0) map.setPitch(0);
+        } else if (map.getMaxPitch() === 0) {
+          map.setMaxPitch(60);
+        }
+      }
+      function MapWithGlobe(options) {
+        var map = new Original(options);
+        // Flutter's web plugin creates GeoJSON source objects with null
+        // prototypes. MapLibre 5's worker serializer expects plain objects,
+        // including when it resends source options as the camera changes.
+        var addSource = map.addSource;
+        map.addSource = function (id, source) {
+          if (source && source.type === 'geojson') {
+            source = JSON.parse(JSON.stringify(source));
+          }
+          return addSource.call(this, id, source);
+        };
+        map.on('style.load', function () {
+          applyVerticalView(map);
+          // The hosted style holds minor street names until zoom 15 and major
+          // names from zoom 11. Drop that floor so the app can show both
+          // once the camera is past zoom 14.
+          ['roads_labels_major', 'roads_labels_minor', 'roads_shields'].forEach(function (id) {
+            if (map.getLayer(id)) map.setLayerZoomRange(id, 0, 24);
+          });
+        });
+        map.on('zoom', function () {
+          if (map.getZoom() < flatFromZoom) {
+            if (map.getMaxPitch() !== 0) map.setMaxPitch(0);
+            if (map.getPitch() > 0) map.setPitch(0);
+          } else if (map.getMaxPitch() === 0) {
+            map.setMaxPitch(60);
+          }
+        });
+        return map;
+      }
+      MapWithGlobe.prototype = Original.prototype;
+      maplibregl.Map = MapWithGlobe;
+      // setData gets the same prototype-less objects as addSource. Clone
+      // them into plain JSON so symbol layers actually draw the update.
+      var geoJsonSource = maplibregl.GeoJSONSource;
+      if (geoJsonSource && geoJsonSource.prototype.setData) {
+        var originalSetData = geoJsonSource.prototype.setData;
+        geoJsonSource.prototype.setData = function (data) {
+          if (data && typeof data === 'object') {
+            try { data = JSON.parse(JSON.stringify(data)); } catch (e) {}
+          }
+          return originalSetData.call(this, data);
+        };
+      }
+    })();
+  </script>
+  <script>
+    // Terrain tiles are cleaned by dem_clean_sw.js before contours are built.
+    if ('serviceWorker' in navigator) {
+      var demCleanVersion = '1';
+      if (sessionStorage.getItem('demClean') !== demCleanVersion) {
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (sessionStorage.getItem('demClean') === demCleanVersion) return;
+          sessionStorage.setItem('demClean', demCleanVersion);
+          location.reload();
+        });
+      }
+      navigator.serviceWorker.register('dem_clean_sw.js');
+    }
+  </script>
+  <script src='https://unpkg.com/maplibre-contour@0.1.0/dist/index.min.js'></script>
+  <script>
+    // Turns the same terrain tiles the hillshade uses into contour vectors.
+    if (window.maplibregl && window.mlcontour) {
+      var demSource = new mlcontour.DemSource({
+        url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
+        encoding: 'terrarium',
+        maxzoom: 15,
+        worker: true
+      });
+      demSource.setupMaplibre(maplibregl);
+      // The running chart may predate the depth-contour layer. Once the
+      // terrain contours source exists, draw below-sea-level lines on the
+      // water if that layer is not already there.
+      var originalAddSource = maplibregl.Map.prototype.addSource;
+      maplibregl.Map.prototype.addSource = function (id, source) {
+        var added = originalAddSource.apply(this, arguments);
+        if (id === 'land-contours') {
+          var map = this;
+          setTimeout(function () {
+            if (!map.getStyle() || !map.getSource('land-contours')) return;
+            var sprite = '';
+            try { sprite = String((map.getStyle().sprite) || ''); } catch (e) {}
+            var dark = sprite.indexOf('light') === -1;
+            var before = map.getLayer('water_stream') ? 'water_stream' : undefined;
+            if (!map.getLayer('ocean-contour-lines')) {
+              map.addLayer({
+                id: 'ocean-contour-lines',
+                type: 'line',
+                source: 'land-contours',
+                'source-layer': 'contours',
+                minzoom: 6,
+                filter: ['<', ['get', 'ele'], 0],
+                paint: {
+                  'line-color': dark ? '#14161c' : '#5a9ba4',
+                  'line-width': ['match', ['get', 'level'], 1, 0.805, 0.385],
+                  'line-opacity': 1
+                }
+              }, before);
+            }
+            if (!map.getLayer('ocean-contour-labels')) {
+              map.addLayer({
+                id: 'ocean-contour-labels',
+                type: 'symbol',
+                source: 'land-contours',
+                'source-layer': 'contours',
+                minzoom: 6,
+                filter: ['all', ['>', ['get', 'level'], 0], ['<', ['get', 'ele'], 0]],
+                layout: {
+                  'text-field': ['concat', ['number-format', ['abs', ['get', 'ele']], {'max-fraction-digits': 0}], ' m'],
+                  'text-font': ['Noto Sans Regular'],
+                  'text-size': 11,
+                  'symbol-placement': 'line',
+                  'text-allow-overlap': false,
+                  'text-padding': 8
+                },
+                paint: {
+                  'text-color': dark ? '#a3a3a3' : '#4a453f',
+                  'text-opacity': 0.85,
+                  'text-halo-color': dark ? '#141414' : '#f7f4ef',
+                  'text-halo-width': 1.2
+                }
+              }, before);
+            }
+          }, 400);
+        }
+        return added;
+      };
+    }
+  </script>
+
+  
+  <link rel="manifest" href="manifest.json">
+  <style>
+    /* Decorative maps must not capture page clicks, scrolling or cursors. */
+    .map-background-only .maplibregl-map,
+    .map-background-only .maplibregl-canvas-container,
+    .map-background-only .maplibregl-canvas {
+      pointer-events: none !important;
+      cursor: default !important;
+    }
+    .map-background-only .maplibregl-ctrl {
+      pointer-events: auto;
+    }
+    /* Pin attribution (and compass) flush to the lower-right corner. */
+    .maplibregl-ctrl-bottom-right {
+      right: 0 !important;
+      bottom: 0 !important;
+      z-index: 2;
+    }
+    .maplibregl-ctrl-bottom-right .maplibregl-ctrl {
+      margin: 0 !important;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #101619;
+      overflow: hidden;
+    }
+    #loading {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100vw;
+      background-color: #101619;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 9999;
+    }
+    #loading .mark {
+      width: min(280px, 70vw);
+      height: auto;
+    }
+    #loading .spinner {
+      width: 22px;
+      height: 22px;
+      margin-top: 18px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top: 2px solid #efab85;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    #loading .loading {
+      margin-top: 24px;
+      margin-bottom: 15px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 20px;
+      font-weight: 100;
+      color: #b6bcbc;
+    }
+    #loading .title {
+      margin-top: 24px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 30px;
+      font-weight: 300;
+      color: #b6bcbc;
+      letter-spacing: 2px;
+    }
+    #loading .sub-title {
+      margin-top: 16px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 16px;
+      font-weight: 300;
+      color: #b6bcbc;
+
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+<title>Contato e envio de dados — FreeOpenOcean</title>
+<meta name="description" content="Entre em contato com a equipe FreeOpenOcean. Envie sondagens batimétricas e registros GPX, solicite acesso a dados ou converse sobre apoio à infraestrutura.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://freeopenocean.com/USA/pt/contact">
+<link rel="alternate" type="text/markdown" href="https://pages.freeopenocean.com/pages/pages_contact_pt.md" title="Markdown">
+<link rel="alternate" hreflang="en" href="https://freeopenocean.com/USA/en/contact">
+<link rel="alternate" hreflang="es" href="https://freeopenocean.com/USA/es/contact">
+<link rel="alternate" hreflang="fr" href="https://freeopenocean.com/USA/fr/contact">
+<link rel="alternate" hreflang="pt" href="https://freeopenocean.com/USA/pt/contact">
+<link rel="alternate" hreflang="ru" href="https://freeopenocean.com/USA/ru/contact">
+<link rel="alternate" hreflang="x-default" href="https://freeopenocean.com/USA/en/contact">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Contato e envio de dados — FreeOpenOcean">
+<meta property="og:description" content="Entre em contato com a equipe FreeOpenOcean. Envie sondagens batimétricas e registros GPX, solicite acesso a dados ou converse sobre apoio à infraestrutura.">
+<meta property="og:url" content="https://freeopenocean.com/USA/pt/contact">
+<meta property="og:site_name" content="FreeOpenOcean">
+<meta property="og:image" content="https://freeopenocean.com/free-open-ocean.png">
+<meta property="og:image:alt" content="FreeOpenOcean">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Contato e envio de dados — FreeOpenOcean">
+<meta name="twitter:description" content="Entre em contato com a equipe FreeOpenOcean. Envie sondagens batimétricas e registros GPX, solicite acesso a dados ou converse sobre apoio à infraestrutura.">
+<meta name="twitter:image" content="https://freeopenocean.com/free-open-ocean.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"ContactPage","name":"Contato e contribuição de dados","description":"Entre em contato com a equipe FreeOpenOcean. Envie sondagens batimétricas e registros GPX, solicite acesso a dados ou converse sobre apoio à infraestrutura.","url":"https://freeopenocean.com/USA/pt/contact","inLanguage":"pt","isPartOf":{"@type":"WebSite","name":"FreeOpenOcean","url":"https://freeopenocean.com"},"associatedMedia":{"@type":"DigitalDocument","url":"https://pages.freeopenocean.com/pages/pages_contact_pt.md","encodingFormat":"text/markdown"}}</script>
+<style>
+body {overflow:auto; color:#d3dce0; font-family:system-ui,sans-serif;}
+#loading {display:none;}
+#page-content {max-width:900px;margin:40px auto;padding:24px;line-height:1.65;}
+#page-content a {color:#79c5df;text-decoration:none;}
+#page-content h1 {line-height:1.2;}
+</style>
+</head>
+<body>
+<main id="page-content" lang="pt">
+<nav><a href="https://freeopenocean.com/USA/en/contact" hreflang="en">en</a> · <a href="https://freeopenocean.com/USA/es/contact" hreflang="es">es</a> · <a href="https://freeopenocean.com/USA/fr/contact" hreflang="fr">fr</a> · <a href="https://freeopenocean.com/USA/pt/contact" hreflang="pt">pt</a> · <a href="https://freeopenocean.com/USA/ru/contact" hreflang="ru">ru</a></nav>
+<article><h1>Contato e contribuição de dados</h1><p>Canais diretos de comunicação com a equipe de engenharia para velejadores oceânicos, instituições hidrográficas e colaboradores de dados.</p><h2 id="envio-de-dados-hidrogrficos-e-batimtricos">Envio de dados hidrográficos e batimétricos</h2>
+<p>Recebemos sondagens brutas, gravações de sonar, nuvens de pontos batimétricos (CSV/XYZ) e registros de trajetos (GPX/NMEA 0183/2000). As contribuições podem receber crédito público ou permanecer estritamente anônimas, conforme suas instruções.</p>
+<p><a href="mailto:data@freeopenocean.com"><a href="mailto:data@freeopenocean.com">data@freeopenocean.com</a></a></p>
+<h2 id="informaes-gerais-e-engenharia">Informações gerais e engenharia</h2>
+<p>Para parcerias no projeto, integrações com a API, patrocínio da infraestrutura de servidores ou comentários técnicos, entre em contato diretamente com nossa equipe de engenharia.</p>
+<p><a href="mailto:contact@freeopenocean.com"><a href="mailto:contact@freeopenocean.com">contact@freeopenocean.com</a></a></p>
+<h2 id="base-de-operaes">Base de operações</h2>
+<p>Iniciativa independente de software marítimo</p>
+<p>Costa atlântica, Estados Unidos</p>
+<p>Áreas de atuação: batimetria aberta, meteorologia marinha em tempo real e telemetria direta de embarcações.</p>
+</article>
+<p><a href="https://pages.freeopenocean.com/pages/pages_contact_pt.md" type="text/markdown">Markdown</a></p>
+</main>
+<!-- The app replaces this article only after mounting its native HTML article. -->
+  <noscript>
+    <style>#loading {display:none} body {overflow:auto;color:#d3dce0;font-family:system-ui} a {color:#79c5df;text-decoration:none}</style>
+    <h1>FreeOpenOcean</h1>
+    <p>Read about FreeOpenOcean: <a href="/USA/en/about">English</a> · <a href="/USA/es/about">Español</a> · <a href="/USA/fr/about">Français</a> · <a href="/USA/pt/about">Português</a> · <a href="/USA/ru/about">Русский</a>.</p>
+    <p><a href="/pages/pages_about_en.md">Markdown</a></p>
+  </noscript>
+  <div id="loading">
+    <img class="mark" src="free-open-ocean.png" alt="FreeOpenOcean">
+    <div class="spinner"></div>
+    <div class="loading">Loading ...</div>
+    <div class="title">FreeOpenOcean.com</div>
+    <div class="sub-title">Modern Ocean Charting and Weather Applications.</div>
+  </div>
+  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var loading = document.getElementById('loading');
+      if (loading) loading.remove();
+    });
+  </script>
+</body>
+</html>

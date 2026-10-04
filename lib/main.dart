@@ -9,6 +9,7 @@ import 'core/localization/app_localizations.dart';
 import 'core/theme/app_theme.dart' as theme_interface;
 import 'core/theme/theme-data/main_theme_data.dart';
 import 'services/app.dart';
+import 'services/map_chart_settings.dart';
 import 'services/api.dart';
 import 'package:free_open_ocean/core/provider/app_provider.dart';
 import 'package:free_open_ocean/core/provider/app_theme_provider.dart';
@@ -26,6 +27,7 @@ void main() async {
   final deviceTypeOverride = await settingsService.getDevice();
   final country = await settingsService.getCountry();
   final connectionMode = await settingsService.getConnectionMode();
+  await MapChartSettings.instance.load();
 
   runApp(
     MyApp(

@@ -16,6 +16,7 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.getTheme('header');
+    final scheme = Theme.of(context).colorScheme;
     return ValueListenableBuilder<TopBarData>(
       valueListenable: topBarNotifier,
       builder: (context, data, _) {
@@ -28,11 +29,27 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
           forceMaterialTransparency: true,
           backgroundColor: theme.color['background'],
           automaticallyImplyLeading: false,
+          // The bar floats on the chart, so the title needs its own ground.
+          // A gradient scrim holds contrast over sand, sea or a dark coast
+          // without boxing the header in.
+          flexibleSpace: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  scheme.surface.withValues(alpha: 0.82),
+                  scheme.surface.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
+          ),
           title: Padding(
             padding: theme.sizes['padding'] as EdgeInsets? ?? EdgeInsets.zero,
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final compact = constraints.maxWidth < 600;
+                final submenu = data.submenu;
                 return SizedBox(
                   height: height,
                   child: Row(
@@ -50,22 +67,54 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          data.title ?? '',
-                          style: Theme.of(context).textTheme.titleLarge,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        child: LayoutBuilder(
+                          builder: (context, bar) {
+                            return Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    data.title ?? '',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleLarge,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (submenu != null && submenu.isNotEmpty)
+                                  ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxWidth: bar.maxWidth * 0.72 < 560
+                                          ? bar.maxWidth * 0.72
+                                          : 560,
+                                    ),
+                                    child: LayoutBuilder(
+                                      builder: (context, slot) {
+                                        // The row is at least as wide as the
+                                        // slot, so the buttons sit on its
+                                        // right edge and scroll when they
+                                        // do not fit.
+                                        return SingleChildScrollView(
+                                          scrollDirection: Axis.horizontal,
+                                          child: ConstrainedBox(
+                                            constraints: BoxConstraints(
+                                              minWidth: slot.maxWidth,
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.end,
+                                              children: submenu,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
                         ),
                       ),
-                      if (data.submenu?.isNotEmpty ?? false)
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: data.submenu!,
-                          ),
-                        ),
                     ],
                   ),
                 );

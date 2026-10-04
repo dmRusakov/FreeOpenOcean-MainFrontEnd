@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
+import '../services/map_chart_settings.dart';
 import '../services/map_service.dart';
 import '../web_setup_stub.dart'
     if (dart.library.html) '../web_setup.dart'
@@ -16,15 +17,23 @@ class OceanMapBackground extends StatefulWidget {
 
   /// Compass is only shown on Charts; other pages keep attribution only.
   final bool showCompass;
+
+  /// Shifts attribution left when a panel covers the right side of the chart.
+  final double controlRightInset;
   final ValueChanged<MapLibreMapController>? onMapCreated;
   final ValueChanged<CameraPosition>? onCameraMove;
+  final VoidCallback? onCameraIdle;
+  final CameraPosition? initialCamera;
 
   const OceanMapBackground({
     super.key,
     this.interactive = false,
     this.showCompass = false,
+    this.controlRightInset = 0,
     this.onMapCreated,
     this.onCameraMove,
+    this.onCameraIdle,
+    this.initialCamera,
   });
 
   @override
@@ -35,8 +44,24 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
   MapLibreMapController? _controller;
   int _styleGeneration = 0;
   Brightness? _brightness;
+  String? _language;
   Timer? _moonOrbitTimer;
   Timer? _sunOrbitTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    MapChartSettings.instance.addListener(_onChartSettings);
+  }
+
+  void _onChartSettings() {
+    final controller = _controller;
+    final brightness = _brightness;
+    final language = _language;
+    if (controller == null || brightness == null || language == null) return;
+    if (!mounted) return;
+    controller.setStyle(MapService.getStyleUrl(brightness, language));
+  }
 
   void _showOrbit(String layerId, bool sun) {
     final timer = sun ? _sunOrbitTimer : _moonOrbitTimer;
@@ -68,6 +93,7 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
 
   @override
   void dispose() {
+    MapChartSettings.instance.removeListener(_onChartSettings);
     _moonOrbitTimer?.cancel();
     _sunOrbitTimer?.cancel();
     _controller?.onFeatureTapped.remove(_onFeatureTapped);
@@ -78,8 +104,10 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final brightness = Theme.of(context).brightness;
-    if (_brightness != brightness) {
+    final language = Localizations.localeOf(context).languageCode;
+    if (_brightness != brightness || _language != language) {
       _brightness = brightness;
+      _language = language;
       _styleGeneration++;
     }
   }
@@ -101,18 +129,22 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
   Widget build(BuildContext context) {
     final interactive = widget.interactive;
     final showCompass = widget.showCompass;
-    final styleUrl = MapService.getStyleUrl(Theme.of(context).brightness);
+    final styleUrl = MapService.getStyleUrl(
+      Theme.of(context).brightness,
+      Localizations.localeOf(context).languageCode,
+    );
     if (kIsWeb) {
-      web_setup.setMapControlInsets(0, 0);
+      web_setup.setMapControlInsets(widget.controlRightInset, 0);
       web_setup.setMapInteractive(interactive);
     }
 
     Widget map = MapLibreMap(
       styleString: styleUrl,
-      initialCameraPosition: const CameraPosition(
-        target: LatLng(0, 0),
-        zoom: 5,
-      ),
+      initialCameraPosition: widget.initialCamera ??
+          const CameraPosition(
+            target: LatLng(0, 0),
+            zoom: 5,
+          ),
       minMaxZoomPreference: const MinMaxZoomPreference(2, null),
       // Only Charts (interactive) may pan/zoom; other pages treat map as backdrop.
       scrollGesturesEnabled: interactive,
@@ -123,6 +155,7 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
       dragEnabled: interactive,
       trackCameraPosition: widget.onCameraMove != null,
       onCameraMove: widget.onCameraMove,
+      onCameraIdle: widget.onCameraIdle,
       compassEnabled: showCompass,
       compassViewPosition: showCompass ? CompassViewPosition.bottomRight : null,
       compassViewMargins: showCompass && !kIsWeb ? const Point(0, 0) : null,
@@ -132,14 +165,17 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
         _controller = controller;
         controller.onFeatureTapped.add(_onFeatureTapped);
         widget.onMapCreated?.call(controller);
-        if (kIsWeb) MapService.getCurrentLocation(controller);
+        if (kIsWeb && widget.initialCamera == null) {
+          MapService.getCurrentLocation(controller);
+        }
       },
       onStyleLoadedCallback: _onStyleLoaded,
     );
 
-    if (!interactive) {
-      map = IgnorePointer(child: map);
-    }
-    return map;
+    // Keep the same parent when interaction turns on, so the chart is not rebuilt.
+    return IgnorePointer(
+      ignoring: !interactive,
+      child: map,
+    );
   }
 }

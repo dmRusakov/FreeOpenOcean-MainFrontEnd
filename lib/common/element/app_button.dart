@@ -39,7 +39,11 @@ class _AppButtonState extends State<AppButton> {
         final isConstrained = constraints.maxWidth < 100.0; // Threshold to detect constrained width
         final sizes = context.getThemeSizes('btn_${widget.size}') as Map<String, dynamic>? ?? <String, dynamic>{};
         final color = context.getThemeColor('btn_${widget.theme}') as Map<String, dynamic>? ?? <String, dynamic>{};
-        final hoverBackground = Color.lerp(color['background'] as Color? ?? Colors.grey, Colors.black, 0.2);
+        // Hover moves the fill towards the text colour rather than towards
+        // black, so a dim night button lifts instead of disappearing.
+        final baseBackground = color['background'] as Color? ?? Colors.grey;
+        final foreground = color['text'] as Color? ?? Colors.white;
+        final hoverBackground = Color.lerp(baseBackground, foreground, 0.16);
         final deviceType = context.getDeviceType();
         final hasIcon = widget.icon != null || widget.svgIconPath != null;
         final showText = (!hasIcon && widget.text != null && widget.text!.isNotEmpty) ||
@@ -84,6 +88,13 @@ class _AppButtonState extends State<AppButton> {
         }
 
         final height = sizes['height'] as double? ?? 30.0;
+        final background = (_isHovered ? hoverBackground : baseBackground) ??
+            Colors.grey;
+        // A rim of the button's own text colour keeps the control legible
+        // where it floats over the chart.
+        final borderColor = Color.lerp(background, foreground, 0.26)!;
+        final radius = sizes['borderRadius'] as BorderRadius? ??
+            BorderRadius.circular(20);
 
         return MouseRegion(
           onEnter: (_) => setState(() => _isHovered = true),
@@ -91,18 +102,29 @@ class _AppButtonState extends State<AppButton> {
           child: Container(
             height: height,
             width: showText ? null : height,
-            padding: showText ? (sizes['padding'] as EdgeInsets? ?? const EdgeInsets.symmetric(horizontal: 10)) : const EdgeInsets.all(0),
             decoration: BoxDecoration(
-              color: _isHovered ? hoverBackground : (color['background'] as Color? ?? Colors.grey),
-              borderRadius: sizes['borderRadius'] as BorderRadius? ?? BorderRadius.circular(20),
+              color: background,
+              borderRadius: radius,
+              border: Border.all(color: borderColor, width: 1),
             ),
-            child: InkWell(
-              onTap: widget.onPressed,
-              borderRadius: sizes['borderRadius'] as BorderRadius? ?? BorderRadius.circular(20),
-              child: ClipRect(
-                child: Align(
-                  alignment: Alignment.center,
-                  child: content,
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: widget.onPressed,
+                borderRadius: radius,
+                splashColor: foreground.withValues(alpha: 0.16),
+                highlightColor: foreground.withValues(alpha: 0.08),
+                child: Padding(
+                  padding: showText
+                      ? (sizes['padding'] as EdgeInsets? ??
+                          const EdgeInsets.symmetric(horizontal: 10))
+                      : EdgeInsets.zero,
+                  child: ClipRect(
+                    child: Align(
+                      alignment: Alignment.center,
+                      child: content,
+                    ),
+                  ),
                 ),
               ),
             ),

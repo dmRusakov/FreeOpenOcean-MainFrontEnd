@@ -41,10 +41,12 @@ class AppLocalizations {
   };
 
   String translate(String key) {
-    return _localizedValues[locale.languageCode]?[key] ?? key;
+    return _localizedValues[locale.languageCode]?[key] ??
+        _localizedValues['en']?[key] ??
+        key;
   }
 
-  static Widget buildLanguageDropdown(BuildContext context, Locale currentLocale, void Function(Locale?) onChanged, {String color = 'secondary', String size = 'm'}) {
+  static Widget buildLanguageDropdown(BuildContext context, Locale currentLocale, void Function(Locale?) onChanged, {String color = 'secondary', String size = 'm', bool showTextAlways = true}) {
     final localizations = AppLocalizations.of(context)!;
 
     final Map<String, String> languageMap = {
@@ -60,7 +62,7 @@ class AppLocalizations {
       theme: color,
       size: size,
       icon: Icons.language,
-      showTextAlways: true,
+      showTextAlways: showTextAlways,
     );
   }
 

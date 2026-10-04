@@ -1,14 +1,33 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:universal_html/html.dart' as html;
 import 'package:geolocator/geolocator.dart';
 import 'package:free_open_ocean/config/config.dart';
+import 'package:free_open_ocean/services/map_chart_settings.dart';
+import 'package:free_open_ocean/core/theme/marine_palette.dart';
 import '../web_setup_stub.dart'
     if (dart.library.html) '../web_setup.dart'
     as web_setup;
+
+/// A partial restyle of an existing layer. The generated [LayerProperties]
+/// classes emit every field they know about, so changing one colour through
+/// them would reset the rest of the layer - including a symbol layer's
+/// text-field - to its default.
+class _StylePatch implements LayerProperties {
+  const _StylePatch(this._properties);
+
+  final Map<String, dynamic> _properties;
+
+  @override
+  Map<String, dynamic> toJson({bool skipNulls = true}) => _properties;
+}
 
 class MapService {
   static final _islandPoints = _loadGeoJson('island_points');
@@ -30,11 +49,12 @@ class MapService {
   static double _solarDeclination(DateTime utc) {
     final yearStart = DateTime.utc(utc.year, 1, 1);
     final days = DateTime.utc(utc.year + 1, 1, 1).difference(yearStart).inDays;
-    final n = utc.difference(yearStart).inMicroseconds /
-            Duration.microsecondsPerDay +
+    final n =
+        utc.difference(yearStart).inMicroseconds / Duration.microsecondsPerDay +
         1;
     final g = 2 * pi * (n - 1) / days;
-    final decl = 0.006918 -
+    final decl =
+        0.006918 -
         0.399912 * cos(g) +
         0.070257 * sin(g) -
         0.006758 * cos(2 * g) +
@@ -48,11 +68,12 @@ class MapService {
   static double _subsolarLongitude(DateTime utc) {
     final yearStart = DateTime.utc(utc.year, 1, 1);
     final days = DateTime.utc(utc.year + 1, 1, 1).difference(yearStart).inDays;
-    final n = utc.difference(yearStart).inMicroseconds /
-            Duration.microsecondsPerDay +
+    final n =
+        utc.difference(yearStart).inMicroseconds / Duration.microsecondsPerDay +
         1;
     final g = 2 * pi * (n - 1) / days;
-    final eqtime = 229.18 *
+    final eqtime =
+        229.18 *
         (0.000075 +
             0.001868 * cos(g) -
             0.032077 * sin(g) -
@@ -95,10 +116,7 @@ class MapService {
         },
         {
           'type': 'Feature',
-          'properties': {
-            'kind': 'label',
-            'name': _sunLatitudeLabel(latitude),
-          },
+          'properties': {'kind': 'label', 'name': _sunLatitudeLabel(latitude)},
           'geometry': {'type': 'Point', 'coordinates': sun},
         },
         {
@@ -190,14 +208,20 @@ class MapService {
     return collection;
   }
 
-  static String getStyleUrl(Brightness brightness) {
+  static const _styleLanguages = {'en', 'es', 'fr', 'pt', 'ru'};
+
+  static String getStyleUrl(Brightness brightness, String languageCode) {
     final colorSchema = brightness == Brightness.dark ? 'dark' : 'light';
-    return 'https://api.protomaps.com/styles/v5/$colorSchema/en.json?key=${Config.apiKey}';
+    final language = _styleLanguages.contains(languageCode)
+        ? languageCode
+        : 'en';
+    return 'https://api.protomaps.com/styles/v5/$colorSchema/$language.json?key=${Config.apiKey}';
   }
 
-  /// Coastline dots for islands under about 600 km², plus open-ocean island
-  /// group names. The dots stay on at every zoom so Samos and the smaller
-  /// Fiji islands do not drop out of the chart.
+  /// Coastline dots for islands under about 600 km², plus hillshade, land
+  /// contours, and open-ocean island group names. From zoom 4 a small dot
+  /// stands in until the land shape is large enough to see, so Moore's Island
+  /// and the same small islands do not drop out of the chart.
   static Future<void> addIslandOverlay(
     MapLibreMapController controller,
     Brightness brightness,
@@ -216,54 +240,70 @@ class MapService {
         debugPrint('Island overlay: expected Protomaps water layer missing');
         return;
       }
-      final dark = brightness == Brightness.dark;
-      // Same greens as the Protomaps forest landcover, dark and light.
-      final islandColor = dark ? '#1c2925' : '#c4e7d2';
-      final islandOutline = dark ? '#121c18' : '#8fbfa4';
+      final palette = MarinePalette.of(brightness);
+      final chart = palette.chart;
+      final islandColor = chart.islandFill.hex;
+      final islandOutline = chart.islandEdge.hex;
+      await _addLandElevation(controller, palette, layers, isCurrent);
+      if (!isCurrent()) return;
+      await _applyChartBase(controller, palette, layers);
+      if (!isCurrent()) return;
       await controller.addSource(
         'island-points',
         GeojsonSourceProperties(data: points, cluster: false),
       );
       if (!isCurrent()) return;
+      // A small land-colored dot from zoom 4 while the island shape is
+      // still missing from the tiles. Moore's Island (dotUntil about 5)
+      // is one of these. Islands that stay tiny keep the dot.
+      final islandDot = CircleLayerProperties(
+        circleColor: islandColor,
+        circleRadius: 2.4,
+        circleOpacity: 1,
+        circleStrokeColor: islandOutline,
+        circleStrokeWidth: 0.6,
+      );
       await controller.addCircleLayer(
         'island-points',
         'island-visibility',
-        CircleLayerProperties(
-          circleColor: islandColor,
-          circleRadius: const [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            0,
-            2.3,
-            6,
-            3,
-            8,
-            2.5,
-            12,
-            1,
-          ],
-          circleOpacity: 1,
-          circleStrokeColor: islandOutline,
-          circleStrokeWidth: const [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            8,
-            0.8,
-            12,
-            0,
-          ],
-        ),
+        islandDot,
         belowLayerId: 'water_stream',
-        minzoom: 8.01,
+        filter: const [
+          'all',
+          [
+            '>',
+            ['get', 'dotUntil'],
+            4,
+          ],
+          [
+            '<',
+            ['get', 'dotUntil'],
+            7,
+          ],
+        ],
+        minzoom: 4,
+        maxzoom: 7,
+        enableInteraction: false,
+      );
+      if (!isCurrent()) return;
+      await controller.addCircleLayer(
+        'island-points',
+        'island-visibility-small',
+        islandDot,
+        belowLayerId: 'water_stream',
+        filter: const [
+          '>=',
+          ['get', 'dotUntil'],
+          7,
+        ],
+        minzoom: 4,
         enableInteraction: false,
       );
       if (!isCurrent()) return;
       // Open-ocean group names for passagemaking. Coastal archipelagos are
       // omitted. Keep names visible throughout zoom levels 2 through 8.
-      final labelColor = brightness == Brightness.dark ? '#8a8a8a' : '#5c564f';
-      final labelHalo = brightness == Brightness.dark ? '#141414' : '#f4f1ec';
+      final labelColor = chart.labelSoft.hex;
+      final labelHalo = chart.labelHalo.hex;
       await controller.addSource(
         'island-groups',
         GeojsonSourceProperties(data: groups),
@@ -295,7 +335,10 @@ class MapService {
         belowLayerId: layers.contains('places_country')
             ? 'places_country'
             : null,
-        filter: const ['!', ['has', 'until']],
+        filter: const [
+          '!',
+          ['has', 'until'],
+        ],
         minzoom: 2,
         // MapLibre's upper bound is exclusive; include the whole zoom-8 band.
         maxzoom: 9,
@@ -330,7 +373,11 @@ class MapService {
         belowLayerId: layers.contains('places_country')
             ? 'places_country'
             : null,
-        filter: const ['==', ['get', 'until'], 3],
+        filter: const [
+          '==',
+          ['get', 'until'],
+          3,
+        ],
         minzoom: 2,
         maxzoom: 3,
         enableInteraction: false,
@@ -338,8 +385,8 @@ class MapService {
       if (!isCurrent()) return;
       // Latitude and longitude every 10 degrees. The solid line is the
       // latitude where the sun is overhead right now, not latitude 0.
-      final gridColor = dark ? '#7d8b9e' : '#8a8a8a';
-      final equatorColor = dark ? '#a3a3a3' : '#6a6a6a';
+      final gridColor = chart.graticule.hex;
+      final equatorColor = chart.meridian.hex;
       await controller.addSource(
         'graticule',
         GeojsonSourceProperties(data: graticule),
@@ -373,7 +420,11 @@ class MapService {
           lineOpacity: 0.95,
         ),
         belowLayerId: 'water_stream',
-        filter: const ['==', ['get', 'kind'], 'sun'],
+        filter: const [
+          '==',
+          ['get', 'kind'],
+          'sun',
+        ],
         minzoom: 0,
         maxzoom: 5,
         enableInteraction: false,
@@ -385,17 +436,21 @@ class MapService {
       await controller.addCircleLayer(
         'sun-equator',
         'sun-positions',
-        const CircleLayerProperties(
-          circleColor: '#f2c14d',
+        CircleLayerProperties(
+          circleColor: palette.sky.sunCore.hex,
           circleRadius: 7,
           circleOpacity: 0.95,
-          circleStrokeColor: '#fff6d0',
+          circleStrokeColor: palette.sky.sunRim.hex,
           circleStrokeWidth: 1.4,
         ),
         belowLayerId: layers.contains('places_country')
             ? 'places_country'
             : null,
-        filter: const ['==', ['get', 'kind'], 'position'],
+        filter: const [
+          '==',
+          ['get', 'kind'],
+          'position',
+        ],
         minzoom: 0,
         maxzoom: 5,
         enableInteraction: false,
@@ -404,12 +459,16 @@ class MapService {
       await controller.addCircleLayer(
         'sun-equator',
         'sun-hit',
-        const CircleLayerProperties(
-          circleColor: '#f2c14d',
+        CircleLayerProperties(
+          circleColor: palette.sky.sunCore.hex,
           circleRadius: 18,
           circleOpacity: 0.01,
         ),
-        filter: const ['==', ['get', 'kind'], 'position'],
+        filter: const [
+          '==',
+          ['get', 'kind'],
+          'position',
+        ],
         minzoom: 0,
         maxzoom: 5,
         enableInteraction: true,
@@ -423,7 +482,7 @@ class MapService {
           textFont: const ['Noto Sans Italic'],
           textSize: 11,
           textColor: equatorColor,
-          textHaloColor: dark ? '#141414' : '#f4f1ec',
+          textHaloColor: labelHalo,
           textHaloWidth: 1.2,
           textAllowOverlap: true,
           textIgnorePlacement: true,
@@ -431,7 +490,11 @@ class MapService {
         belowLayerId: layers.contains('places_country')
             ? 'places_country'
             : null,
-        filter: const ['==', ['get', 'kind'], 'label'],
+        filter: const [
+          '==',
+          ['get', 'kind'],
+          'label',
+        ],
         minzoom: 0,
         // Hidden once zoom passes 5. The bound is exclusive, so zoom 5
         // still shows the label.
@@ -441,7 +504,7 @@ class MapService {
       if (!isCurrent()) return;
       // Moon's overhead track for one pass around the Earth, and where it
       // is right now. Both stay on the wide chart, zoom 0 through 4.
-      final moonColor = dark ? '#c5ced8' : '#6d7580';
+      final moonColor = palette.sky.moonTrack.hex;
       final moonOrbit = _moonOrbitData(DateTime.now().toUtc());
       await controller.addSource(
         'moon-orbit',
@@ -457,7 +520,11 @@ class MapService {
           lineOpacity: 0.9,
         ),
         belowLayerId: 'water_stream',
-        filter: const ['==', ['get', 'kind'], 'orbit'],
+        filter: const [
+          '==',
+          ['get', 'kind'],
+          'orbit',
+        ],
         minzoom: 0,
         maxzoom: 5,
         enableInteraction: false,
@@ -468,17 +535,21 @@ class MapService {
       await controller.addCircleLayer(
         'moon-orbit',
         'moon-position',
-        const CircleLayerProperties(
-          circleColor: '#e7eef6',
+        CircleLayerProperties(
+          circleColor: palette.sky.moonCore.hex,
           circleRadius: 6,
           circleOpacity: 0.95,
-          circleStrokeColor: '#9aa6b5',
+          circleStrokeColor: palette.sky.moonRim.hex,
           circleStrokeWidth: 1.2,
         ),
         belowLayerId: layers.contains('places_country')
             ? 'places_country'
             : null,
-        filter: const ['==', ['get', 'kind'], 'moon'],
+        filter: const [
+          '==',
+          ['get', 'kind'],
+          'moon',
+        ],
         minzoom: 0,
         maxzoom: 5,
         enableInteraction: false,
@@ -487,12 +558,16 @@ class MapService {
       await controller.addCircleLayer(
         'moon-orbit',
         'moon-hit',
-        const CircleLayerProperties(
-          circleColor: '#e7eef6',
+        CircleLayerProperties(
+          circleColor: palette.sky.moonCore.hex,
           circleRadius: 18,
           circleOpacity: 0.01,
         ),
-        filter: const ['==', ['get', 'kind'], 'moon'],
+        filter: const [
+          '==',
+          ['get', 'kind'],
+          'moon',
+        ],
         minzoom: 0,
         maxzoom: 5,
         enableInteraction: true,
@@ -506,7 +581,7 @@ class MapService {
           textFont: const ['Noto Sans Italic'],
           textSize: 11,
           textColor: moonColor,
-          textHaloColor: dark ? '#141414' : '#f4f1ec',
+          textHaloColor: labelHalo,
           textHaloWidth: 1.2,
           textOffset: const [0, 1.1],
           textAllowOverlap: true,
@@ -515,16 +590,21 @@ class MapService {
         belowLayerId: layers.contains('places_country')
             ? 'places_country'
             : null,
-        filter: const ['==', ['get', 'kind'], 'moon'],
+        filter: const [
+          '==',
+          ['get', 'kind'],
+          'moon',
+        ],
         minzoom: 0,
         maxzoom: 5,
         enableInteraction: false,
       );
       if (!isCurrent()) return;
-      // Protomaps adds these island names only at zoom 6 or 7.
-      // Draw each name from zoom 4 until that basemap label takes over.
-      final islandNameColor = dark ? '#525252' : '#5c564f';
-      final islandNameHalo = dark ? '#1f1f1f' : '#f4f1ec';
+      // Larger islands are named from zoom 4 until the basemap label
+      // takes over at zoom 6 or 7. Smaller ones, such as Moore's Island,
+      // are named from zoom 7 until the basemap label at zoom 8, 9, or 10.
+      final islandNameColor = chart.labelFaint.hex;
+      final islandNameHalo = chart.labelHalo.hex;
       await controller.addSource(
         'island-names',
         GeojsonSourceProperties(data: islandNames),
@@ -533,105 +613,423 @@ class MapService {
       final belowNames = layers.contains('places_country')
           ? 'places_country'
           : null;
-      await controller.addSymbolLayer(
-        'island-names',
-        'island-names',
-        SymbolLayerProperties(
-          textField: const ['get', 'name'],
-          textFont: const ['Noto Sans Italic'],
-          textSize: 10,
-          textLetterSpacing: 0.1,
-          textMaxWidth: 8,
-          textColor: islandNameColor,
-          textHaloColor: islandNameHalo,
-          textHaloWidth: 1,
-          textPadding: 0,
-          textRadialOffset: 0.6,
-          textVariableAnchor: const [
-            'top',
-            'bottom',
-            'left',
-            'right',
-            'top-left',
-            'top-right',
-            'bottom-left',
-            'bottom-right',
-          ],
-        ),
-        belowLayerId: belowNames,
-        filter: const ['==', ['get', 'until'], 6],
-        minzoom: 4,
-        maxzoom: 6,
-        enableInteraction: false,
-      );
-      if (!isCurrent()) return;
-      await controller.addSymbolLayer(
+      const nameBands = <List<num>>[
+        [6, 4, 6],
+        [7, 4, 7],
+        [8, 7, 8],
+        [9, 7, 9],
+        [10, 7, 10],
+      ];
+      const nameLayerIds = [
         'island-names',
         'island-names-later',
-        SymbolLayerProperties(
-          textField: const ['get', 'name'],
-          textFont: const ['Noto Sans Italic'],
-          textSize: 10,
-          textLetterSpacing: 0.1,
-          textMaxWidth: 8,
-          textColor: islandNameColor,
-          textHaloColor: islandNameHalo,
-          textHaloWidth: 1,
-          textPadding: 0,
-          textRadialOffset: 0.6,
-          textVariableAnchor: const [
-            'top',
-            'bottom',
-            'left',
-            'right',
-            'top-left',
-            'top-right',
-            'bottom-left',
-            'bottom-right',
+        'island-names-8',
+        'island-names-9',
+        'island-names-10',
+      ];
+      for (var i = 0; i < nameBands.length; i++) {
+        final until = nameBands[i][0].toInt();
+        final minZoom = nameBands[i][1].toDouble();
+        final maxZoom = nameBands[i][2].toDouble();
+        await controller.addSymbolLayer(
+          'island-names',
+          nameLayerIds[i],
+          SymbolLayerProperties(
+            textField: const ['get', 'name'],
+            textFont: const ['Noto Sans Italic'],
+            textSize: 10,
+            textLetterSpacing: 0.1,
+            textMaxWidth: 8,
+            textColor: islandNameColor,
+            textHaloColor: islandNameHalo,
+            textHaloWidth: 1,
+            textPadding: 0,
+            textRadialOffset: 0.6,
+            textVariableAnchor: const [
+              'top',
+              'bottom',
+              'left',
+              'right',
+              'top-left',
+              'top-right',
+              'bottom-left',
+              'bottom-right',
+            ],
+          ),
+          belowLayerId: belowNames,
+          filter: [
+            '==',
+            ['get', 'until'],
+            until,
           ],
-        ),
-        belowLayerId: belowNames,
-        filter: const ['==', ['get', 'until'], 7],
-        minzoom: 4,
-        maxzoom: 7,
-        enableInteraction: false,
-      );
+          minzoom: minZoom,
+          maxzoom: maxZoom,
+          enableInteraction: false,
+        );
+        if (!isCurrent()) return;
+      }
       if (!isCurrent()) return;
       await _hideSmallCityDetail(controller, layers);
       await _hideLandObjects(controller, layers);
-      await _addBoatPlaces(controller, dark, layers, isCurrent);
+      await _addBoatPlaces(controller, palette, layers, isCurrent);
+      if (!isCurrent()) return;
+      await _addChartDetails(controller, palette, layers, isCurrent);
+      if (!isCurrent()) return;
+      await _applyChartLayers(controller);
     } catch (error) {
       if (isCurrent()) debugPrint('Unable to load island overlay: $error');
     }
   }
 
-  /// Drops local streets. Bridge layers are separate and stay on, including
-  /// bridges that carry a small road.
+  /// Repaints the Protomaps basemap as a nautical chart: warm sand ashore,
+  /// graded blue afloat, and a drawn coastline.
+  ///
+  /// The coastline is the reason this works at night. The night fills for
+  /// land and water sit within a few percent luminance of each other, which
+  /// is what keeps a full-screen chart from flooding the cockpit, so the
+  /// boundary has to be carried by a line rather than by a brightness step.
+  static Future<void> _applyChartBase(
+    MapLibreMapController controller,
+    MarinePalette palette,
+    List<dynamic> layers,
+  ) async {
+    final chart = palette.chart;
+
+    Future<void> patch(String layerId, Map<String, dynamic> paint) async {
+      if (!layers.contains(layerId)) return;
+      await controller.setLayerProperties(layerId, _StylePatch(paint));
+    }
+
+    final settings = MapChartSettings.instance;
+    await patch('background', {'background-color': chart.backdrop.hex});
+    if (settings.layerOn('land')) {
+      await patch('earth', {'fill-color': chart.landBase.hex});
+    } else if (layers.contains('earth')) {
+      await controller.setLayerVisibility('earth', false);
+    }
+    if (settings.layerOn('landBeach')) {
+      await patch('landuse_beach', {'fill-color': chart.landBeach.hex});
+    } else if (layers.contains('landuse_beach')) {
+      await controller.setLayerVisibility('landuse_beach', false);
+    }
+    if (settings.layerOn('coast')) {
+      await patch('water', {'fill-color': chart.seaBase.hex});
+    } else if (layers.contains('water')) {
+      await controller.setLayerVisibility('water', false);
+    }
+    await patch('water_waterway_label', {'text-color': chart.labelSoft.hex});
+    await patch('boundaries', {'line-color': chart.graticule.hex});
+    await patch('boundaries_country', {'line-color': chart.graticule.hex});
+    if (settings.layerOn('coastline')) {
+      await patch('landuse_pier', {'fill-color': chart.coastline.hex});
+      await patch('roads_pier', {'line-color': chart.coastline.hex});
+      // The pedestrian layer is filtered down to dams. A dam is a hard edge
+      // on the water, so it takes the same line as the coast and the piers.
+      await patch('landuse_pedestrian', {'fill-color': chart.coastline.hex});
+    } else {
+      for (final id in ['landuse_pier', 'roads_pier', 'landuse_pedestrian']) {
+        if (layers.contains(id)) {
+          await controller.setLayerVisibility(id, false);
+        }
+      }
+    }
+    await _muteRoads(palette, patch);
+    // The basemap halos are tuned to its own water colour and read as a grey
+    // glow against ours, worst of all at night.
+    for (final id in ['water_label_ocean', 'water_label_lakes']) {
+      await patch(id, {
+        'text-color': chart.labelSoft.hex,
+        'text-halo-color': chart.labelHalo.hex,
+      });
+    }
+    for (final id in [
+      'earth_label_islands',
+      'places_country',
+      'places_region',
+      'places_locality',
+      'places_subplace',
+      'roads_labels_major',
+      'roads_labels_minor',
+      'water_waterway_label',
+    ]) {
+      await patch(id, {'text-halo-color': chart.labelHalo.hex});
+    }
+
+    await _redrawWaterways(controller, palette, layers);
+
+    if (layers.contains('chart-coastline')) return;
+    if (!MapChartSettings.instance.layerOn('coastline')) return;
+    await controller.addLineLayer(
+      'protomaps',
+      'chart-coastline',
+      LineLayerProperties(
+        lineColor: chart.coastline.hex,
+        lineWidth: const [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          2,
+          0.5,
+          6,
+          0.8,
+          10,
+          1.2,
+          14,
+          1.7,
+        ],
+        lineOpacity: 0.95,
+        lineJoin: 'round',
+      ),
+      sourceLayer: 'earth',
+      // Straight after the ocean fill, so the hillshade and the depth
+      // contours below it do not smear the coast.
+      belowLayerId: layers.contains('water_stream') ? 'water_stream' : null,
+      filter: const ['==', '\$type', 'Polygon'],
+      enableInteraction: false,
+    );
+  }
+
+  /// Trunk roads, their links, and the bridge and tunnel variants of each.
+  static const _trunkRoadLayers = [
+    'roads_highway',
+    'roads_major',
+    'roads_link',
+    'roads_bridges_highway',
+    'roads_bridges_major',
+    'roads_bridges_link',
+    'roads_tunnels_highway',
+    'roads_tunnels_major',
+    'roads_tunnels_link',
+  ];
+
+  static const _minorRoadLayers = [
+    'roads_minor',
+    'roads_minor_service',
+    'roads_other',
+    'roads_bridges_minor',
+    'roads_bridges_other',
+    'roads_tunnels_minor',
+    'roads_tunnels_other',
+  ];
+
+  static const _roadCasingLayers = [
+    'roads_highway_casing_early',
+    'roads_highway_casing_late',
+    'roads_major_casing_early',
+    'roads_major_casing_late',
+    'roads_link_casing',
+    'roads_minor_casing',
+    'roads_minor_service_casing',
+    'roads_bridges_highway_casing',
+    'roads_bridges_major_casing',
+    'roads_bridges_link_casing',
+    'roads_bridges_minor_casing',
+    'roads_bridges_other_casing',
+    'roads_tunnels_highway_casing',
+    'roads_tunnels_major_casing',
+    'roads_tunnels_link_casing',
+    'roads_tunnels_minor_casing',
+    'roads_tunnels_other_casing',
+  ];
+
+  /// Drops the road network back to shore context.
+  ///
+  /// The basemap paints roads as the subject of the map: white ribbons on
+  /// land by day, and by night a highway at `#474747` that is the brightest
+  /// thing on screen by a wide margin. Neither belongs on a chart, where the
+  /// water is the subject and roads only answer "can I get to this harbour,
+  /// and where does that bridge cross".
+  ///
+  /// So the fills move to within a few percent of the land they cross and the
+  /// casing goes darker than the land. Roads still read, as an engraved
+  /// texture rather than a network, and the night chart gets its brightest
+  /// pixel back for the things that have to be seen.
+  static Future<void> _muteRoads(
+    MarinePalette palette,
+    Future<void> Function(String, Map<String, dynamic>) patch,
+  ) async {
+    final chart = palette.chart;
+    final settings = MapChartSettings.instance;
+    Future<void> hide(String id) async {
+      await patch(id, {
+        'line-opacity': 0,
+        'icon-opacity': 0,
+        'text-opacity': 0,
+      });
+    }
+
+    for (final id in _trunkRoadLayers) {
+      if (settings.layerOn('roadTrunk')) {
+        await patch(id, {'line-color': chart.roadTrunk.hex});
+      } else {
+        await hide(id);
+      }
+    }
+    for (final id in _minorRoadLayers) {
+      if (settings.layerOn('roadMinor')) {
+        await patch(id, {'line-color': chart.roadMinor.hex});
+      } else {
+        await hide(id);
+      }
+    }
+    for (final id in _roadCasingLayers) {
+      if (settings.layerOn('roadCasing')) {
+        await patch(id, {'line-color': chart.roadCasing.hex});
+      } else {
+        await hide(id);
+      }
+    }
+    for (final id in ['roads_labels_major', 'roads_labels_minor']) {
+      if (settings.layerOn('roadNames')) {
+        await patch(id, {'text-color': chart.roadLabel.hex});
+      } else {
+        await hide(id);
+      }
+    }
+    // Shields are a motorist's cue and carry a filled badge, so dimming the
+    // number alone would leave the badge shouting.
+    if (settings.layerOn('roadNames')) {
+      await patch('roads_shields', {
+        'text-color': chart.roadLabel.hex,
+        'icon-opacity': 0.45,
+        'text-opacity': 0.8,
+      });
+    } else {
+      await hide('roads_shields');
+    }
+    await patch('roads_oneway', {
+      'icon-opacity': settings.layerOn('roadTrunk') ? 0.35 : 0,
+    });
+  }
+
+  /// Moves river and stream centrelines underneath the water fill.
+  ///
+  /// The basemap draws them on top, so a river wide enough to also be a water
+  /// polygon ends up with a line running down the middle of open water, which
+  /// says nothing a skipper can use. Drawn underneath, the polygon covers its
+  /// own centreline, while a narrow stream that has no polygon still shows
+  /// against the land. The name keeps its own layer either way, so a wide
+  /// river stays labelled once the line is gone.
+  static Future<void> _redrawWaterways(
+    MapLibreMapController controller,
+    MarinePalette palette,
+    List<dynamic> layers,
+  ) async {
+    if (layers.contains('chart-waterway-river')) return;
+    for (final id in ['water_stream', 'water_river']) {
+      if (layers.contains(id)) await controller.setLayerVisibility(id, false);
+    }
+    if (!layers.contains('water')) return;
+    if (!MapChartSettings.instance.layerOn('waterways')) return;
+    // Where the centreline is wider than the water polygon it shows as the
+    // bank. A stream keeps the coastline colour. A river is open water, so
+    // it takes the ocean fill.
+    final bank = palette.chart.coastline.hex;
+    final river = palette.chart.seaBase.hex;
+    // Same widths and zoom floors the basemap used, so narrow water reads the
+    // way it always did where there is no polygon to hide it.
+    await controller.addLineLayer(
+      'protomaps',
+      'chart-waterway-stream',
+      LineLayerProperties(
+        lineOpacity: MapChartSettings.instance.layerOn('streams')
+            ? MapChartSettings.instance.zoomExpression('streams', 1, 0)
+            : 0,
+        lineColor: bank,
+        lineWidth: 0.6,
+        lineJoin: 'round',
+        lineCap: 'round',
+      ),
+      sourceLayer: 'water',
+      belowLayerId: 'water',
+      filter: const [
+        '==',
+        ['get', 'kind'],
+        'stream',
+      ],
+      minzoom: MapChartSettings.instance.zoom('streams'),
+      enableInteraction: false,
+    );
+    await controller.addLineLayer(
+      'protomaps',
+      'chart-waterway-river',
+      LineLayerProperties(
+        lineOpacity: MapChartSettings.instance.layerOn('rivers')
+            ? MapChartSettings.instance.zoomExpression('rivers', 1, 0)
+            : 0,
+        lineColor: river,
+        lineWidth: const [
+          'interpolate',
+          ['exponential', 1.6],
+          ['zoom'],
+          9,
+          0,
+          9.5,
+          1,
+          18,
+          12,
+        ],
+        lineJoin: 'round',
+        lineCap: 'round',
+      ),
+      sourceLayer: 'water',
+      belowLayerId: 'water',
+      filter: const [
+        '==',
+        ['get', 'kind'],
+        'river',
+      ],
+      minzoom: MapChartSettings.instance.zoom('rivers'),
+      enableInteraction: false,
+    );
+  }
+
+  /// Local streets, their bridges, neighbourhoods, and smaller towns stay
+  /// off until zoom 16. Larger cities (population rank 10 and up) stay.
+  /// Road names and route shields come on once the zoom is past 14.
+  static double get smallDetailZoom =>
+      MapChartSettings.instance.zoom('smallDetail');
+  static double get roadNameZoom => MapChartSettings.instance.zoom('roadNames');
+
+  static const _roadNameLayers = [
+    'roads_labels_major',
+    'roads_labels_minor',
+    'roads_shields',
+  ];
+
+  static const _smallRoadLayers = [
+    'roads_tunnels_other_casing',
+    'roads_tunnels_minor_casing',
+    'roads_tunnels_other',
+    'roads_tunnels_minor',
+    'roads_minor_service_casing',
+    'roads_minor_casing',
+    'roads_other',
+    'roads_minor_service',
+    'roads_minor',
+    'roads_bridges_other_casing',
+    'roads_bridges_minor_casing',
+    'roads_bridges_other',
+    'roads_bridges_minor',
+    'places_subplace',
+  ];
+
+  static bool? _smallDetailShown;
+  static bool? _roadNamesShown;
+  static int _smallDetailEpoch = 0;
+
   static Future<void> _hideSmallCityDetail(
     MapLibreMapController controller,
     List<dynamic> layers,
   ) async {
-    const smallRoads = [
-      'roads_tunnels_other_casing',
-      'roads_tunnels_minor_casing',
-      'roads_tunnels_other',
-      'roads_tunnels_minor',
-      'roads_minor_service_casing',
-      'roads_minor_casing',
-      'roads_other',
-      'roads_minor_service',
-      'roads_minor',
-      'roads_labels_minor',
-    ];
-    for (final id in smallRoads) {
-      if (layers.contains(id)) {
-        await controller.setLayerVisibility(id, false);
-      }
-    }
     if (layers.contains('roads_oneway')) {
       await controller.setFilter('roads_oneway', const [
         'all',
-        ['==', ['get', 'oneway'], 'yes'],
+        [
+          '==',
+          ['get', 'oneway'],
+          'yes',
+        ],
         [
           'in',
           ['get', 'kind'],
@@ -642,10 +1040,174 @@ class MapService {
         ],
       ]);
     }
+    final zoom = controller.cameraPosition?.zoom ?? 5;
+    await _applySmallDetail(controller, layers, zoom, ++_smallDetailEpoch);
   }
 
-  /// Parks, cafes, trains, buildings, and the other land places are hidden.
-  /// Water, beaches, piers, dams, and ferry terminals stay.
+  /// Shows or hides local streets and smaller towns when the camera crosses
+  /// zoom 16, and road names when it passes zoom 14. Safe to call on every
+  /// camera move.
+  static void syncSmallDetail(MapLibreMapController controller, double zoom) {
+    final show =
+        MapChartSettings.instance.layerOn('smallDetail') &&
+        MapChartSettings.instance.layerOn('roadMinor') &&
+        MapChartSettings.instance.zoomEnabled('smallDetail', zoom);
+    final showNames =
+        MapChartSettings.instance.layerOn('roadNames') &&
+        MapChartSettings.instance.zoomEnabled('roadNames', zoom);
+    if (_smallDetailShown == show && _roadNamesShown == showNames) return;
+    _applySmallDetail(controller, null, zoom, ++_smallDetailEpoch);
+  }
+
+  static Future<void> _applySmallDetail(
+    MapLibreMapController controller,
+    List<dynamic>? layers,
+    double zoom,
+    int epoch,
+  ) async {
+    final show =
+        MapChartSettings.instance.layerOn('smallDetail') &&
+        MapChartSettings.instance.layerOn('roadMinor') &&
+        MapChartSettings.instance.zoomEnabled('smallDetail', zoom);
+    final ids = layers ?? await controller.getLayerIds();
+    if (epoch != _smallDetailEpoch) return;
+    for (final id in _smallRoadLayers) {
+      if (ids.contains(id)) {
+        await controller.setLayerVisibility(id, show);
+      }
+    }
+    if (epoch != _smallDetailEpoch) return;
+    if (ids.contains('places_locality')) {
+      await controller.setFilter(
+        'places_locality',
+        show
+            ? const [
+                '==',
+                ['get', 'kind'],
+                'locality',
+              ]
+            : const [
+                'all',
+                [
+                  '==',
+                  ['get', 'kind'],
+                  'locality',
+                ],
+                [
+                  '>=',
+                  ['get', 'population_rank'],
+                  10,
+                ],
+              ],
+      );
+    }
+    final showNames =
+        MapChartSettings.instance.layerOn('roadNames') &&
+        MapChartSettings.instance.zoomEnabled('roadNames', zoom);
+    for (final id in _roadNameLayers) {
+      if (ids.contains(id)) {
+        await controller.setLayerVisibility(id, showNames);
+      }
+    }
+    if (epoch == _smallDetailEpoch) {
+      _smallDetailShown = show;
+      _roadNamesShown = showNames;
+    }
+  }
+
+  /// Hides chart groups the Map settings page has turned off.
+  static Future<void> _applyChartLayers(
+    MapLibreMapController controller,
+  ) async {
+    final chart = MapChartSettings.instance;
+    final ids = await controller.getLayerIds();
+    Future<void> hideAll(List<String> layers) async {
+      for (final id in layers) {
+        if (ids.contains(id)) await controller.setLayerVisibility(id, false);
+      }
+    }
+
+    Future<void> hide(String group, List<String> layers) async {
+      if (chart.layerOn(group)) return;
+      await hideAll(layers);
+    }
+
+    await hide('islands', const [
+      'island-visibility',
+      'island-visibility-small',
+      'island-group-labels',
+      'island-group-labels-early',
+      'island-names',
+      'island-names-later',
+      'island-names-8',
+      'island-names-9',
+      'island-names-10',
+    ]);
+    await hide('graticule', const ['graticule']);
+    await hide('sky', const [
+      'equator',
+      'sun-positions',
+      'sun-hit',
+      'sun-equator-label',
+      'moon-orbit',
+      'moon-position',
+      'moon-hit',
+      'moon-label',
+    ]);
+    if (chart.layerOn('sky')) {
+      await hide('meridian', const ['equator', 'sun-equator-label']);
+      await hide('moonCore', const ['moon-position', 'moon-hit', 'moon-label']);
+      await hide('moonTrack', const ['moon-orbit']);
+    }
+    await hide('coastline', const ['chart-coastline']);
+    await hide('waterways', const [
+      'chart-waterway-stream',
+      'chart-waterway-river',
+    ]);
+    if (chart.layerOn('waterways')) {
+      await hide('streams', const ['chart-waterway-stream']);
+      await hide('rivers', const ['chart-waterway-river']);
+    }
+    await hide('contours', const [
+      'ocean-contour-lines',
+      'ocean-contour-labels',
+    ]);
+    if (chart.layerOn('contours')) {
+      await hide('label', const ['ocean-contour-labels']);
+    }
+    await hide('landContour', const ['land-contour-lines']);
+    await hide('landContourLabel', const ['land-contour-labels']);
+    await hide('hillshade', const ['land-elevation', 'ocean-elevation']);
+    await hide('marinas', const ['boat-marinas']);
+    await hide('places', const ['boat-places']);
+    await hide('slipways', const ['slipways']);
+    await hide('bridges', const ['boat-bridge-labels']);
+    await hide('harbour', const [
+      'chart-marina-area',
+      'chart-dock',
+      'chart-canal',
+    ]);
+    await hide('ferries', const ['chart-ferry', 'chart-ferry-labels']);
+    if (chart.layerOn('ferries')) {
+      await hide('ferryNames', const ['chart-ferry-labels']);
+    }
+    await hide('waterNames', const ['chart-water-names']);
+    await hide('seamarks', const ['seamark-marinas', 'seamark-names']);
+    await hide('platforms', const ['oil-platforms']);
+    await hide('platformZones', const ['oil-platform-zone']);
+    await hide('lighthouses', const ['lighthouses']);
+    await hide('roadTrunk', [..._trunkRoadLayers, 'roads_oneway']);
+    await hide('roadMinor', _minorRoadLayers);
+    if (!chart.layerOn('roadMinor') || !chart.layerOn('smallDetail')) {
+      await hideAll(_smallRoadLayers);
+    }
+    await hide('roadCasing', _roadCasingLayers);
+    await hide('roadNames', _roadNameLayers);
+  }
+
+  /// Parks, beaches, cafes, trains, buildings, and the other land places are
+  /// hidden. Piers, dams, and ferry terminals stay. Beach sand fill stays;
+  /// the park and beach icons do not.
   static Future<void> _hideLandObjects(
     MapLibreMapController controller,
     List<dynamic> layers,
@@ -665,6 +1227,7 @@ class MapService {
       'roads_rail',
       'buildings',
       'address_label',
+      'pois',
     ];
     for (final id in landObjects) {
       if (layers.contains(id)) {
@@ -707,9 +1270,206 @@ class MapService {
     'slipway',
   ];
 
+  /// Gap between a harbour icon and its name, on top of the offset each
+  /// layer already carried. MapLibre measures text-offset in ems and these
+  /// labels are 11 px, so an em is 11 px and 5 px of clearance is 0.45 of one.
+  static const _labelClearanceEm = 0.45;
+  static const _placeLabelOffset = 0.8 + _labelClearanceEm;
+  static const _seamarkLabelOffset = 1.1 + _labelClearanceEm;
+
+  /// Point objects use a half-size icon until this zoom, then the full icon.
+  /// The name and the type line come on together. See AGENTS.md.
+  static double get objectIconFullZoom =>
+      MapChartSettings.instance.zoom('iconFull');
+  static const objectTypeFontScale = 0.75;
+
+  static const _objectTypeLabel = [
+    'match',
+    ['get', 'kind'],
+    'marina',
+    'Marina',
+    'harbour',
+    'Marina',
+    'anchorage',
+    'Anchorage',
+    'fuel',
+    'Fuel',
+    'customs',
+    'Customs',
+    'harbourmaster',
+    'Harbour office',
+    'naval_base',
+    'Naval base',
+    'ferry_terminal',
+    'Ferry terminal',
+    'cruise_terminal',
+    'Cruise terminal',
+    'slipway',
+    'Slipway',
+    'dock',
+    'Dock',
+    'lighthouse',
+    'Lighthouse',
+    'light_major',
+    'Major light',
+    'beacon',
+    'Beacon',
+    'boat',
+    'Boat service',
+    'boat_rental',
+    'Boat rental',
+    'boat_repair',
+    'Boat repair',
+    'boat_storage',
+    'Boat storage',
+    'ship_chandler',
+    'Chandler',
+    'life_ring',
+    'Life ring',
+    'lock',
+    'Lock',
+    'mooring',
+    'Mooring',
+    'small_craft_facility',
+    'Small craft',
+    'offshore_platform',
+    'Offshore oil platforms',
+    '',
+  ];
+
+  /// Name on the first line, object type under it in a smaller size.
+  /// Both lines are left-aligned by the layer. [fromZoom] hides the label
+  /// until that zoom when the icon is already on the chart.
+  static List<Object> _objectLabel({num? fromZoom}) {
+    final label = [
+      'format',
+      [
+        'case',
+        [
+          '>',
+          [
+            'length',
+            [
+              'to-string',
+              [
+                'coalesce',
+                ['get', 'name'],
+                '',
+              ],
+            ],
+          ],
+          0,
+        ],
+        [
+          'concat',
+          [
+            'to-string',
+            [
+              'coalesce',
+              ['get', 'name'],
+              '',
+            ],
+          ],
+          '\n',
+        ],
+        '',
+      ],
+      <String, Object>{},
+      _objectTypeLabel,
+      {'font-scale': objectTypeFontScale},
+    ];
+    if (fromZoom == null) return label;
+    return [
+      'step',
+      ['zoom'],
+      '',
+      fromZoom,
+      label,
+    ];
+  }
+
+  /// Name, type, then the light description. Hidden until zoom 12, the same
+  /// point the platform name comes on.
+  static List<Object> _lighthouseLabel() => [
+    'step',
+    ['zoom'],
+    '',
+    MapChartSettings.instance.zoom('lighthouseName'),
+    [
+      'format',
+      [
+        'case',
+        [
+          '>',
+          [
+            'length',
+            [
+              'to-string',
+              [
+                'coalesce',
+                ['get', 'name'],
+                '',
+              ],
+            ],
+          ],
+          0,
+        ],
+        [
+          'concat',
+          [
+            'to-string',
+            [
+              'coalesce',
+              ['get', 'name'],
+              '',
+            ],
+          ],
+          '\n',
+        ],
+        '',
+      ],
+      <String, Object>{},
+      _objectTypeLabel,
+      {'font-scale': objectTypeFontScale},
+      [
+        'case',
+        [
+          '>',
+          [
+            'length',
+            [
+              'to-string',
+              [
+                'coalesce',
+                ['get', 'detail'],
+                '',
+              ],
+            ],
+          ],
+          0,
+        ],
+        [
+          'concat',
+          '\n',
+          [
+            'to-string',
+            ['get', 'detail'],
+          ],
+        ],
+        '',
+      ],
+      {'font-scale': objectTypeFontScale},
+    ],
+  ];
+
+  /// Half the icon until [objectIconFullZoom], then the size passed in.
+  static List<Object> _objectIconSize(Object fullSize) => MapChartSettings
+      .instance
+      .zoomExpression('iconFull', fullSize, ['*', fullSize, 0.5]);
+
   static Future<void> _addBoatPlaces(
     MapLibreMapController controller,
-    bool dark,
+    MarinePalette palette,
     List<dynamic> layers,
     bool Function() isCurrent,
   ) async {
@@ -718,24 +1478,6 @@ class MapService {
       if (layers.contains(old)) {
         await controller.setLayerVisibility(old, false);
       }
-    }
-    if (layers.contains('pois')) {
-      await controller.setFilter('pois', const [
-        'all',
-        [
-          'in',
-          ['get', 'kind'],
-          [
-            'literal',
-            ['beach'],
-          ],
-        ],
-        [
-          '>=',
-          ['zoom'],
-          ['+', ['get', 'min_zoom'], 0],
-        ],
-      ]);
     }
     if (!isCurrent()) return;
     const icons = {
@@ -754,74 +1496,166 @@ class MapService {
       );
       if (!isCurrent()) return;
     }
-    final textColor = dark ? '#e4e4e4' : '#24302c';
-    final halo = dark ? '#141414' : '#f7f4ef';
+    final objects = palette.objects;
+    final textColor = palette.chart.labelStrong.hex;
+    final halo = palette.chart.labelHalo.hex;
     final below = layers.contains('places_country') ? 'places_country' : null;
+    // Each harbour kind carries its own colour so the name alone identifies
+    // the place at a glance: teal marinas, green anchorages, amber fuel.
+    final placeTextColor = [
+      'match',
+      ['get', 'kind'],
+      'marina',
+      objects.marina.hex,
+      'anchorage',
+      objects.anchorage.hex,
+      'fuel',
+      objects.fuel.hex,
+      'customs',
+      objects.customs.hex,
+      'harbourmaster',
+      objects.port.hex,
+      'naval_base',
+      objects.port.hex,
+      'ferry_terminal',
+      objects.ferry.hex,
+      'cruise_terminal',
+      objects.ferry.hex,
+      'slipway',
+      objects.slipway.hex,
+      'dock',
+      objects.dock.hex,
+      'lighthouse',
+      objects.navLight.hex,
+      'beacon',
+      objects.navLight.hex,
+      textColor,
+    ];
+    const placeIcon = [
+      'match',
+      ['get', 'kind'],
+      'marina',
+      'marina',
+      'fuel',
+      'boat-fuel',
+      'ferry_terminal',
+      'ferry_terminal',
+      'cruise_terminal',
+      'ferry_terminal',
+      'customs',
+      'boat-customs',
+      'harbourmaster',
+      'boat-port',
+      'naval_base',
+      'boat-port',
+      'ship_chandler',
+      'boat-service',
+      'boat',
+      'boat-service',
+      'boat_rental',
+      'boat-service',
+      'boat_repair',
+      'boat-service',
+      'boat_storage',
+      'boat-service',
+      'slipway',
+      'boat-slipway',
+      'dock',
+      'boat-slipway',
+      'anchorage',
+      'boat-anchor',
+      'boat-anchor',
+    ];
+    const placeIconSize = [
+      'match',
+      ['get', 'kind'],
+      'marina',
+      1.15,
+      'ferry_terminal',
+      1.1,
+      'cruise_terminal',
+      1.1,
+      0.42,
+    ];
+    // Marina and anchorage icons from zoom 11. The name stays off until
+    // zoom 13. Other harbour places keep the icon and name together.
     await controller.addSymbolLayer(
       'protomaps',
-      'boat-places',
+      'boat-marinas',
       SymbolLayerProperties(
-        iconImage: [
-          'match',
-          ['get', 'kind'],
-          'marina',
-          'marina',
-          'fuel',
-          'boat-fuel',
-          'ferry_terminal',
-          'ferry_terminal',
-          'cruise_terminal',
-          'ferry_terminal',
-          'customs',
-          'boat-customs',
-          'harbourmaster',
-          'boat-port',
-          'naval_base',
-          'boat-port',
-          'ship_chandler',
-          'boat-service',
-          'boat',
-          'boat-service',
-          'boat_rental',
-          'boat-service',
-          'boat_repair',
-          'boat-service',
-          'boat_storage',
-          'boat-service',
-          'slipway',
-          'boat-slipway',
-          'dock',
-          'boat-slipway',
-          'boat-anchor',
-        ],
-        iconSize: [
-          'match',
-          ['get', 'kind'],
-          'marina',
-          1.15,
-          'ferry_terminal',
-          1.1,
-          'cruise_terminal',
-          1.1,
-          0.42,
-        ],
-        iconAllowOverlap: true,
-        iconOptional: true,
-        textField: ['get', 'name'],
-        textFont: ['Noto Sans Regular'],
+        textOpacity: MapChartSettings.instance.zoomExpression(
+          'marinaName',
+          1,
+          0,
+        ),
+        iconOpacity: MapChartSettings.instance.zoomExpression(
+          'marinaIcon',
+          1,
+          0,
+        ),
+        iconImage: placeIcon,
+        iconSize: _objectIconSize(placeIconSize),
+        iconAllowOverlap: false,
+        iconPadding: 2,
+        iconOptional: false,
+        textField: _objectLabel(
+          fromZoom: MapChartSettings.instance.zoom('marinaName'),
+        ),
+        textFont: const ['Noto Sans Regular'],
         textSize: 11,
         textAnchor: 'left',
-        textOffset: [0.8, 0],
+        textJustify: 'left',
+        textOffset: const [_placeLabelOffset, 0],
         textOptional: true,
-        textMaxWidth: 8,
-        textColor: textColor,
+        textMaxWidth: 20,
+        textColor: placeTextColor,
         textHaloColor: halo,
-        textHaloWidth: 1.2,
+        textHaloWidth: 1.4,
         textPadding: 2,
       ),
       sourceLayer: 'pois',
       belowLayerId: below,
       filter: const [
+        'in',
+        ['get', 'kind'],
+        [
+          'literal',
+          ['marina', 'anchorage'],
+        ],
+      ],
+      minzoom: MapChartSettings.instance.zoom('marinaIcon'),
+      enableInteraction: false,
+    );
+    if (!isCurrent()) return;
+    await controller.addSymbolLayer(
+      'protomaps',
+      'boat-places',
+      SymbolLayerProperties(
+        textOpacity: MapChartSettings.instance.zoomExpression('places', 1, 0),
+        iconOpacity: MapChartSettings.instance.zoomExpression('places', 1, 0),
+        iconImage: placeIcon,
+        iconSize: _objectIconSize(placeIconSize),
+        // Nearby copies of the same station, such as two Orion fuel
+        // points a few meters apart, collapse to one icon.
+        iconAllowOverlap: false,
+        iconPadding: 2,
+        iconOptional: false,
+        textField: _objectLabel(),
+        textFont: ['Noto Sans Regular'],
+        textSize: 11,
+        textAnchor: 'left',
+        textJustify: 'left',
+        textOffset: [_placeLabelOffset, 0],
+        textOptional: true,
+        textMaxWidth: 20,
+        textColor: placeTextColor,
+        textHaloColor: halo,
+        textHaloWidth: 1.4,
+        textPadding: 2,
+      ),
+      sourceLayer: 'pois',
+      belowLayerId: below,
+      filter: [
         'all',
         [
           'in',
@@ -829,26 +1663,96 @@ class MapService {
           ['literal', _boatKinds],
         ],
         [
+          '!',
+          [
+            'in',
+            ['get', 'kind'],
+            [
+              'literal',
+              ['marina', 'anchorage', 'slipway', 'lighthouse'],
+            ],
+          ],
+        ],
+        [
           '>=',
           ['zoom'],
-          ['coalesce', ['to-number', ['get', 'min_zoom'], 12], 12],
+          [
+            'coalesce',
+            [
+              'to-number',
+              ['get', 'min_zoom'],
+              MapChartSettings.instance.zoom('places'),
+            ],
+            MapChartSettings.instance.zoom('places'),
+          ],
         ],
       ],
-      minzoom: 12,
+      minzoom: MapChartSettings.instance.zoom('places'),
       enableInteraction: false,
     );
     if (!isCurrent()) return;
+    // Chart tiles omit slipways until zoom 16. The icon and the name are
+    // on past zoom 14, loaded for the view on screen.
+    _slipwayCoverage.remove(controller);
+    final emptySlipways = kIsWeb
+        ? web_setup.mapGeoJsonUrl('{"type":"FeatureCollection","features":[]}')
+        : {'type': 'FeatureCollection', 'features': <Map<String, dynamic>>[]};
+    await controller.addSource(
+      'slipways',
+      GeojsonSourceProperties(data: emptySlipways),
+    );
+    if (!isCurrent()) return;
+    // The shared boat-slipway image stays blue for docks. This copy uses
+    // the slipway name colour, and draws at 90% of the marina icon.
+    final slipwayIcon = await _slipwayIconInColor(objects.slipway);
+    final slipwayIconId =
+        'slipway-${objects.slipway.toARGB32().toRadixString(16)}';
+    await controller.addImage(slipwayIconId, slipwayIcon);
+    if (!isCurrent()) return;
+    await controller.addSymbolLayer(
+      'slipways',
+      'slipways',
+      SymbolLayerProperties(
+        textOpacity: MapChartSettings.instance.zoomExpression('slipway', 1, 0),
+        iconOpacity: MapChartSettings.instance.zoomExpression('slipway', 1, 0),
+        iconImage: slipwayIconId,
+        iconSize: _objectIconSize(_slipwayIconSize),
+        iconAllowOverlap: false,
+        iconPadding: 2,
+        iconOptional: false,
+        textField: _objectLabel(
+          fromZoom: MapChartSettings.instance.zoom('slipway') + 0.001,
+        ),
+        textFont: const ['Noto Sans Regular'],
+        textSize: 11,
+        textAnchor: 'left',
+        textJustify: 'left',
+        textOffset: const [_placeLabelOffset, 0],
+        textOptional: true,
+        textMaxWidth: 20,
+        textColor: objects.slipway.hex,
+        textHaloColor: halo,
+        textHaloWidth: 1.4,
+        textPadding: 2,
+      ),
+      belowLayerId: below,
+      minzoom: MapChartSettings.instance.zoom('slipway') + 0.001,
+      enableInteraction: false,
+    );
+    if (!isCurrent()) return;
+    unawaited(syncSlipways(controller));
     await controller.addSymbolLayer(
       'protomaps',
       'boat-bridge-labels',
       SymbolLayerProperties(
+        textOpacity: MapChartSettings.instance.zoomExpression('bridges', 1, 0),
         symbolPlacement: 'line',
         textField: const ['get', 'name'],
         textFont: const ['Noto Sans Regular'],
         textSize: 11,
-        textColor: dark ? '#9ec9e0' : '#1d4e6e',
+        textColor: objects.bridge.hex,
         textHaloColor: halo,
-        textHaloWidth: 1.2,
+        textHaloWidth: 1.4,
         textMaxAngle: 35,
         symbolSpacing: 280,
       ),
@@ -858,9 +1762,1478 @@ class MapService {
         'all',
         ['has', 'is_bridge'],
         ['has', 'name'],
-        ['!=', ['get', 'kind'], 'rail'],
+        [
+          '!=',
+          ['get', 'kind'],
+          'rail',
+        ],
       ],
-      minzoom: 13,
+      minzoom: MapChartSettings.instance.zoom('bridges'),
+      enableInteraction: false,
+    );
+  }
+
+  /// Ferry routes, marina basins, docks, and OpenSeaMap seamarks. Fuel type,
+  /// breakwaters, and bridge clearance are not in the chart tiles.
+  static Future<void> _addChartDetails(
+    MapLibreMapController controller,
+    MarinePalette palette,
+    List<dynamic> layers,
+    bool Function() isCurrent,
+  ) async {
+    if (layers.contains('chart-ferry')) return;
+    final belowLabels = layers.contains('places_country')
+        ? 'places_country'
+        : null;
+    final objects = palette.objects;
+    final ferryColor = objects.ferryRoute.hex;
+    final ferryLabelColor = objects.ferry.hex;
+    final dockColor = objects.dock.hex;
+    final textHalo = palette.chart.labelHalo.hex;
+    await controller.addFillLayer(
+      'protomaps',
+      'chart-marina-area',
+      FillLayerProperties(
+        fillColor: objects.marina.hex,
+        fillOpacity: 0.4,
+        fillOutlineColor: objects.marina.hex,
+      ),
+      sourceLayer: 'landuse',
+      belowLayerId: layers.contains('water_stream') ? 'water_stream' : null,
+      filter: const [
+        '==',
+        ['get', 'kind'],
+        'marina',
+      ],
+      minzoom: 12,
+      enableInteraction: false,
+    );
+    if (!isCurrent()) return;
+    await controller.addLineLayer(
+      'protomaps',
+      'chart-dock',
+      LineLayerProperties(
+        lineColor: dockColor,
+        lineWidth: 1.2,
+        lineOpacity: 0.9,
+      ),
+      sourceLayer: 'water',
+      belowLayerId: belowLabels,
+      filter: const [
+        '==',
+        ['get', 'kind_detail'],
+        'dock',
+      ],
+      minzoom: 12,
+      enableInteraction: false,
+    );
+    if (!isCurrent()) return;
+    // A canal bank is a coast. The dock colour is a brighter blue, so a
+    // canal drawn with it reads lighter than the open-water shoreline.
+    await controller.addLineLayer(
+      'protomaps',
+      'chart-canal',
+      LineLayerProperties(
+        lineColor: palette.chart.coastline.hex,
+        lineWidth: const [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          2,
+          0.5,
+          6,
+          0.8,
+          10,
+          1.2,
+          14,
+          1.7,
+        ],
+        lineOpacity: 0.95,
+        lineJoin: 'round',
+      ),
+      sourceLayer: 'water',
+      belowLayerId: belowLabels,
+      filter: const [
+        '==',
+        ['get', 'kind_detail'],
+        'canal',
+      ],
+      minzoom: 10,
+      enableInteraction: false,
+    );
+    if (!isCurrent()) return;
+    await controller.addLineLayer(
+      'protomaps',
+      'chart-ferry',
+      LineLayerProperties(
+        lineColor: ferryColor,
+        lineWidth: const [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          6,
+          0.8,
+          12,
+          2.2,
+        ],
+        lineDasharray: const [1.2, 1.4],
+        lineOpacity: MapChartSettings.instance.zoomExpression('ferry', 0.95, 0),
+      ),
+      sourceLayer: 'roads',
+      belowLayerId: belowLabels,
+      filter: const [
+        '==',
+        ['get', 'kind'],
+        'ferry',
+      ],
+      minzoom: MapChartSettings.instance.zoom('ferry'),
+      enableInteraction: false,
+    );
+    if (!isCurrent()) return;
+    await controller.addSymbolLayer(
+      'protomaps',
+      'chart-ferry-labels',
+      SymbolLayerProperties(
+        textOpacity: MapChartSettings.instance.zoomExpression(
+          'ferryNames',
+          1,
+          0,
+        ),
+        textField: const ['get', 'name'],
+        textFont: const ['Noto Sans Italic'],
+        textSize: 11,
+        textColor: ferryLabelColor,
+        textHaloColor: textHalo,
+        textHaloWidth: 1.2,
+        symbolPlacement: 'line',
+        textMaxAngle: 40,
+        symbolSpacing: 350,
+      ),
+      sourceLayer: 'roads',
+      belowLayerId: belowLabels,
+      filter: const [
+        'all',
+        [
+          '==',
+          ['get', 'kind'],
+          'ferry',
+        ],
+        ['has', 'name'],
+      ],
+      minzoom: MapChartSettings.instance.zoom('ferryNames'),
+      enableInteraction: false,
+    );
+    if (!isCurrent()) return;
+    await controller.addSymbolLayer(
+      'protomaps',
+      'chart-water-names',
+      SymbolLayerProperties(
+        textOpacity: MapChartSettings.instance.zoomExpression(
+          'waterNames',
+          1,
+          0,
+        ),
+        textField: const ['get', 'name'],
+        textFont: const ['Noto Sans Italic'],
+        textSize: 12,
+        textColor: palette.chart.labelSoft.hex,
+        textHaloColor: textHalo,
+        textHaloWidth: 1.2,
+        textMaxWidth: 8,
+      ),
+      sourceLayer: 'water',
+      belowLayerId: belowLabels,
+      filter: const [
+        'all',
+        ['has', 'name'],
+        [
+          'in',
+          ['get', 'kind_detail'],
+          [
+            'literal',
+            ['dock', 'canal', 'basin'],
+          ],
+        ],
+      ],
+      minzoom: MapChartSettings.instance.zoom('waterNames'),
+      enableInteraction: false,
+    );
+    if (!isCurrent()) return;
+    // OpenSeaMap seamark pictures are off for now (buoys, lights, wrecks,
+    // and the harbour sailboat). Ferry routes, docks, and marina names stay.
+    // The seamark tiles are pictures of the icons, so the names are a
+    // separate layer filled from OpenStreetMap for the current view.
+    _seamarkCoverage.remove(controller);
+    final emptyNames = kIsWeb
+        ? web_setup.mapGeoJsonUrl('{"type":"FeatureCollection","features":[]}')
+        : {'type': 'FeatureCollection', 'features': <Map<String, dynamic>>[]};
+    await controller.addSource(
+      'seamark-names',
+      GeojsonSourceProperties(data: emptyNames),
+    );
+    if (!isCurrent()) return;
+    await controller.addSymbolLayer(
+      'seamark-names',
+      'seamark-marinas',
+      SymbolLayerProperties(
+        textOpacity: MapChartSettings.instance.zoomExpression('seamarks', 1, 0),
+        iconOpacity: MapChartSettings.instance.zoomExpression('seamarks', 1, 0),
+        iconImage: 'marina',
+        iconSize: _objectIconSize(1.15),
+        iconAllowOverlap: true,
+        iconIgnorePlacement: true,
+        textField: _objectLabel(),
+        textFont: const ['Noto Sans Regular'],
+        textSize: 11,
+        textAnchor: 'left',
+        textJustify: 'left',
+        textOffset: const [_placeLabelOffset, 0],
+        textMaxWidth: 20,
+        textAllowOverlap: true,
+        textIgnorePlacement: true,
+        textColor: objects.marina.hex,
+        textHaloColor: textHalo,
+        textHaloWidth: 1.4,
+      ),
+      belowLayerId: belowLabels,
+      filter: const [
+        '==',
+        ['get', 'kind'],
+        'harbour',
+      ],
+      minzoom: MapChartSettings.instance.zoom('seamarks'),
+      enableInteraction: false,
+    );
+    if (!isCurrent()) return;
+    await controller.addSymbolLayer(
+      'seamark-names',
+      'seamark-names',
+      SymbolLayerProperties(
+        textOpacity: MapChartSettings.instance.zoomExpression('seamarks', 1, 0),
+        iconOpacity: MapChartSettings.instance.zoomExpression('seamarks', 1, 0),
+        textField: _objectLabel(),
+        textFont: const ['Noto Sans Regular'],
+        textSize: 11,
+        textAnchor: 'left',
+        textJustify: 'left',
+        textOffset: const [_seamarkLabelOffset, 0],
+        textMaxWidth: 20,
+        textAllowOverlap: true,
+        textIgnorePlacement: true,
+        textColor: palette.chart.labelStrong.hex,
+        textHaloColor: textHalo,
+        textHaloWidth: 1.2,
+      ),
+      belowLayerId: belowLabels,
+      filter: const [
+        '!=',
+        ['get', 'kind'],
+        'harbour',
+      ],
+      minzoom: MapChartSettings.instance.zoom('seamarks'),
+      enableInteraction: false,
+    );
+    if (!isCurrent()) return;
+    final platformIcon = await rootBundle.load('assets/icons/oil_platform.png');
+    await controller.addImage(
+      'oil-platform',
+      platformIcon.buffer.asUint8List(
+        platformIcon.offsetInBytes,
+        platformIcon.lengthInBytes,
+      ),
+    );
+    if (!isCurrent()) return;
+    // OpenStreetMap platforms are not in the chart tiles. The icon is on
+    // past zoom 6 and the name from zoom 12, for the view on screen.
+    _oilPlatformCoverage.remove(controller);
+    await controller.addSource(
+      'oil-platforms',
+      GeojsonSourceProperties(data: emptyNames),
+    );
+    if (!isCurrent()) return;
+    await controller.addSymbolLayer(
+      'oil-platforms',
+      'oil-platforms',
+      SymbolLayerProperties(
+        textOpacity: MapChartSettings.instance.zoomExpression(
+          'platformName',
+          1,
+          0,
+        ),
+        iconOpacity: MapChartSettings.instance.zoomExpression(
+          'platformIcon',
+          1,
+          0,
+        ),
+        iconImage: 'oil-platform',
+        iconSize: _objectIconSize(0.5),
+        iconAllowOverlap: true,
+        iconIgnorePlacement: true,
+        textField: _objectLabel(
+          fromZoom: MapChartSettings.instance.zoom('platformName'),
+        ),
+        textFont: const ['Noto Sans Regular'],
+        textSize: 11,
+        textAnchor: 'left',
+        textJustify: 'left',
+        // Text offset is in ems. These labels are 11 px, so 5 px is 5/11 em.
+        textOffset: const [_placeLabelOffset + 5 / 11, 0],
+        textOptional: true,
+        textMaxWidth: 20,
+        textColor: objects.fuel.hex,
+        textHaloColor: textHalo,
+        textHaloWidth: 1.4,
+      ),
+      belowLayerId: belowLabels,
+      minzoom: MapChartSettings.instance.zoom('platformIcon') + 0.001,
+      enableInteraction: false,
+    );
+    if (!isCurrent()) return;
+    await controller.addCircleLayer(
+      'oil-platforms',
+      'oil-platform-zone',
+      CircleLayerProperties(
+        circleRadius: _oilPlatformZoneRadius,
+        circleColor: objects.platform.hex,
+        circleOpacity: MapChartSettings.instance.zoomExpression(
+          'platformZone',
+          0.18,
+          0,
+        ),
+        circleStrokeColor: objects.platform.hex,
+        circleStrokeWidth: 1.4,
+        circleStrokeOpacity: MapChartSettings.instance.zoomExpression(
+          'platformZone',
+          0.95,
+          0,
+        ),
+      ),
+      belowLayerId: 'oil-platforms',
+      minzoom: MapChartSettings.instance.zoom('platformZone') + 0.001,
+      enableInteraction: false,
+    );
+    if (!isCurrent()) return;
+    final lighthouseIcon = await rootBundle.load('assets/icons/lighthouse.png');
+    await controller.addImage(
+      'lighthouse',
+      lighthouseIcon.buffer.asUint8List(
+        lighthouseIcon.offsetInBytes,
+        lighthouseIcon.lengthInBytes,
+      ),
+    );
+    if (!isCurrent()) return;
+    // Chart tiles omit most of the light description, and the icon only
+    // appears at close range. The icon is on past zoom 6. The name and the
+    // light description are on from zoom 12.
+    _lighthouseCoverage.remove(controller);
+    await controller.addSource(
+      'lighthouses',
+      GeojsonSourceProperties(data: emptyNames),
+    );
+    if (!isCurrent()) return;
+    await controller.addSymbolLayer(
+      'lighthouses',
+      'lighthouses',
+      SymbolLayerProperties(
+        textOpacity: MapChartSettings.instance.zoomExpression(
+          'lighthouseName',
+          1,
+          0,
+        ),
+        iconOpacity: MapChartSettings.instance.zoomExpression(
+          'lighthouseIcon',
+          1,
+          0,
+        ),
+        iconImage: 'lighthouse',
+        iconSize: _objectIconSize(0.5),
+        iconAllowOverlap: true,
+        iconIgnorePlacement: true,
+        textField: _lighthouseLabel(),
+        textFont: const ['Noto Sans Regular'],
+        textSize: 11,
+        textAnchor: 'left',
+        textJustify: 'left',
+        // Text offset is in ems. These labels are 11 px, so 5 px is 5/11 em.
+        textOffset: const [_placeLabelOffset + 5 / 11, 0],
+        textOptional: true,
+        textMaxWidth: 28,
+        textColor: objects.navLight.hex,
+        textHaloColor: textHalo,
+        textHaloWidth: 1.4,
+      ),
+      belowLayerId: belowLabels,
+      minzoom: MapChartSettings.instance.zoom('lighthouseIcon') + 0.001,
+      enableInteraction: false,
+    );
+    if (!isCurrent()) return;
+    unawaited(syncSeamarkNames(controller));
+    unawaited(syncOilPlatforms(controller));
+    unawaited(syncLighthouses(controller));
+  }
+
+  /// Harbour (sailboat) and small-craft icons, including water fuel, are
+  /// drawn by the seamark tiles. Their names are not in those pictures, so
+  /// each view loads the matching OpenStreetMap names. A place with no name
+  /// still gets a short label, such as Fuel.
+  static double get _seamarkNameZoom =>
+      MapChartSettings.instance.zoom('seamarks');
+  static final _seamarkCoverage = <MapLibreMapController, List<double>>{};
+  static final _seamarkRequest = <MapLibreMapController, int>{};
+
+  static Future<void> syncSeamarkNames(MapLibreMapController controller) async {
+    if (!MapChartSettings.instance.layerOn('seamarks')) return;
+    final zoom = controller.cameraPosition?.zoom ?? 0;
+    if (zoom < _seamarkNameZoom) return;
+    late LatLngBounds bounds;
+    try {
+      bounds = await controller.getVisibleRegion();
+    } catch (_) {
+      return;
+    }
+    final south = bounds.southwest.latitude;
+    final west = bounds.southwest.longitude;
+    final north = bounds.northeast.latitude;
+    final east = bounds.northeast.longitude;
+    if (south > north || west > east) return;
+    final height = north - south;
+    final width = east - west;
+    if (height <= 0 || width <= 0 || height > 4 || width > 4) return;
+    final box = [
+      south - height * 0.35,
+      west - width * 0.35,
+      north + height * 0.35,
+      east + width * 0.35,
+    ];
+    final covered = _seamarkCoverage[controller];
+    if (covered != null &&
+        box[0] >= covered[0] &&
+        box[1] >= covered[1] &&
+        box[2] <= covered[2] &&
+        box[3] <= covered[3]) {
+      return;
+    }
+    final request = (_seamarkRequest[controller] ?? 0) + 1;
+    _seamarkRequest[controller] = request;
+    try {
+      final body = await _postSeamarkQuery(_seamarkQuery(box));
+      if (_seamarkRequest[controller] != request || body == null) return;
+      await controller.setGeoJsonSource(
+        'seamark-names',
+        _seamarkCollection(body),
+      );
+      if (_seamarkRequest[controller] == request) {
+        _seamarkCoverage[controller] = box;
+      }
+    } catch (error) {
+      if (_seamarkRequest[controller] == request) {
+        debugPrint('Unable to load seamark names: $error');
+      }
+    }
+  }
+
+  /// The browser fetch client refuses a manual content-length header, so the
+  /// web request is a plain form post. Other platforms use the http package.
+  static Future<String?> _postSeamarkQuery(String query) async {
+    const url = 'https://overpass.openstreetmap.fr/api/interpreter';
+    if (kIsWeb) {
+      final xhr = await html.HttpRequest.request(
+        url,
+        method: 'POST',
+        sendData: 'data=${Uri.encodeQueryComponent(query)}',
+        requestHeaders: const {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+        },
+      );
+      if (xhr.status != 200) return null;
+      return xhr.responseText;
+    }
+    final response = await http.post(
+      Uri.parse(url),
+      headers: const {
+        'User-Agent': 'FreeOpenOcean/0.1 (ocean charts)',
+        'Accept': 'application/json',
+      },
+      body: {'data': query},
+    );
+    if (response.statusCode != 200) return null;
+    return response.body;
+  }
+
+  static String _seamarkQuery(List<double> box) {
+    final bbox = box.map((value) => value.toStringAsFixed(5)).join(',');
+    return '[out:json][timeout:20];('
+        'node["seamark:type"="harbour"]($bbox);'
+        'node["seamark:type"="small_craft_facility"]($bbox);'
+        'way["seamark:type"="harbour"]($bbox);'
+        'way["seamark:type"="small_craft_facility"]($bbox);'
+        ');out geom;';
+  }
+
+  static Map<String, dynamic> _seamarkCollection(String body) {
+    final decoded = jsonDecode(body);
+    final elements = decoded is Map ? decoded['elements'] : null;
+    final features = <Map<String, dynamic>>[];
+    final seen = <String>{};
+    if (elements is List) {
+      for (final raw in elements) {
+        if (raw is! Map) continue;
+        final tags = raw['tags'];
+        if (tags is! Map) continue;
+        final label = _seamarkLabel(tags);
+        if (label == null) continue;
+        final point = _seamarkPoint(raw);
+        if (point == null) continue;
+        final key =
+            '$label@${point[1].toStringAsFixed(3)},${point[0].toStringAsFixed(3)}';
+        if (!seen.add(key)) continue;
+        features.add({
+          'type': 'Feature',
+          'id': features.length,
+          'geometry': {'type': 'Point', 'coordinates': point},
+          'properties': {'name': label, 'kind': tags['seamark:type']},
+        });
+      }
+    }
+    return {'type': 'FeatureCollection', 'features': features};
+  }
+
+  /// Nodes use their own position. Harbour areas use the polygon center so
+  /// the marina icon sits on the seamark symbol.
+  static List<double>? _seamarkPoint(Map raw) {
+    final lat = raw['lat'];
+    final lon = raw['lon'];
+    if (lat is num && lon is num) {
+      return [lon.toDouble(), lat.toDouble()];
+    }
+    final geometry = raw['geometry'];
+    if (geometry is! List || geometry.isEmpty) return null;
+    final ring = <List<double>>[];
+    for (final point in geometry) {
+      if (point is! Map) continue;
+      final pointLat = point['lat'];
+      final pointLon = point['lon'];
+      if (pointLat is num && pointLon is num) {
+        ring.add([pointLon.toDouble(), pointLat.toDouble()]);
+      }
+    }
+    if (ring.isEmpty) return null;
+    if (ring.length > 1 &&
+        ring.first[0] == ring.last[0] &&
+        ring.first[1] == ring.last[1]) {
+      ring.removeLast();
+    }
+    if (ring.length < 3) {
+      var sumLon = 0.0;
+      var sumLat = 0.0;
+      for (final point in ring) {
+        sumLon += point[0];
+        sumLat += point[1];
+      }
+      return [sumLon / ring.length, sumLat / ring.length];
+    }
+    var area = 0.0;
+    var centerLon = 0.0;
+    var centerLat = 0.0;
+    for (var i = 0; i < ring.length; i++) {
+      final next = ring[(i + 1) % ring.length];
+      final cross = ring[i][0] * next[1] - next[0] * ring[i][1];
+      area += cross;
+      centerLon += (ring[i][0] + next[0]) * cross;
+      centerLat += (ring[i][1] + next[1]) * cross;
+    }
+    area *= 0.5;
+    if (area.abs() < 1e-12) {
+      var sumLon = 0.0;
+      var sumLat = 0.0;
+      for (final point in ring) {
+        sumLon += point[0];
+        sumLat += point[1];
+      }
+      return [sumLon / ring.length, sumLat / ring.length];
+    }
+    return [centerLon / (6 * area), centerLat / (6 * area)];
+  }
+
+  static String? _seamarkLabel(Map tags) {
+    for (final key in ['name', 'seamark:name']) {
+      final value = tags[key];
+      if (value is String && value.trim().isNotEmpty) return value.trim();
+    }
+    final type = tags['seamark:type'];
+    if (type == 'small_craft_facility') {
+      final category = tags['seamark:small_craft_facility:category'];
+      if (category is String && category.isNotEmpty) {
+        return _seamarkCategory(category);
+      }
+    }
+    if (type == 'harbour') return 'Marina';
+    return null;
+  }
+
+  static String _seamarkCategory(String category) {
+    const names = {
+      'fuel_station': 'Fuel',
+      'boat_hoist': 'Boat hoist',
+      'water_tap': 'Water',
+      'pump-out': 'Pump-out',
+      'pump_out': 'Pump-out',
+      'slipway': 'Slipway',
+      'electricity': 'Electricity',
+      'chandler': 'Chandler',
+      'boatyard': 'Boatyard',
+      'boat_yard': 'Boatyard',
+      'toilets': 'Toilets',
+      'showers': 'Showers',
+      'visitor_berth': 'Visitor berth',
+      'nautical_club': 'Club',
+      'sailmaker': 'Sailmaker',
+    };
+    return names[category] ??
+        category.replaceAll('_', ' ').replaceAll('-', ' ');
+  }
+
+  /// Slipways from OpenStreetMap. Chart tiles leave them out until zoom 16.
+  /// The icon and the name are drawn once the zoom is past 14.
+  ///
+  /// The marina sprite is 38 px at pixel ratio 2, drawn at icon-size 1.15,
+  /// so it is 21.85 px on the chart. This image is 64 px, and 90% of the
+  /// marina is an icon-size of 0.307. The name stays at 11 px.
+  static const _slipwayIconSize = 0.9 * (38 / 2 * 1.15) / 64;
+  static double get _slipwayZoom => MapChartSettings.instance.zoom('slipway');
+  static final _slipwayCoverage = <MapLibreMapController, List<double>>{};
+  static final _slipwayRequest = <MapLibreMapController, int>{};
+
+  /// The blue disc becomes [color], which is the slipway name colour. The
+  /// dark ramp mark stays dark so the symbol still reads.
+  static Future<Uint8List> _slipwayIconInColor(ui.Color color) async {
+    final asset = await rootBundle.load('assets/icons/boat_slipway.png');
+    final bytes = asset.buffer.asUint8List(
+      asset.offsetInBytes,
+      asset.lengthInBytes,
+    );
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    final image = frame.image;
+    final raw = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    if (raw == null) return bytes;
+    final pixels = raw.buffer.asUint8List();
+    final argb = color.toARGB32();
+    final targetR = (argb >> 16) & 0xFF;
+    final targetG = (argb >> 8) & 0xFF;
+    final targetB = argb & 0xFF;
+    for (var i = 0; i < pixels.length; i += 4) {
+      final r = pixels[i];
+      final g = pixels[i + 1];
+      final b = pixels[i + 2];
+      if (pixels[i + 3] < 8) continue;
+      final toBlue = _colorDistance(r, g, b, 144, 176, 224);
+      final toMark = _colorDistance(r, g, b, 16, 16, 32);
+      if (toBlue < toMark) {
+        pixels[i] = targetR;
+        pixels[i + 1] = targetG;
+        pixels[i + 2] = targetB;
+      }
+    }
+    final buffer = await ui.ImmutableBuffer.fromUint8List(pixels);
+    final descriptor = ui.ImageDescriptor.raw(
+      buffer,
+      width: image.width,
+      height: image.height,
+      pixelFormat: ui.PixelFormat.rgba8888,
+    );
+    final tinted = await descriptor.instantiateCodec();
+    final tintedFrame = await tinted.getNextFrame();
+    final png = await tintedFrame.image.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
+    image.dispose();
+    tintedFrame.image.dispose();
+    if (png == null) return bytes;
+    return png.buffer.asUint8List(png.offsetInBytes, png.lengthInBytes);
+  }
+
+  static int _colorDistance(int r, int g, int b, int r2, int g2, int b2) {
+    final dr = r - r2;
+    final dg = g - g2;
+    final db = b - b2;
+    return dr * dr + dg * dg + db * db;
+  }
+
+  static Future<void> syncSlipways(MapLibreMapController controller) async {
+    if (!MapChartSettings.instance.layerOn('slipways')) return;
+    final zoom = controller.cameraPosition?.zoom ?? 0;
+    if (zoom <= _slipwayZoom) return;
+    late LatLngBounds bounds;
+    try {
+      bounds = await controller.getVisibleRegion();
+    } catch (_) {
+      return;
+    }
+    final south = bounds.southwest.latitude;
+    final west = bounds.southwest.longitude;
+    final north = bounds.northeast.latitude;
+    final east = bounds.northeast.longitude;
+    if (south > north || west > east) return;
+    final height = north - south;
+    final width = east - west;
+    if (height <= 0 || width <= 0 || height > 8 || width > 8) return;
+    final box = [
+      south - height * 0.35,
+      west - width * 0.35,
+      north + height * 0.35,
+      east + width * 0.35,
+    ];
+    final covered = _slipwayCoverage[controller];
+    if (covered != null &&
+        box[0] >= covered[0] &&
+        box[1] >= covered[1] &&
+        box[2] <= covered[2] &&
+        box[3] <= covered[3]) {
+      return;
+    }
+    final request = (_slipwayRequest[controller] ?? 0) + 1;
+    _slipwayRequest[controller] = request;
+    try {
+      final body = await _postSeamarkQuery(_slipwayQuery(box));
+      if (_slipwayRequest[controller] != request || body == null) return;
+      await controller.setGeoJsonSource('slipways', _slipwayCollection(body));
+      if (_slipwayRequest[controller] == request) {
+        _slipwayCoverage[controller] = box;
+      }
+    } catch (error) {
+      if (_slipwayRequest[controller] == request) {
+        debugPrint('Unable to load slipways: $error');
+      }
+    }
+  }
+
+  static String _slipwayQuery(List<double> box) {
+    final bbox = box.map((value) => value.toStringAsFixed(5)).join(',');
+    return '[out:json][timeout:25];('
+        'node["leisure"="slipway"]($bbox);'
+        'way["leisure"="slipway"]($bbox);'
+        'node["man_made"="slipway"]($bbox);'
+        'way["man_made"="slipway"]($bbox);'
+        ');out geom;';
+  }
+
+  static Map<String, dynamic> _slipwayCollection(String body) {
+    final decoded = jsonDecode(body);
+    final elements = decoded is Map ? decoded['elements'] : null;
+    final features = <Map<String, dynamic>>[];
+    final indexByKey = <String, int>{};
+    if (elements is List) {
+      for (final raw in elements) {
+        if (raw is! Map) continue;
+        final tags = raw['tags'];
+        if (tags is! Map) continue;
+        final point = _seamarkPoint(raw);
+        if (point == null) continue;
+        final key =
+            '${point[1].toStringAsFixed(3)},${point[0].toStringAsFixed(3)}';
+        final name = _oilPlatformName(tags);
+        final existing = indexByKey[key];
+        if (existing != null) {
+          final previous = features[existing]['properties'];
+          if (previous is Map &&
+              (previous['name'] as String).isEmpty &&
+              name.isNotEmpty) {
+            previous['name'] = name;
+          }
+          continue;
+        }
+        indexByKey[key] = features.length;
+        features.add({
+          'type': 'Feature',
+          'id': features.length,
+          'geometry': {'type': 'Point', 'coordinates': point},
+          'properties': {'name': name, 'kind': 'slipway'},
+        });
+      }
+    }
+    return {'type': 'FeatureCollection', 'features': features};
+  }
+
+  /// Offshore oil and gas platforms from OpenStreetMap. The icon is drawn
+  /// once the zoom is past 6. The name waits until the zoom is past 12.
+  /// A 500 m protection zone, in the same dark orange as the icon, is drawn
+  /// once the zoom is past 12.
+  static double get _oilPlatformZoom =>
+      MapChartSettings.instance.zoom('platformIcon');
+
+  /// Screen radius of a 500 m circle. Web Mercator metres per pixel are
+  /// 156543.03392 * cos(latitude) / 2^zoom, so the radius doubles each zoom.
+  static final List<Object> _oilPlatformZoneRadius = () {
+    const metersPerPixel = 156543.03392;
+    const degToRad = 0.017453292519943295;
+    final radius = <Object>[
+      'interpolate',
+      ['exponential', 2],
+      ['zoom'],
+    ];
+    for (var zoom = 6; zoom <= 18; zoom++) {
+      radius
+        ..add(zoom)
+        ..add([
+          '/',
+          500 * (1 << zoom),
+          [
+            '*',
+            metersPerPixel,
+            [
+              'cos',
+              [
+                '*',
+                ['get', 'lat'],
+                degToRad,
+              ],
+            ],
+          ],
+        ]);
+    }
+    return radius;
+  }();
+  static final _oilPlatformCoverage = <MapLibreMapController, List<double>>{};
+  static final _oilPlatformRequest = <MapLibreMapController, int>{};
+
+  static Future<void> syncOilPlatforms(MapLibreMapController controller) async {
+    final chart = MapChartSettings.instance;
+    if (!chart.layerOn('platforms') && !chart.layerOn('platformZones')) return;
+    final zoom = controller.cameraPosition?.zoom ?? 0;
+    if (zoom <= _oilPlatformZoom) return;
+    late LatLngBounds bounds;
+    try {
+      bounds = await controller.getVisibleRegion();
+    } catch (_) {
+      return;
+    }
+    final south = bounds.southwest.latitude;
+    final west = bounds.southwest.longitude;
+    final north = bounds.northeast.latitude;
+    final east = bounds.northeast.longitude;
+    if (south > north || west > east) return;
+    final height = north - south;
+    final width = east - west;
+    // A zoom-6 screen is tens of degrees across. Wider than that is still
+    // zoomed out past the icon, so the query stays inside one view.
+    if (height <= 0 || width <= 0 || height > 40 || width > 40) return;
+    final box = [
+      south - height * 0.35,
+      west - width * 0.35,
+      north + height * 0.35,
+      east + width * 0.35,
+    ];
+    final covered = _oilPlatformCoverage[controller];
+    if (covered != null &&
+        box[0] >= covered[0] &&
+        box[1] >= covered[1] &&
+        box[2] <= covered[2] &&
+        box[3] <= covered[3]) {
+      return;
+    }
+    final request = (_oilPlatformRequest[controller] ?? 0) + 1;
+    _oilPlatformRequest[controller] = request;
+    try {
+      final body = await _postSeamarkQuery(_oilPlatformQuery(box));
+      if (_oilPlatformRequest[controller] != request || body == null) return;
+      await controller.setGeoJsonSource(
+        'oil-platforms',
+        _oilPlatformCollection(body),
+      );
+      if (_oilPlatformRequest[controller] == request) {
+        _oilPlatformCoverage[controller] = box;
+      }
+    } catch (error) {
+      if (_oilPlatformRequest[controller] == request) {
+        debugPrint('Unable to load oil platforms: $error');
+      }
+    }
+  }
+
+  static String _oilPlatformQuery(List<double> box) {
+    final bbox = box.map((value) => value.toStringAsFixed(5)).join(',');
+    return '[out:json][timeout:25];('
+        'node["man_made"="offshore_platform"]($bbox);'
+        'way["man_made"="offshore_platform"]($bbox);'
+        'node["seamark:type"="platform"]($bbox);'
+        'way["seamark:type"="platform"]($bbox);'
+        ');out geom;';
+  }
+
+  static Map<String, dynamic> _oilPlatformCollection(String body) {
+    final decoded = jsonDecode(body);
+    final elements = decoded is Map ? decoded['elements'] : null;
+    final features = <Map<String, dynamic>>[];
+    final indexByKey = <String, int>{};
+    if (elements is List) {
+      for (final raw in elements) {
+        if (raw is! Map) continue;
+        final tags = raw['tags'];
+        if (tags is! Map) continue;
+        final point = _seamarkPoint(raw);
+        if (point == null) continue;
+        final key =
+            '${point[1].toStringAsFixed(3)},${point[0].toStringAsFixed(3)}';
+        final name = _oilPlatformName(tags);
+        final existing = indexByKey[key];
+        if (existing != null) {
+          final previous = features[existing]['properties'];
+          if (previous is Map &&
+              (previous['name'] as String).isEmpty &&
+              name.isNotEmpty) {
+            previous['name'] = name;
+          }
+          continue;
+        }
+        indexByKey[key] = features.length;
+        features.add({
+          'type': 'Feature',
+          'id': features.length,
+          'geometry': {'type': 'Point', 'coordinates': point},
+          'properties': {
+            'name': name,
+            'kind': 'offshore_platform',
+            'lat': point[1],
+          },
+        });
+      }
+    }
+    return {'type': 'FeatureCollection', 'features': features};
+  }
+
+  static String _oilPlatformName(Map tags) {
+    for (final key in ['name', 'seamark:name', 'ref']) {
+      final value = tags[key];
+      if (value is String && value.trim().isNotEmpty) return value.trim();
+    }
+    return '';
+  }
+
+  /// Lighthouses and major lights from OpenStreetMap. The icon is on past
+  /// zoom 6. The name and the light description are on from zoom 12.
+  static double get _lighthouseZoom =>
+      MapChartSettings.instance.zoom('lighthouseIcon');
+  static final _lighthouseCoverage = <MapLibreMapController, List<double>>{};
+  static final _lighthouseRequest = <MapLibreMapController, int>{};
+
+  static Future<void> syncLighthouses(MapLibreMapController controller) async {
+    if (!MapChartSettings.instance.layerOn('lighthouses')) return;
+    final zoom = controller.cameraPosition?.zoom ?? 0;
+    if (zoom <= _lighthouseZoom) return;
+    late LatLngBounds bounds;
+    try {
+      bounds = await controller.getVisibleRegion();
+    } catch (_) {
+      return;
+    }
+    final south = bounds.southwest.latitude;
+    final west = bounds.southwest.longitude;
+    final north = bounds.northeast.latitude;
+    final east = bounds.northeast.longitude;
+    if (south > north || west > east) return;
+    final height = north - south;
+    final width = east - west;
+    if (height <= 0 || width <= 0 || height > 40 || width > 40) return;
+    final box = [
+      south - height * 0.35,
+      west - width * 0.35,
+      north + height * 0.35,
+      east + width * 0.35,
+    ];
+    final covered = _lighthouseCoverage[controller];
+    if (covered != null &&
+        box[0] >= covered[0] &&
+        box[1] >= covered[1] &&
+        box[2] <= covered[2] &&
+        box[3] <= covered[3]) {
+      return;
+    }
+    final request = (_lighthouseRequest[controller] ?? 0) + 1;
+    _lighthouseRequest[controller] = request;
+    try {
+      final body = await _postSeamarkQuery(_lighthouseQuery(box));
+      if (_lighthouseRequest[controller] != request || body == null) return;
+      await controller.setGeoJsonSource(
+        'lighthouses',
+        _lighthouseCollection(body),
+      );
+      if (_lighthouseRequest[controller] == request) {
+        _lighthouseCoverage[controller] = box;
+      }
+    } catch (error) {
+      if (_lighthouseRequest[controller] == request) {
+        debugPrint('Unable to load lighthouses: $error');
+      }
+    }
+  }
+
+  static String _lighthouseQuery(List<double> box) {
+    final bbox = box.map((value) => value.toStringAsFixed(5)).join(',');
+    return '[out:json][timeout:25];('
+        'node["man_made"="lighthouse"]($bbox);'
+        'way["man_made"="lighthouse"]($bbox);'
+        'node["seamark:type"="lighthouse"]($bbox);'
+        'way["seamark:type"="lighthouse"]($bbox);'
+        'node["seamark:type"="light_major"]($bbox);'
+        'way["seamark:type"="light_major"]($bbox);'
+        ');out geom;';
+  }
+
+  static Map<String, dynamic> _lighthouseCollection(String body) {
+    final decoded = jsonDecode(body);
+    final elements = decoded is Map ? decoded['elements'] : null;
+    final features = <Map<String, dynamic>>[];
+    final indexByKey = <String, int>{};
+    if (elements is List) {
+      for (final raw in elements) {
+        if (raw is! Map) continue;
+        final tags = raw['tags'];
+        if (tags is! Map) continue;
+        final point = _seamarkPoint(raw);
+        if (point == null) continue;
+        final key =
+            '${point[1].toStringAsFixed(3)},${point[0].toStringAsFixed(3)}';
+        final name = _lighthouseName(tags);
+        final detail = _lighthouseDetail(tags);
+        final kind = _lighthouseKind(tags);
+        final existing = indexByKey[key];
+        if (existing != null) {
+          final previous = features[existing]['properties'];
+          if (previous is Map) {
+            if ((previous['name'] as String).isEmpty && name.isNotEmpty) {
+              previous['name'] = name;
+            }
+            final previousDetail = previous['detail'];
+            if (previousDetail is String &&
+                detail.length > previousDetail.length) {
+              previous['detail'] = detail;
+            }
+            if (kind == 'lighthouse') previous['kind'] = kind;
+          }
+          continue;
+        }
+        indexByKey[key] = features.length;
+        features.add({
+          'type': 'Feature',
+          'id': features.length,
+          'geometry': {'type': 'Point', 'coordinates': point},
+          'properties': {'name': name, 'kind': kind, 'detail': detail},
+        });
+      }
+    }
+    return {'type': 'FeatureCollection', 'features': features};
+  }
+
+  static String _lighthouseName(Map tags) {
+    for (final key in ['name', 'seamark:name']) {
+      final value = tags[key];
+      if (value is String && value.trim().isNotEmpty) return value.trim();
+    }
+    return '';
+  }
+
+  static String _lighthouseKind(Map tags) {
+    if (tags['man_made'] == 'lighthouse' ||
+        tags['seamark:type'] == 'lighthouse') {
+      return 'lighthouse';
+    }
+    return 'light_major';
+  }
+
+  /// Character, colour, period, range, height, and sectors for each light,
+  /// then a fog signal when one is tagged.
+  static String _lighthouseDetail(Map tags) {
+    final indexes = <String>{};
+    for (final key in tags.keys) {
+      final text = key.toString();
+      const prefix = 'seamark:light:';
+      if (!text.startsWith(prefix)) continue;
+      final rest = text.substring(prefix.length);
+      if (rest == 'reference') continue;
+      final split = rest.indexOf(':');
+      indexes.add(split < 0 ? '' : rest.substring(0, split));
+    }
+    if (indexes.length > 1) indexes.remove('');
+    final ordered = indexes.toList()
+      ..sort((a, b) => (int.tryParse(a) ?? 0).compareTo(int.tryParse(b) ?? 0));
+    final lines = <String>[];
+    for (final index in ordered) {
+      final line = _lighthouseLightLine(
+        tags,
+        index.isEmpty ? 'seamark:light:' : 'seamark:light:$index:',
+      );
+      if (line.isNotEmpty) lines.add(line);
+    }
+    if (lines.isEmpty) {
+      final height = tags['height'];
+      if (height is String && height.trim().isNotEmpty) {
+        lines.add('${height.trim()}m');
+      }
+    }
+    final fog = tags['seamark:fog_signal:category'];
+    if (fog is String && fog.trim().isNotEmpty) {
+      final word = fog.trim().replaceAll('_', ' ');
+      lines.add('${word[0].toUpperCase()}${word.substring(1)}');
+    }
+    final reference = tags['seamark:light:reference'];
+    if (reference is String && reference.trim().isNotEmpty) {
+      lines.add(reference.trim());
+    }
+    return lines.join('\n');
+  }
+
+  static String _lighthouseLightLine(Map tags, String prefix) {
+    String? tag(String key) {
+      final value = tags['$prefix$key'];
+      if (value is String && value.trim().isNotEmpty) return value.trim();
+      return null;
+    }
+
+    final character = tag('character');
+    final group = tag('group');
+    final colour = tag('colour') ?? tag('color');
+    final period = tag('period');
+    final range = tag('range');
+    final height = tag('height');
+    final sectorStart = tag('sector_start');
+    final sectorEnd = tag('sector_end');
+    if (character == null &&
+        colour == null &&
+        range == null &&
+        height == null) {
+      return '';
+    }
+    final parts = <String>[];
+    if (character != null) {
+      parts.add(
+        group != null && group != '1' ? '$character($group)' : character,
+      );
+    }
+    if (colour != null) {
+      parts.add(
+        colour
+            .split(RegExp(r'[;,]'))
+            .map((part) => _lighthouseColour(part.trim()))
+            .join(),
+      );
+    }
+    if (period != null) {
+      parts.add(period.endsWith('s') ? period : '${period}s');
+    }
+    if (range != null) {
+      parts.add(range.endsWith('M') ? range : '${range}M');
+    }
+    if (height != null) {
+      parts.add(height.endsWith('m') ? height : '${height}m');
+    }
+    if (sectorStart != null && sectorEnd != null) {
+      parts.add('$sectorStart°–$sectorEnd°');
+    }
+    return parts.join(' ');
+  }
+
+  static String _lighthouseColour(String colour) {
+    const letters = {
+      'white': 'W',
+      'red': 'R',
+      'green': 'G',
+      'yellow': 'Y',
+      'blue': 'Bu',
+      'orange': 'Or',
+      'amber': 'Am',
+      'violet': 'Vi',
+    };
+    return letters[colour.toLowerCase()] ?? colour;
+  }
+
+  /// Shade terrain from AWS tiles, and draw contour lines with the elevation
+  /// in meters on the major land lines. Over the ocean the shade stops at
+  /// zoom 11 so closer charts keep a flat water color. Land contours stay
+  /// under the water fill. Depth contours sit on the water from zoom 7.
+  static Future<void> _addLandElevation(
+    MapLibreMapController controller,
+    MarinePalette palette,
+    List<dynamic> layers,
+    bool Function() isCurrent,
+  ) async {
+    const landLayerId = 'land-elevation';
+    const oceanLayerId = 'ocean-elevation';
+    if (layers.contains(landLayerId) || layers.contains(oceanLayerId)) return;
+    final chart = palette.chart;
+    final shadeOn = MapChartSettings.instance.layerOn('hillshade');
+    final shade = HillshadeLayerProperties(
+      hillshadeExaggeration: 0.3,
+      hillshadeShadowColor: chart.hillshadeShadow.hex,
+      hillshadeHighlightColor: chart.hillshadeHighlight.hex,
+      hillshadeAccentColor: chart.hillshadeAccent.hex,
+    );
+    try {
+      await controller.addSource(
+        'land-elevation-dem',
+        const RasterDemSourceProperties(
+          tiles: [
+            'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
+          ],
+          encoding: 'terrarium',
+          tileSize: 256,
+          maxzoom: 15,
+        ),
+      );
+      if (!isCurrent()) return;
+      if (shadeOn) {
+        // From zoom 11 up, only land shows through holes in the ocean polygon.
+        await controller.addHillshadeLayer(
+          'land-elevation-dem',
+          landLayerId,
+          shade,
+          belowLayerId: layers.contains('water') ? 'water' : 'water_stream',
+          minzoom: 11,
+        );
+        if (!isCurrent()) return;
+        // Through zoom 11 the same shade sits on the water as well.
+        await controller.addHillshadeLayer(
+          'land-elevation-dem',
+          oceanLayerId,
+          shade,
+          belowLayerId: 'water_stream',
+          maxzoom: 11,
+        );
+      }
+      if (!isCurrent() || !kIsWeb) return;
+      await _addLandContours(controller, palette, layers);
+    } catch (error) {
+      if (isCurrent()) debugPrint('Unable to load land elevation: $error');
+    }
+  }
+
+  /// Contour vectors are generated in the browser from the terrain tiles.
+  /// The protocol is registered in web/index.html.
+  static Future<void> _addLandContours(
+    MapLibreMapController controller,
+    MarinePalette palette,
+    List<dynamic> layers,
+  ) async {
+    const sourceId = 'land-contours';
+    if (layers.contains('land-contour-lines') ||
+        layers.contains('ocean-contour-lines')) {
+      return;
+    }
+    final chart = palette.chart;
+    final depth = palette.depth;
+    final settings = MapChartSettings.instance;
+    final belowWater = layers.contains('water') ? 'water' : 'water_stream';
+    final lineColor = chart.landContour.hex;
+    final textColor = chart.landContourLabel.hex;
+    final textHalo = chart.labelHalo.hex;
+    await controller.addSource(
+      sourceId,
+      const VectorSourceProperties(
+        tiles: [
+          'dem-contour://{z}/{x}/{y}?contourLayer=contours&elevationKey=ele&levelKey=level&multiplier=1&overzoom=1&thresholds=0%2A2000%2A4000%7E3%2A1000%2A2000%7E5%2A500%2A1000%7E7%2A200%2A1000%7E9%2A100%2A500%7E11%2A50%2A200%7E13%2A20%2A100',
+        ],
+        maxzoom: 15,
+      ),
+    );
+    if (settings.layerOn('landContour')) {
+      await controller.addLineLayer(
+        sourceId,
+        'land-contour-lines',
+        LineLayerProperties(
+          lineColor: lineColor,
+          lineWidth: const [
+            'match',
+            ['get', 'level'],
+            1,
+            1.15,
+            0.55,
+          ],
+          lineOpacity: 0.4,
+        ),
+        sourceLayer: 'contours',
+        belowLayerId: belowWater,
+        minzoom: 7,
+        filter: const [
+          '>',
+          ['get', 'ele'],
+          0,
+        ],
+        enableInteraction: false,
+      );
+    }
+    if (settings.layerOn('landContourLabel')) {
+      await controller.addSymbolLayer(
+        sourceId,
+        'land-contour-labels',
+        SymbolLayerProperties(
+          textField: const [
+            'concat',
+            [
+              'number-format',
+              ['get', 'ele'],
+              {'max-fraction-digits': 0},
+            ],
+            ' m',
+          ],
+          textFont: const ['Noto Sans Regular'],
+          textSize: 11,
+          textColor: textColor,
+          textOpacity: 0.5,
+          textHaloColor: textHalo,
+          textHaloWidth: 1.2,
+          symbolPlacement: 'line',
+          textAllowOverlap: false,
+          textPadding: 8,
+        ),
+        sourceLayer: 'contours',
+        belowLayerId: belowWater,
+        minzoom: 7,
+        filter: const [
+          'all',
+          [
+            '>',
+            ['get', 'level'],
+            0,
+          ],
+          [
+            '>',
+            ['get', 'ele'],
+            0,
+          ],
+        ],
+        enableInteraction: false,
+      );
+    }
+    if (!settings.layerOn('contours')) return;
+    // Below-sea-level lines sit above the water fill, banded by sounding so
+    // depth is readable without stopping to find a number. Shallow water is
+    // warm and heavy; everything with water under the keel stays blue and
+    // thin, which also keeps the loud colour off most of the screen at night.
+    final aboveWater = layers.contains('water_stream') ? 'water_stream' : null;
+    const metresBelowSurface = [
+      '-',
+      0,
+      ['get', 'ele'],
+    ];
+    String band(String id, Color color) =>
+        settings.layerOn(id) ? color.hex : 'rgba(0,0,0,0)';
+    final depthBandColor = [
+      'step',
+      metresBelowSurface,
+      depth.danger.hex,
+      MarineDepth.cautionFrom,
+      band('caution', depth.caution),
+      MarineDepth.coastalFrom,
+      band('coastal', depth.coastal),
+      MarineDepth.shelfFrom,
+      band('shelf', depth.shelf),
+      MarineDepth.deepFrom,
+      band('deep', depth.deep),
+    ];
+    await controller.addLineLayer(
+      sourceId,
+      'ocean-contour-lines',
+      LineLayerProperties(
+        lineColor: depthBandColor,
+        lineWidth: const [
+          '*',
+          // Major contours carry twice the weight of the intermediates.
+          [
+            'match',
+            ['get', 'level'],
+            1,
+            1.0,
+            0.5,
+          ],
+          [
+            'step',
+            metresBelowSurface,
+            1.9,
+            MarineDepth.cautionFrom,
+            1.5,
+            MarineDepth.coastalFrom,
+            1.1,
+            MarineDepth.shelfFrom,
+            0.9,
+            MarineDepth.deepFrom,
+            0.75,
+          ],
+        ],
+        lineOpacity: const [
+          'step',
+          metresBelowSurface,
+          1.0,
+          MarineDepth.coastalFrom,
+          0.85,
+          MarineDepth.deepFrom,
+          0.7,
+        ],
+      ),
+      sourceLayer: 'contours',
+      belowLayerId: aboveWater,
+      minzoom: 6,
+      filter: const [
+        '<',
+        ['get', 'ele'],
+        0,
+      ],
+      enableInteraction: false,
+    );
+    if (!settings.layerOn('label')) return;
+    final depthHalo = chart.labelHalo.hex;
+    await controller.addSymbolLayer(
+      sourceId,
+      'ocean-contour-labels',
+      SymbolLayerProperties(
+        textField: const [
+          'concat',
+          [
+            'number-format',
+            [
+              'abs',
+              ['get', 'ele'],
+            ],
+            {'max-fraction-digits': 0},
+          ],
+          ' m',
+        ],
+        textFont: const ['Noto Sans Regular'],
+        textSize: 11,
+        // Soundings inside the caution bands are tinted; deeper numbers stay
+        // neutral so only the shallow ones draw the eye.
+        textColor: [
+          'step',
+          metresBelowSurface,
+          depth.danger.hex,
+          MarineDepth.cautionFrom,
+          depth.caution.hex,
+          MarineDepth.coastalFrom,
+          depth.label.hex,
+        ],
+        textOpacity: 0.9,
+        textHaloColor: depthHalo,
+        textHaloWidth: 1.4,
+        symbolPlacement: 'line',
+        textAllowOverlap: false,
+        textPadding: 8,
+      ),
+      sourceLayer: 'contours',
+      belowLayerId: aboveWater,
+      minzoom: 6,
+      filter: const [
+        'all',
+        [
+          '>',
+          ['get', 'level'],
+          0,
+        ],
+        [
+          '<',
+          ['get', 'ele'],
+          0,
+        ],
+      ],
       enableInteraction: false,
     );
   }

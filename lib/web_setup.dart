@@ -25,6 +25,15 @@ void setMapInteractive(bool interactive) {
 // MapLibre's web implementation does not implement compass/attribution margins.
 void setMapControlInsets(double right, [double bottom = 0]) {
   final style = html.document.documentElement?.style;
-  style?.setProperty('--map-controls-right', '${right}px');
-  style?.setProperty('--map-controls-bottom', '${bottom}px');
+  final rightPx = '${right}px';
+  final bottomPx = '${bottom}px';
+  style?.setProperty('--map-controls-right', rightPx);
+  style?.setProperty('--map-controls-bottom', bottomPx);
+  for (final node in html.document.querySelectorAll(
+    '.maplibregl-ctrl-bottom-right',
+  )) {
+    if (node is! html.HtmlElement) continue;
+    node.style.setProperty('right', rightPx, 'important');
+    node.style.setProperty('bottom', bottomPx, 'important');
+  }
 }

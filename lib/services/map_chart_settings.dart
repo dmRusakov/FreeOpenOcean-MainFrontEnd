@@ -1,7 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:free_open_ocean/services/map_object_icons.dart';
 
 /// How a chart line is broken. [dasharray] is a MapLibre `line-dasharray`.
 enum ChartLineType {
@@ -62,6 +65,9 @@ class MapColorSetting {
   final String labelKey;
 }
 
+/// Three zoom stops for a marine object: small icon, then full icon + name.
+typedef ObjectZoomStops = ({int small, int full, int end});
+
 /// Saved chart layers, zooms, and day/night colours.
 class MapChartSettings extends ChangeNotifier {
   MapChartSettings._();
@@ -70,14 +76,72 @@ class MapChartSettings extends ChangeNotifier {
 
   static const _storageKey = 'mapChartSettings';
 
+  /// Marine object families that use a 3-point zoom (2 zones).
+  static const objectZoomIds = <String>{
+    'marinaIcon',
+    'anchorageIcon',
+    'portIcon',
+    'fuelIcon',
+    'customsIcon',
+    'serviceIcon',
+    'dockIcon',
+    'slipwayIcon',
+    'places',
+    'seamarks',
+    'platformIcon',
+    'lighthouseIcon',
+  };
+
+  /// Built-in (small, full+name, end) for each [objectZoomIds] entry.
+  static const objectZoomStopDefaults = <String, ObjectZoomStops>{
+    'marinaIcon': (small: 11, full: 13, end: 22),
+    'anchorageIcon': (small: 11, full: 13, end: 22),
+    'portIcon': (small: 12, full: 14, end: 22),
+    'fuelIcon': (small: 12, full: 14, end: 22),
+    'customsIcon': (small: 12, full: 14, end: 22),
+    'serviceIcon': (small: 12, full: 14, end: 22),
+    'dockIcon': (small: 12, full: 14, end: 22),
+    'slipwayIcon': (small: 14, full: 15, end: 22),
+    'places': (small: 12, full: 14, end: 22),
+    'seamarks': (small: 12, full: 14, end: 22),
+    'platformIcon': (small: 6, full: 12, end: 22),
+    'lighthouseIcon': (small: 6, full: 12, end: 22),
+  };
+
+  /// Rows that used to share the [places] zoom before each got its own.
+  static const _placesZoomAliases = <String>{
+    'portIcon',
+    'fuelIcon',
+    'customsIcon',
+    'serviceIcon',
+    'dockIcon',
+  };
+
+  /// Legacy name zoom id kept in sync with the full+name stop.
+  static const objectNameZoomId = <String, String>{
+    'marinaIcon': 'marinaName',
+    'anchorageIcon': 'anchorageName',
+    'slipwayIcon': 'slipway',
+    'platformIcon': 'platformName',
+    'lighthouseIcon': 'lighthouseName',
+  };
+
   static const zooms = <MapZoomSetting>[
     MapZoomSetting('iconFull', 'map_zoom_icon_full', 12),
     MapZoomSetting('roadNames', 'map_zoom_road_names', 14),
     MapZoomSetting('smallDetail', 'map_zoom_small_detail', 16),
     MapZoomSetting('marinaIcon', 'map_zoom_marina_icon', 11),
     MapZoomSetting('marinaName', 'map_zoom_marina_name', 13),
+    MapZoomSetting('anchorageIcon', 'map_zoom_anchorage_icon', 11),
+    MapZoomSetting('anchorageName', 'map_zoom_anchorage_name', 13),
+    MapZoomSetting('portIcon', 'map_zoom_port_icon', 12),
+    MapZoomSetting('fuelIcon', 'map_zoom_fuel_icon', 12),
+    MapZoomSetting('customsIcon', 'map_zoom_customs_icon', 12),
+    MapZoomSetting('serviceIcon', 'map_zoom_service_icon', 12),
+    MapZoomSetting('dockIcon', 'map_zoom_dock_icon', 12),
+    MapZoomSetting('slipwayIcon', 'map_zoom_slipway_icon', 14),
     MapZoomSetting('places', 'map_zoom_places', 12),
-    MapZoomSetting('slipway', 'map_zoom_slipway', 14),
+    MapZoomSetting('slipway', 'map_zoom_slipway', 15),
     MapZoomSetting('bridges', 'map_zoom_bridges', 13),
     MapZoomSetting('ferry', 'map_zoom_ferry', 6),
     MapZoomSetting('ferryNames', 'map_zoom_ferry_names', 9),
@@ -96,6 +160,7 @@ class MapChartSettings extends ChangeNotifier {
     MapZoomSetting('landBeach', 'map_color_beach', 2),
     MapZoomSetting('islandFill', 'map_color_island', 4),
     MapZoomSetting('coastline', 'map_color_coast', 2),
+    MapZoomSetting('boundaries', 'map_color_boundaries', 8),
     MapZoomSetting('landContour', 'map_color_contour', 7),
     MapZoomSetting('landContourLabel', 'map_color_contour_label', 7),
     MapZoomSetting('roadTrunk', 'map_color_road', 2),
@@ -132,6 +197,7 @@ class MapChartSettings extends ChangeNotifier {
     MapColorSetting('chart', 'seaBase', 'map_color_sea'),
     MapColorSetting('chart', 'seaEdge', 'map_color_sea_edge'),
     MapColorSetting('chart', 'coastline', 'map_color_coast'),
+    MapColorSetting('chart', 'boundaries', 'map_color_boundaries'),
     MapColorSetting('chart', 'islandFill', 'map_color_island'),
     MapColorSetting('chart', 'islandEdge', 'map_color_island_edge'),
     MapColorSetting('chart', 'graticule', 'map_color_graticule'),
@@ -161,19 +227,30 @@ class MapChartSettings extends ChangeNotifier {
     MapColorSetting('depth', 'deep', 'map_color_depth_deep'),
     MapColorSetting('depth', 'label', 'map_color_depth_label'),
     MapColorSetting('objects', 'marina', 'map_color_marina'),
+    MapColorSetting('objects', 'marinaBorder', 'map_color_marina'),
     MapColorSetting('objects', 'anchorage', 'map_color_anchorage'),
+    MapColorSetting('objects', 'anchorageBorder', 'map_color_anchorage'),
     MapColorSetting('objects', 'fuel', 'map_color_fuel'),
+    MapColorSetting('objects', 'fuelBorder', 'map_color_fuel'),
     MapColorSetting('objects', 'customs', 'map_color_customs'),
+    MapColorSetting('objects', 'customsBorder', 'map_color_customs'),
     MapColorSetting('objects', 'port', 'map_color_port'),
+    MapColorSetting('objects', 'portBorder', 'map_color_port'),
     MapColorSetting('objects', 'service', 'map_color_service'),
+    MapColorSetting('objects', 'serviceBorder', 'map_color_service'),
     MapColorSetting('objects', 'slipway', 'map_color_slipway'),
+    MapColorSetting('objects', 'slipwayBorder', 'map_color_slipway'),
     MapColorSetting('objects', 'ferry', 'map_color_ferry'),
     MapColorSetting('objects', 'ferryRoute', 'map_color_ferry_route'),
     MapColorSetting('objects', 'dock', 'map_color_dock'),
+    MapColorSetting('objects', 'dockBorder', 'map_color_dock'),
     MapColorSetting('objects', 'bridge', 'map_color_bridge'),
     MapColorSetting('objects', 'hazard', 'map_color_hazard'),
+    MapColorSetting('objects', 'hazardBorder', 'map_color_hazard'),
     MapColorSetting('objects', 'navLight', 'map_color_nav_light'),
+    MapColorSetting('objects', 'navLightBorder', 'map_color_nav_light'),
     MapColorSetting('objects', 'platform', 'map_color_platform'),
+    MapColorSetting('objects', 'platformBorder', 'map_color_platform'),
     MapColorSetting('sky', 'sunCore', 'map_color_sun'),
     MapColorSetting('sky', 'sunRim', 'map_color_sun_rim'),
     MapColorSetting('sky', 'sunTrack', 'map_color_sun_track'),
@@ -184,16 +261,19 @@ class MapChartSettings extends ChangeNotifier {
 
   final Map<String, Set<int>> _zoomLevels = {};
   final Map<String, double> _zooms = {};
+  final Map<String, List<int>> _zoomStops = {};
   final Map<String, bool> _layers = {};
   final Map<String, int> _colors = {};
   final Map<String, double> _linePx = {};
   final Map<String, ChartLineType> _lineType = {};
+  final Map<String, ChartObjectIcon> _objectIcons = {};
 
   /// Built-in line thickness, in pixels.
   static const linePxFallback = <String, double>{
     'graticule': 1,
     'equator': 2,
     'coastline': 1.2,
+    'boundaries': 0.5,
     'landContour': 0.6,
     'roadTrunk': 1.5,
     'roadMinor': 0.8,
@@ -204,6 +284,7 @@ class MapChartSettings extends ChangeNotifier {
   static const lineTypeFallback = <String, ChartLineType>{
     'graticule': ChartLineType.dashed,
     'equator': ChartLineType.solid,
+    'boundaries': ChartLineType.dashed,
   };
 
   /// Choices offered for a chart line, half a pixel through 5 px.
@@ -223,6 +304,13 @@ class MapChartSettings extends ChangeNotifier {
   Map<String, int> get colorOverrides => Map.unmodifiable(_colors);
 
   double zoom(String id) {
+    // Name zooms follow the full+name stop of their icon family.
+    for (final entry in objectNameZoomId.entries) {
+      if (entry.value == id) return objectZoomStops(entry.key).full.toDouble();
+    }
+    if (objectZoomIds.contains(id)) {
+      return objectZoomStops(id).small.toDouble();
+    }
     final levels = _zoomLevels[id];
     if (levels != null) {
       return levels.isEmpty
@@ -237,8 +325,126 @@ class MapChartSettings extends ChangeNotifier {
     return 0;
   }
 
+  /// Small-icon start, full-icon+name start, and last zoom for a marine object.
+  ObjectZoomStops objectZoomStops(String id) {
+    final saved = _zoomStops[id];
+    if (saved != null && saved.length == 3) {
+      return (small: saved[0], full: saved[1], end: saved[2]);
+    }
+    // Port / fuel / customs / service / dock used to share `places`.
+    if (_placesZoomAliases.contains(id)) {
+      final places = _zoomStops['places'];
+      if (places != null && places.length == 3) {
+        return (small: places[0], full: places[1], end: places[2]);
+      }
+    }
+    final defaults =
+        objectZoomStopDefaults[id] ?? (small: 2, full: 12, end: 22);
+    final levels = _zoomLevels[id];
+    final nameId = objectNameZoomId[id];
+    final nameLevels = nameId == null ? null : _zoomLevels[nameId];
+    final hasLegacy = levels != null ||
+        nameLevels != null ||
+        _zooms.containsKey(id) ||
+        (nameId != null && _zooms.containsKey(nameId));
+    if (!hasLegacy) return defaults;
+
+    var small = defaults.small;
+    var full = defaults.full;
+    var end = defaults.end;
+    if (levels != null && levels.isNotEmpty) {
+      small = 22;
+      end = 2;
+      for (final level in levels) {
+        if (level < small) small = level;
+        if (level > end) end = level;
+      }
+    } else if (_zooms[id] != null) {
+      small = _zooms[id]!.round().clamp(2, 22);
+      end = 22;
+    }
+    if (nameLevels != null && nameLevels.isNotEmpty) {
+      full = nameLevels.reduce((a, b) => a < b ? a : b);
+    } else if (nameId != null && _zooms[nameId] != null) {
+      full = _zooms[nameId]!.round();
+    }
+    full = full.clamp(small, end);
+    return (small: small, full: full, end: end);
+  }
+
+  Future<void> setObjectZoomStops(
+    String id,
+    int small,
+    int full,
+    int end,
+  ) async {
+    var a = small.clamp(2, 22);
+    var b = full.clamp(2, 22);
+    var c = end.clamp(2, 22);
+    final ordered = [a, b, c]..sort();
+    a = ordered[0];
+    b = ordered[1];
+    c = ordered[2];
+    _zoomStops[id] = [a, b, c];
+    _zooms.remove(id);
+    _zoomLevels[id] = {for (var level = a; level <= c; level++) level};
+    final nameId = objectNameZoomId[id];
+    if (nameId != null) {
+      _zooms.remove(nameId);
+      _zoomLevels[nameId] = {for (var level = b; level <= c; level++) level};
+    }
+    await _save();
+  }
+
+  /// On from [start] through the object's end stop; off elsewhere.
+  List<Object> objectZoomExpression(
+    String id, {
+    required bool fromFull,
+    required Object on,
+    required Object off,
+  }) {
+    final stops = objectZoomStops(id);
+    final start = fromFull ? stops.full : stops.small;
+    final end = stops.end;
+    return [
+      'step',
+      ['zoom'],
+      off,
+      for (var level = 2; level <= 22; level++) ...[
+        level,
+        level >= start && level <= end ? on : off,
+      ],
+    ];
+  }
+
+  /// [smallSize] until the full+name stop, then [fullSize], clipped to the end.
+  /// When [smallSize] is omitted, uses 70% of [fullSize].
+  List<Object> objectIconSizeExpression(
+    String id,
+    Object fullSize, {
+    Object? smallSize,
+  }) {
+    final small = smallSize ?? <Object>['*', fullSize, 0.7];
+    return objectZoomExpression(
+      id,
+      fromFull: true,
+      on: fullSize,
+      off: small,
+    );
+  }
+
   /// Inclusive first and last zoom. A fresh setting runs from its built-in start through 22.
   (int, int) zoomRange(String id) {
+    if (objectZoomIds.contains(id)) {
+      final stops = objectZoomStops(id);
+      return (stops.small, stops.end);
+    }
+    for (final entry in objectNameZoomId.entries) {
+      if (entry.value == id) {
+        final stops = objectZoomStops(entry.key);
+        return (stops.full, stops.end);
+      }
+    }
     final levels = _zoomLevels[id];
     if (levels != null) {
       if (levels.isEmpty) return (22, 22);
@@ -258,6 +464,11 @@ class MapChartSettings extends ChangeNotifier {
     final end = maxZoom.clamp(2, 22);
     final low = start <= end ? start : end;
     final high = start <= end ? end : start;
+    if (objectZoomIds.contains(id)) {
+      final mid = objectZoomStops(id).full.clamp(low, high);
+      await setObjectZoomStops(id, low, mid, high);
+      return;
+    }
     _zooms.remove(id);
     _zoomLevels[id] = {for (var level = low; level <= high; level++) level};
     await _save();
@@ -337,6 +548,18 @@ class MapChartSettings extends ChangeNotifier {
     await _save();
   }
 
+  /// Flutter icon drawn for a Marine objects colour field.
+  IconData objectIcon(String field) {
+    final saved = _objectIcons[field];
+    if (saved != null) return saved.data;
+    return mapObjectIconDefaults[field] ?? Icons.place;
+  }
+
+  Future<void> setObjectIcon(String field, IconData icon) async {
+    _objectIcons[field] = ChartObjectIcon.fromIconData(icon);
+    await _save();
+  }
+
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_storageKey);
@@ -393,6 +616,27 @@ class MapChartSettings extends ChangeNotifier {
           if (type != null) _lineType[entry.key.toString()] = type;
         }
       }
+      final icons = decoded['objectIcons'];
+      if (icons is Map) {
+        for (final entry in icons.entries) {
+          final icon = ChartObjectIcon.fromJson(entry.value);
+          if (icon != null) _objectIcons[entry.key.toString()] = icon;
+        }
+      }
+      final stops = decoded['zoomStops'];
+      if (stops is Map) {
+        for (final entry in stops.entries) {
+          final raw = entry.value;
+          if (raw is! List || raw.length < 3) continue;
+          final values = raw
+              .whereType<num>()
+              .map((n) => n.toInt().clamp(2, 22))
+              .toList();
+          if (values.length < 3) continue;
+          final ordered = values.take(3).toList()..sort();
+          _zoomStops[entry.key.toString()] = ordered;
+        }
+      }
     } catch (error) {
       debugPrint('Unable to read map settings: $error');
     }
@@ -422,10 +666,12 @@ class MapChartSettings extends ChangeNotifier {
   Future<void> reset() async {
     _zoomLevels.clear();
     _zooms.clear();
+    _zoomStops.clear();
     _layers.clear();
     _colors.clear();
     _linePx.clear();
     _lineType.clear();
+    _objectIcons.clear();
     await _save();
   }
 
@@ -438,10 +684,14 @@ class MapChartSettings extends ChangeNotifier {
           (id, levels) => MapEntry(id, levels.toList()..sort()),
         ),
         'zooms': _zooms,
+        'zoomStops': _zoomStops,
         'layers': _layers,
         'colors': _colors,
         'linePx': _linePx,
         'lineType': _lineType.map((id, type) => MapEntry(id, type.name)),
+        'objectIcons': _objectIcons.map(
+          (field, icon) => MapEntry(field, icon.toJson()),
+        ),
       }),
     );
     notifyListeners();

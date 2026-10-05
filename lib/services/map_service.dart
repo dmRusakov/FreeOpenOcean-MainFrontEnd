@@ -11,6 +11,7 @@ import 'package:universal_html/html.dart' as html;
 import 'package:geolocator/geolocator.dart';
 import 'package:free_open_ocean/config/config.dart';
 import 'package:free_open_ocean/services/map_chart_settings.dart';
+import 'package:free_open_ocean/services/map_object_icons.dart';
 import 'package:free_open_ocean/core/theme/marine_palette.dart';
 import '../web_setup_stub.dart'
     if (dart.library.html) '../web_setup.dart'
@@ -755,8 +756,32 @@ class MapService {
       await controller.setLayerVisibility('water', false);
     }
     await patch('water_waterway_label', {'text-color': chart.labelSoft.hex});
-    await patch('boundaries', {'line-color': chart.graticule.hex});
-    await patch('boundaries_country', {'line-color': chart.graticule.hex});
+    if (settings.layerOn('boundaries')) {
+      final boundaryOpacity = settings.zoomExpression('boundaries', 1, 0);
+      final boundaryWidth = settings.linePx('boundaries');
+      final boundaryDash = settings.lineDash('boundaries');
+      final boundaryCap = settings.lineCap('boundaries');
+      await patch('boundaries', {
+        'line-color': chart.boundaries.hex,
+        'line-width': boundaryWidth,
+        'line-cap': boundaryCap,
+        'line-dasharray': ?boundaryDash,
+        'line-opacity': boundaryOpacity,
+      });
+      await patch('boundaries_country', {
+        'line-color': chart.boundaries.hex,
+        'line-width': boundaryWidth < 1 ? 1.0 : boundaryWidth * 2,
+        'line-cap': boundaryCap,
+        'line-dasharray': ?boundaryDash,
+        'line-opacity': boundaryOpacity,
+      });
+    } else {
+      for (final id in ['boundaries', 'boundaries_country']) {
+        if (layers.contains(id)) {
+          await controller.setLayerVisibility(id, false);
+        }
+      }
+    }
     if (settings.layerOn('coastline')) {
       await patch('landuse_pier', {'fill-color': chart.coastline.hex});
       await patch('roads_pier', {'line-color': chart.coastline.hex});
@@ -1211,6 +1236,7 @@ class MapService {
       await hide('moonTrack', const ['moon-orbit']);
     }
     await hide('coastline', const ['chart-coastline']);
+    await hide('boundaries', const ['boundaries', 'boundaries_country']);
     await hide('waterways', const [
       'chart-waterway-stream',
       'chart-waterway-river',
@@ -1230,13 +1256,18 @@ class MapService {
     await hide('landContourLabel', const ['land-contour-labels']);
     await hide('hillshade', const ['land-elevation', 'ocean-elevation']);
     await hide('marinas', const ['boat-marinas']);
-    await hide('places', const ['boat-places']);
+    await hide('anchorage', const ['boat-anchorages']);
+    await hide('places', const ['boat-port', 'boat-places']);
+    await hide('fuel', const ['boat-fuel']);
+    await hide('customs', const ['boat-customs']);
+    await hide('service', const ['boat-service']);
     await hide('slipways', const ['slipways']);
     await hide('bridges', const ['boat-bridge-labels']);
     await hide('harbour', const [
       'chart-marina-area',
       'chart-dock',
       'chart-canal',
+      'boat-dock',
     ]);
     await hide('ferries', const ['chart-ferry', 'chart-ferry-labels']);
     if (chart.layerOn('ferries')) {
@@ -1244,8 +1275,7 @@ class MapService {
     }
     await hide('waterNames', const ['chart-water-names']);
     await hide('seamarks', const ['seamark-marinas', 'seamark-names']);
-    await hide('platforms', const ['oil-platforms']);
-    await hide('platformZones', const ['oil-platform-zone']);
+    await hide('platforms', const ['oil-platforms', 'oil-platform-zone']);
     await hide('lighthouses', const ['lighthouses']);
     await hide('roadTrunk', [..._trunkRoadLayers, 'roads_oneway']);
     await hide('roadMinor', _minorRoadLayers);
@@ -1320,6 +1350,46 @@ class MapService {
     'ship_chandler',
     'slipway',
   ];
+
+  /// Harbour kinds that each have their own settings zoom and chart layer.
+  static const _boatKindGroups = <String, List<String>>{
+    'port': ['harbourmaster', 'naval_base'],
+    'fuel': ['fuel'],
+    'customs': ['customs'],
+    'service': [
+      'ship_chandler',
+      'boat',
+      'boat_rental',
+      'boat_repair',
+      'boat_storage',
+    ],
+    'dock': ['dock'],
+  };
+
+  static const _boatKindZoomIds = <String, String>{
+    'port': 'portIcon',
+    'fuel': 'fuelIcon',
+    'customs': 'customsIcon',
+    'service': 'serviceIcon',
+    'dock': 'dockIcon',
+  };
+
+  static const _boatOwnLayerKinds = <String>{
+    'marina',
+    'anchorage',
+    'slipway',
+    'lighthouse',
+    'harbourmaster',
+    'naval_base',
+    'fuel',
+    'customs',
+    'ship_chandler',
+    'boat',
+    'boat_rental',
+    'boat_repair',
+    'boat_storage',
+    'dock',
+  };
 
   /// Gap between a harbour icon and its name, on top of the offset each
   /// layer already carried. MapLibre measures text-offset in ems and these
@@ -1513,10 +1583,85 @@ class MapService {
     ],
   ];
 
-  /// Half the icon until [objectIconFullZoom], then the size passed in.
-  static List<Object> _objectIconSize(Object fullSize) => MapChartSettings
-      .instance
-      .zoomExpression('iconFull', fullSize, ['*', fullSize, 0.5]);
+  /// Shared base for the small-icon zone so every marine object matches
+  /// there; full-icon size may still differ by kind.
+  static const _marineObjectSmallBase = 0.9;
+  static const _marineObjectSmallFraction = 0.7;
+
+  /// Full-icon zone icon+border: 0.8³ then +20%.
+  static const _marineObjectFullFraction = 0.8 * 0.8 * 0.8 * 1.2;
+
+  /// Name size in the full-icon zone: prior shrunk size (11×0.64) then 40% larger.
+  static const _objectLabelTextSize = 11 * 0.64 * 1.4;
+
+  /// Extra text-offset (ems) to push the name 5 px right of the icon.
+  static const _objectLabelRightShiftEm = 5 / _objectLabelTextSize;
+
+  /// Chart icons are drawn at half the historical MapLibre sizes so they
+  /// stay readable without covering the chart.
+  static const _marineObjectIconScale = 0.5;
+
+  static Object _scaledIconSize(Object fullSize) => [
+    '*',
+    fullSize,
+    _marineObjectIconScale,
+  ];
+
+  static List<Object> _objectIconSize(
+    Object fullSize, [
+    String? objectZoomId,
+  ]) {
+    final settings = MapChartSettings.instance;
+    if (objectZoomId != null) {
+      return settings.objectIconSizeExpression(
+        objectZoomId,
+        _scaledIconSize(['*', fullSize, _marineObjectFullFraction]),
+        smallSize: _scaledIconSize(
+          _marineObjectSmallBase * _marineObjectSmallFraction,
+        ),
+      );
+    }
+    final scaled = _scaledIconSize(fullSize);
+    return settings.zoomExpression('iconFull', scaled, [
+      '*',
+      scaled,
+      0.5,
+    ]);
+  }
+
+  static Color _objectFieldColor(MarineObjects objects, String field) {
+    return switch (field) {
+      'marina' => objects.marina,
+      'anchorage' => objects.anchorage,
+      'fuel' => objects.fuel,
+      'customs' => objects.customs,
+      'port' => objects.port,
+      'service' => objects.service,
+      'dock' => objects.dock,
+      'slipway' => objects.slipway,
+      'hazard' => objects.hazard,
+      'platform' => objects.platform,
+      'navLight' => objects.navLight,
+      _ => objects.marina,
+    };
+  }
+
+  static Color _objectBorderColor(MarineObjects objects, String field) {
+    return switch (field) {
+      'marina' => objects.marinaBorder,
+      'anchorage' => objects.anchorageBorder,
+      'fuel' => objects.fuelBorder,
+      'customs' => objects.customsBorder,
+      'port' => objects.portBorder,
+      'service' => objects.serviceBorder,
+      'dock' => objects.dockBorder,
+      'slipway' => objects.slipwayBorder,
+      'hazard' => objects.hazardBorder,
+      'platform' => objects.platformBorder,
+      'navLight' => objects.navLightBorder,
+      _ => _objectFieldColor(objects, field),
+    };
+  }
 
   static Future<void> _addBoatPlaces(
     MapLibreMapController controller,
@@ -1524,13 +1669,14 @@ class MapService {
     List<dynamic> layers,
     bool Function() isCurrent,
   ) async {
-    if (layers.contains('boat-places')) return;
+    if (layers.contains('boat-port')) return;
     for (final old in ['boat-marinas', 'boat-fuel']) {
       if (layers.contains(old)) {
         await controller.setLayerVisibility(old, false);
       }
     }
     if (!isCurrent()) return;
+    // Fallback PNGs for kinds that still use the old sprite names.
     const icons = {
       'boat-fuel': 'assets/icons/boat_fuel.png',
       'boat-anchor': 'assets/icons/boat_anchor.png',
@@ -1548,6 +1694,16 @@ class MapService {
       if (!isCurrent()) return;
     }
     final objects = palette.objects;
+    final settings = MapChartSettings.instance;
+    for (final field in mapObjectIconFields) {
+      final bytes = await MapObjectIcons.render(
+        settings.objectIcon(field),
+        _objectFieldColor(objects, field),
+        _objectBorderColor(objects, field),
+      );
+      await controller.addImage(mapObjectImageId(field), bytes);
+      if (!isCurrent()) return;
+    }
     final textColor = palette.chart.labelStrong.hex;
     final halo = palette.chart.labelHalo.hex;
     final below = layers.contains('places_country') ? 'places_country' : null;
@@ -1582,40 +1738,44 @@ class MapService {
       objects.navLight.hex,
       textColor,
     ];
-    const placeIcon = [
+    final placeIcon = [
       'match',
       ['get', 'kind'],
       'marina',
-      'marina',
+      mapObjectImageId('marina'),
       'fuel',
-      'boat-fuel',
+      mapObjectImageId('fuel'),
       'ferry_terminal',
       'ferry_terminal',
       'cruise_terminal',
       'ferry_terminal',
       'customs',
-      'boat-customs',
+      mapObjectImageId('customs'),
       'harbourmaster',
-      'boat-port',
+      mapObjectImageId('port'),
       'naval_base',
-      'boat-port',
+      mapObjectImageId('port'),
       'ship_chandler',
-      'boat-service',
+      mapObjectImageId('service'),
       'boat',
-      'boat-service',
+      mapObjectImageId('service'),
       'boat_rental',
-      'boat-service',
+      mapObjectImageId('service'),
       'boat_repair',
-      'boat-service',
+      mapObjectImageId('service'),
       'boat_storage',
-      'boat-service',
+      mapObjectImageId('service'),
       'slipway',
       'boat-slipway',
       'dock',
-      'boat-slipway',
+      mapObjectImageId('dock'),
       'anchorage',
-      'boat-anchor',
-      'boat-anchor',
+      mapObjectImageId('anchorage'),
+      'lighthouse',
+      mapObjectImageId('navLight'),
+      'beacon',
+      mapObjectImageId('navLight'),
+      mapObjectImageId('marina'),
     ];
     const placeIconSize = [
       'match',
@@ -1626,26 +1786,27 @@ class MapService {
       1.1,
       'cruise_terminal',
       1.1,
-      0.42,
+      0.9,
     ];
-    // Marina and anchorage icons from zoom 11. The name stays off until
-    // zoom 13. Other harbour places keep the icon and name together.
+    // Marina and anchorage each have their own 3-point zoom.
     await controller.addSymbolLayer(
       'protomaps',
       'boat-marinas',
       SymbolLayerProperties(
-        textOpacity: MapChartSettings.instance.zoomExpression(
-          'marinaName',
-          1,
-          0,
-        ),
-        iconOpacity: MapChartSettings.instance.zoomExpression(
+        textOpacity: MapChartSettings.instance.objectZoomExpression(
           'marinaIcon',
-          1,
-          0,
+          fromFull: true,
+          on: 1,
+          off: 0,
+        ),
+        iconOpacity: MapChartSettings.instance.objectZoomExpression(
+          'marinaIcon',
+          fromFull: false,
+          on: 1,
+          off: 0,
         ),
         iconImage: placeIcon,
-        iconSize: _objectIconSize(placeIconSize),
+        iconSize: _objectIconSize(placeIconSize, 'marinaIcon'),
         iconAllowOverlap: false,
         iconPadding: 2,
         iconOptional: false,
@@ -1653,10 +1814,13 @@ class MapService {
           fromZoom: MapChartSettings.instance.zoom('marinaName'),
         ),
         textFont: const ['Noto Sans Regular'],
-        textSize: 11,
+        textSize: _objectLabelTextSize,
         textAnchor: 'left',
         textJustify: 'left',
-        textOffset: const [_placeLabelOffset, 0],
+        textOffset: const [
+          _placeLabelOffset + _objectLabelRightShiftEm,
+          0,
+        ],
         textOptional: true,
         textMaxWidth: 20,
         textColor: placeTextColor,
@@ -1667,12 +1831,9 @@ class MapService {
       sourceLayer: 'pois',
       belowLayerId: below,
       filter: const [
-        'in',
+        '==',
         ['get', 'kind'],
-        [
-          'literal',
-          ['marina', 'anchorage'],
-        ],
+        'marina',
       ],
       minzoom: MapChartSettings.instance.zoom('marinaIcon'),
       enableInteraction: false,
@@ -1680,23 +1841,36 @@ class MapService {
     if (!isCurrent()) return;
     await controller.addSymbolLayer(
       'protomaps',
-      'boat-places',
+      'boat-anchorages',
       SymbolLayerProperties(
-        textOpacity: MapChartSettings.instance.zoomExpression('places', 1, 0),
-        iconOpacity: MapChartSettings.instance.zoomExpression('places', 1, 0),
+        textOpacity: MapChartSettings.instance.objectZoomExpression(
+          'anchorageIcon',
+          fromFull: true,
+          on: 1,
+          off: 0,
+        ),
+        iconOpacity: MapChartSettings.instance.objectZoomExpression(
+          'anchorageIcon',
+          fromFull: false,
+          on: 1,
+          off: 0,
+        ),
         iconImage: placeIcon,
-        iconSize: _objectIconSize(placeIconSize),
-        // Nearby copies of the same station, such as two Orion fuel
-        // points a few meters apart, collapse to one icon.
+        iconSize: _objectIconSize(placeIconSize, 'anchorageIcon'),
         iconAllowOverlap: false,
         iconPadding: 2,
         iconOptional: false,
-        textField: _objectLabel(),
-        textFont: ['Noto Sans Regular'],
-        textSize: 11,
+        textField: _objectLabel(
+          fromZoom: MapChartSettings.instance.zoom('anchorageName'),
+        ),
+        textFont: const ['Noto Sans Regular'],
+        textSize: _objectLabelTextSize,
         textAnchor: 'left',
         textJustify: 'left',
-        textOffset: [_placeLabelOffset, 0],
+        textOffset: const [
+          _placeLabelOffset + _objectLabelRightShiftEm,
+          0,
+        ],
         textOptional: true,
         textMaxWidth: 20,
         textColor: placeTextColor,
@@ -1706,44 +1880,123 @@ class MapService {
       ),
       sourceLayer: 'pois',
       belowLayerId: below,
-      filter: [
-        'all',
-        [
-          'in',
-          ['get', 'kind'],
-          ['literal', _boatKinds],
-        ],
-        [
-          '!',
-          [
-            'in',
-            ['get', 'kind'],
-            [
-              'literal',
-              ['marina', 'anchorage', 'slipway', 'lighthouse'],
-            ],
-          ],
-        ],
-        [
-          '>=',
-          ['zoom'],
-          [
-            'coalesce',
-            [
-              'to-number',
-              ['get', 'min_zoom'],
-              MapChartSettings.instance.zoom('places'),
-            ],
-            MapChartSettings.instance.zoom('places'),
-          ],
-        ],
+      filter: const [
+        '==',
+        ['get', 'kind'],
+        'anchorage',
       ],
-      minzoom: MapChartSettings.instance.zoom('places'),
+      minzoom: MapChartSettings.instance.zoom('anchorageIcon'),
       enableInteraction: false,
     );
     if (!isCurrent()) return;
-    // Chart tiles omit slipways until zoom 16. The icon and the name are
-    // on past zoom 14, loaded for the view on screen.
+    Future<void> addKindLayer({
+      required String layerId,
+      required String zoomId,
+      required List<String> kinds,
+      bool respectMinZoom = false,
+    }) async {
+      final stops = MapChartSettings.instance.objectZoomStops(zoomId);
+      await controller.addSymbolLayer(
+        'protomaps',
+        layerId,
+        SymbolLayerProperties(
+          textOpacity: MapChartSettings.instance.objectZoomExpression(
+            zoomId,
+            fromFull: true,
+            on: 1,
+            off: 0,
+          ),
+          iconOpacity: MapChartSettings.instance.objectZoomExpression(
+            zoomId,
+            fromFull: false,
+            on: 1,
+            off: 0,
+          ),
+          iconImage: placeIcon,
+          iconSize: _objectIconSize(placeIconSize, zoomId),
+          iconAllowOverlap: false,
+          iconPadding: 2,
+          iconOptional: false,
+          textField: _objectLabel(fromZoom: stops.full.toDouble()),
+          textFont: const ['Noto Sans Regular'],
+          textSize: _objectLabelTextSize,
+          textAnchor: 'left',
+          textJustify: 'left',
+          textOffset: const [
+            _placeLabelOffset + _objectLabelRightShiftEm,
+            0,
+          ],
+          textOptional: true,
+          textMaxWidth: 20,
+          textColor: placeTextColor,
+          textHaloColor: halo,
+          textHaloWidth: 1.4,
+          textPadding: 2,
+        ),
+        sourceLayer: 'pois',
+        belowLayerId: below,
+        filter: respectMinZoom
+            ? [
+                'all',
+                [
+                  'in',
+                  ['get', 'kind'],
+                  ['literal', kinds],
+                ],
+                [
+                  '>=',
+                  ['zoom'],
+                  [
+                    'coalesce',
+                    [
+                      'to-number',
+                      ['get', 'min_zoom'],
+                      MapChartSettings.instance.zoom(zoomId),
+                    ],
+                    MapChartSettings.instance.zoom(zoomId),
+                  ],
+                ],
+              ]
+            : kinds.length == 1
+            ? [
+                '==',
+                ['get', 'kind'],
+                kinds.first,
+              ]
+            : [
+                'in',
+                ['get', 'kind'],
+                ['literal', kinds],
+              ],
+        minzoom: MapChartSettings.instance.zoom(zoomId),
+        enableInteraction: false,
+      );
+    }
+
+    for (final entry in _boatKindGroups.entries) {
+      await addKindLayer(
+        layerId: 'boat-${entry.key}',
+        zoomId: _boatKindZoomIds[entry.key]!,
+        kinds: entry.value,
+        respectMinZoom: true,
+      );
+      if (!isCurrent()) return;
+    }
+    final leftoverKinds = [
+      for (final kind in _boatKinds)
+        if (!_boatOwnLayerKinds.contains(kind)) kind,
+    ];
+    if (leftoverKinds.isNotEmpty) {
+      await addKindLayer(
+        layerId: 'boat-places',
+        zoomId: 'places',
+        kinds: leftoverKinds,
+        respectMinZoom: true,
+      );
+      if (!isCurrent()) return;
+    }
+    // Chart tiles omit slipways until zoom 16. Icons and names use the
+    // Marine objects 3-point zoom, loaded from OpenStreetMap for the view.
     _slipwayCoverage.remove(controller);
     final emptySlipways = kIsWeb
         ? web_setup.mapGeoJsonUrl('{"type":"FeatureCollection","features":[]}')
@@ -1753,32 +2006,38 @@ class MapService {
       GeojsonSourceProperties(data: emptySlipways),
     );
     if (!isCurrent()) return;
-    // The shared boat-slipway image stays blue for docks. This copy uses
-    // the slipway name colour, and draws at 90% of the marina icon.
-    final slipwayIcon = await _slipwayIconInColor(objects.slipway);
-    final slipwayIconId =
-        'slipway-${objects.slipway.toARGB32().toRadixString(16)}';
-    await controller.addImage(slipwayIconId, slipwayIcon);
-    if (!isCurrent()) return;
     await controller.addSymbolLayer(
       'slipways',
       'slipways',
       SymbolLayerProperties(
-        textOpacity: MapChartSettings.instance.zoomExpression('slipway', 1, 0),
-        iconOpacity: MapChartSettings.instance.zoomExpression('slipway', 1, 0),
-        iconImage: slipwayIconId,
-        iconSize: _objectIconSize(_slipwayIconSize),
+        textOpacity: MapChartSettings.instance.objectZoomExpression(
+          'slipwayIcon',
+          fromFull: true,
+          on: 1,
+          off: 0,
+        ),
+        iconOpacity: MapChartSettings.instance.objectZoomExpression(
+          'slipwayIcon',
+          fromFull: false,
+          on: 1,
+          off: 0,
+        ),
+        iconImage: mapObjectImageId('slipway'),
+        iconSize: _objectIconSize(1.15, 'slipwayIcon'),
         iconAllowOverlap: false,
         iconPadding: 2,
         iconOptional: false,
         textField: _objectLabel(
-          fromZoom: MapChartSettings.instance.zoom('slipway') + 0.001,
+          fromZoom: MapChartSettings.instance.zoom('slipway'),
         ),
         textFont: const ['Noto Sans Regular'],
-        textSize: 11,
+        textSize: _objectLabelTextSize,
         textAnchor: 'left',
         textJustify: 'left',
-        textOffset: const [_placeLabelOffset, 0],
+        textOffset: const [
+          _placeLabelOffset + _objectLabelRightShiftEm,
+          0,
+        ],
         textOptional: true,
         textMaxWidth: 20,
         textColor: objects.slipway.hex,
@@ -1787,7 +2046,7 @@ class MapService {
         textPadding: 2,
       ),
       belowLayerId: below,
-      minzoom: MapChartSettings.instance.zoom('slipway') + 0.001,
+      minzoom: MapChartSettings.instance.zoom('slipwayIcon'),
       enableInteraction: false,
     );
     if (!isCurrent()) return;
@@ -2027,18 +2286,36 @@ class MapService {
       'seamark-names',
       'seamark-marinas',
       SymbolLayerProperties(
-        textOpacity: MapChartSettings.instance.zoomExpression('seamarks', 1, 0),
-        iconOpacity: MapChartSettings.instance.zoomExpression('seamarks', 1, 0),
-        iconImage: 'marina',
-        iconSize: _objectIconSize(1.15),
+        textOpacity: MapChartSettings.instance.objectZoomExpression(
+          'seamarks',
+          fromFull: true,
+          on: 1,
+          off: 0,
+        ),
+        iconOpacity: MapChartSettings.instance.objectZoomExpression(
+          'seamarks',
+          fromFull: false,
+          on: 1,
+          off: 0,
+        ),
+        iconImage: mapObjectImageId('hazard'),
+        iconSize: _objectIconSize(1.15, 'seamarks'),
         iconAllowOverlap: true,
         iconIgnorePlacement: true,
-        textField: _objectLabel(),
+        textField: _objectLabel(
+          fromZoom: MapChartSettings.instance
+              .objectZoomStops('seamarks')
+              .full
+              .toDouble(),
+        ),
         textFont: const ['Noto Sans Regular'],
-        textSize: 11,
+        textSize: _objectLabelTextSize,
         textAnchor: 'left',
         textJustify: 'left',
-        textOffset: const [_placeLabelOffset, 0],
+        textOffset: const [
+          _placeLabelOffset + _objectLabelRightShiftEm,
+          0,
+        ],
         textMaxWidth: 20,
         textAllowOverlap: true,
         textIgnorePlacement: true,
@@ -2060,14 +2337,32 @@ class MapService {
       'seamark-names',
       'seamark-names',
       SymbolLayerProperties(
-        textOpacity: MapChartSettings.instance.zoomExpression('seamarks', 1, 0),
-        iconOpacity: MapChartSettings.instance.zoomExpression('seamarks', 1, 0),
-        textField: _objectLabel(),
+        textOpacity: MapChartSettings.instance.objectZoomExpression(
+          'seamarks',
+          fromFull: true,
+          on: 1,
+          off: 0,
+        ),
+        iconOpacity: MapChartSettings.instance.objectZoomExpression(
+          'seamarks',
+          fromFull: false,
+          on: 1,
+          off: 0,
+        ),
+        textField: _objectLabel(
+          fromZoom: MapChartSettings.instance
+              .objectZoomStops('seamarks')
+              .full
+              .toDouble(),
+        ),
         textFont: const ['Noto Sans Regular'],
-        textSize: 11,
+        textSize: _objectLabelTextSize,
         textAnchor: 'left',
         textJustify: 'left',
-        textOffset: const [_seamarkLabelOffset, 0],
+        textOffset: const [
+          _seamarkLabelOffset + _objectLabelRightShiftEm,
+          0,
+        ],
         textMaxWidth: 20,
         textAllowOverlap: true,
         textIgnorePlacement: true,
@@ -2085,14 +2380,7 @@ class MapService {
       enableInteraction: false,
     );
     if (!isCurrent()) return;
-    final platformIcon = await rootBundle.load('assets/icons/oil_platform.png');
-    await controller.addImage(
-      'oil-platform',
-      platformIcon.buffer.asUint8List(
-        platformIcon.offsetInBytes,
-        platformIcon.lengthInBytes,
-      ),
-    );
+    // Platform image is registered with the other Marine objects icons.
     if (!isCurrent()) return;
     // OpenStreetMap platforms are not in the chart tiles. The icon is on
     // past zoom 6 and the name from zoom 12, for the view on screen.
@@ -2106,29 +2394,34 @@ class MapService {
       'oil-platforms',
       'oil-platforms',
       SymbolLayerProperties(
-        textOpacity: MapChartSettings.instance.zoomExpression(
-          'platformName',
-          1,
-          0,
-        ),
-        iconOpacity: MapChartSettings.instance.zoomExpression(
+        textOpacity: MapChartSettings.instance.objectZoomExpression(
           'platformIcon',
-          1,
-          0,
+          fromFull: true,
+          on: 1,
+          off: 0,
         ),
-        iconImage: 'oil-platform',
-        iconSize: _objectIconSize(0.5),
+        iconOpacity: MapChartSettings.instance.objectZoomExpression(
+          'platformIcon',
+          fromFull: false,
+          on: 1,
+          off: 0,
+        ),
+        iconImage: mapObjectImageId('platform'),
+        iconSize: _objectIconSize(0.9, 'platformIcon'),
         iconAllowOverlap: true,
         iconIgnorePlacement: true,
         textField: _objectLabel(
           fromZoom: MapChartSettings.instance.zoom('platformName'),
         ),
         textFont: const ['Noto Sans Regular'],
-        textSize: 11,
+        textSize: _objectLabelTextSize,
         textAnchor: 'left',
         textJustify: 'left',
-        // Text offset is in ems. These labels are 11 px, so 5 px is 5/11 em.
-        textOffset: const [_placeLabelOffset + 5 / 11, 0],
+        // Prior 5 px gap at 11 px text, plus another 5 px to the right.
+        textOffset: const [
+          _placeLabelOffset + 5 / 11 + _objectLabelRightShiftEm,
+          0,
+        ],
         textOptional: true,
         textMaxWidth: 20,
         textColor: objects.fuel.hex,
@@ -2146,32 +2439,30 @@ class MapService {
       CircleLayerProperties(
         circleRadius: _oilPlatformZoneRadius,
         circleColor: objects.platform.hex,
-        circleOpacity: MapChartSettings.instance.zoomExpression(
-          'platformZone',
-          0.18,
+        // Protection circle shares the platform full-icon zoom (hardcoded).
+        circleOpacity: [
+          'step',
+          ['zoom'],
           0,
-        ),
+          _oilPlatformZoneZoom,
+          0.18,
+        ],
         circleStrokeColor: objects.platform.hex,
         circleStrokeWidth: 1.4,
-        circleStrokeOpacity: MapChartSettings.instance.zoomExpression(
-          'platformZone',
-          0.95,
+        circleStrokeOpacity: [
+          'step',
+          ['zoom'],
           0,
-        ),
+          _oilPlatformZoneZoom,
+          0.95,
+        ],
       ),
       belowLayerId: 'oil-platforms',
-      minzoom: MapChartSettings.instance.zoom('platformZone') + 0.001,
+      minzoom: _oilPlatformZoneZoom,
       enableInteraction: false,
     );
     if (!isCurrent()) return;
-    final lighthouseIcon = await rootBundle.load('assets/icons/lighthouse.png');
-    await controller.addImage(
-      'lighthouse',
-      lighthouseIcon.buffer.asUint8List(
-        lighthouseIcon.offsetInBytes,
-        lighthouseIcon.lengthInBytes,
-      ),
-    );
+    // Lighthouse image is registered with the other Marine objects icons.
     if (!isCurrent()) return;
     // Chart tiles omit most of the light description, and the icon only
     // appears at close range. The icon is on past zoom 6. The name and the
@@ -2186,27 +2477,32 @@ class MapService {
       'lighthouses',
       'lighthouses',
       SymbolLayerProperties(
-        textOpacity: MapChartSettings.instance.zoomExpression(
-          'lighthouseName',
-          1,
-          0,
-        ),
-        iconOpacity: MapChartSettings.instance.zoomExpression(
+        textOpacity: MapChartSettings.instance.objectZoomExpression(
           'lighthouseIcon',
-          1,
-          0,
+          fromFull: true,
+          on: 1,
+          off: 0,
         ),
-        iconImage: 'lighthouse',
-        iconSize: _objectIconSize(0.5),
+        iconOpacity: MapChartSettings.instance.objectZoomExpression(
+          'lighthouseIcon',
+          fromFull: false,
+          on: 1,
+          off: 0,
+        ),
+        iconImage: mapObjectImageId('navLight'),
+        iconSize: _objectIconSize(0.9, 'lighthouseIcon'),
         iconAllowOverlap: true,
         iconIgnorePlacement: true,
         textField: _lighthouseLabel(),
         textFont: const ['Noto Sans Regular'],
-        textSize: 11,
+        textSize: _objectLabelTextSize,
         textAnchor: 'left',
         textJustify: 'left',
-        // Text offset is in ems. These labels are 11 px, so 5 px is 5/11 em.
-        textOffset: const [_placeLabelOffset + 5 / 11, 0],
+        // Prior 5 px gap at 11 px text, plus another 5 px to the right.
+        textOffset: const [
+          _placeLabelOffset + 5 / 11 + _objectLabelRightShiftEm,
+          0,
+        ],
         textOptional: true,
         textMaxWidth: 28,
         textColor: objects.navLight.hex,
@@ -2446,71 +2742,11 @@ class MapService {
   }
 
   /// Slipways from OpenStreetMap. Chart tiles leave them out until zoom 16.
-  /// The icon and the name are drawn once the zoom is past 14.
-  ///
-  /// The marina sprite is 38 px at pixel ratio 2, drawn at icon-size 1.15,
-  /// so it is 21.85 px on the chart. This image is 64 px, and 90% of the
-  /// marina is an icon-size of 0.307. The name stays at 11 px.
-  static const _slipwayIconSize = 0.9 * (38 / 2 * 1.15) / 64;
-  static double get _slipwayZoom => MapChartSettings.instance.zoom('slipway');
+  /// Icons follow the Marine objects 3-point zoom (defaults 14 / 15 / 22).
+  static double get _slipwayZoom =>
+      MapChartSettings.instance.zoom('slipwayIcon');
   static final _slipwayCoverage = <MapLibreMapController, List<double>>{};
   static final _slipwayRequest = <MapLibreMapController, int>{};
-
-  /// The blue disc becomes [color], which is the slipway name colour. The
-  /// dark ramp mark stays dark so the symbol still reads.
-  static Future<Uint8List> _slipwayIconInColor(ui.Color color) async {
-    final asset = await rootBundle.load('assets/icons/boat_slipway.png');
-    final bytes = asset.buffer.asUint8List(
-      asset.offsetInBytes,
-      asset.lengthInBytes,
-    );
-    final codec = await ui.instantiateImageCodec(bytes);
-    final frame = await codec.getNextFrame();
-    final image = frame.image;
-    final raw = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-    if (raw == null) return bytes;
-    final pixels = raw.buffer.asUint8List();
-    final argb = color.toARGB32();
-    final targetR = (argb >> 16) & 0xFF;
-    final targetG = (argb >> 8) & 0xFF;
-    final targetB = argb & 0xFF;
-    for (var i = 0; i < pixels.length; i += 4) {
-      final r = pixels[i];
-      final g = pixels[i + 1];
-      final b = pixels[i + 2];
-      if (pixels[i + 3] < 8) continue;
-      final toBlue = _colorDistance(r, g, b, 144, 176, 224);
-      final toMark = _colorDistance(r, g, b, 16, 16, 32);
-      if (toBlue < toMark) {
-        pixels[i] = targetR;
-        pixels[i + 1] = targetG;
-        pixels[i + 2] = targetB;
-      }
-    }
-    final buffer = await ui.ImmutableBuffer.fromUint8List(pixels);
-    final descriptor = ui.ImageDescriptor.raw(
-      buffer,
-      width: image.width,
-      height: image.height,
-      pixelFormat: ui.PixelFormat.rgba8888,
-    );
-    final tinted = await descriptor.instantiateCodec();
-    final tintedFrame = await tinted.getNextFrame();
-    final png = await tintedFrame.image.toByteData(
-      format: ui.ImageByteFormat.png,
-    );
-    image.dispose();
-    tintedFrame.image.dispose();
-    if (png == null) return bytes;
-    return png.buffer.asUint8List(png.offsetInBytes, png.lengthInBytes);
-  }
-
-  static int _colorDistance(int r, int g, int b, int r2, int g2, int b2) {
-    final dr = r - r2;
-    final dg = g - g2;
-    final db = b - b2;
-    return dr * dr + dg * dg + db * db;
-  }
 
   static Future<void> syncSlipways(MapLibreMapController controller) async {
     if (!MapChartSettings.instance.layerOn('slipways')) return;
@@ -2614,6 +2850,10 @@ class MapService {
   static double get _oilPlatformZoom =>
       MapChartSettings.instance.zoom('platformIcon');
 
+  /// Protection circle start zoom. Not a settings control; stays with the
+  /// platform full-icon default.
+  static const _oilPlatformZoneZoom = 12.0;
+
   /// Screen radius of a 500 m circle. Web Mercator metres per pixel are
   /// 156543.03392 * cos(latitude) / 2^zoom, so the radius doubles each zoom.
   static final List<Object> _oilPlatformZoneRadius = () {
@@ -2651,7 +2891,7 @@ class MapService {
 
   static Future<void> syncOilPlatforms(MapLibreMapController controller) async {
     final chart = MapChartSettings.instance;
-    if (!chart.layerOn('platforms') && !chart.layerOn('platformZones')) return;
+    if (!chart.layerOn('platforms')) return;
     final zoom = controller.cameraPosition?.zoom ?? 0;
     if (zoom <= _oilPlatformZoom) return;
     late LatLngBounds bounds;

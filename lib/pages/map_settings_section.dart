@@ -6,6 +6,7 @@ import 'package:free_open_ocean/core/localization/app_localizations.dart';
 import 'package:free_open_ocean/core/theme/marine_palette.dart';
 import 'package:free_open_ocean/pages/screen_color.dart';
 import 'package:free_open_ocean/services/map_chart_settings.dart';
+import 'package:free_open_ocean/services/map_object_icons.dart';
 
 // Palette field and zoom controls belonging to each switchable chart group.
 const _layerFields = <String, String>{
@@ -33,6 +34,7 @@ const _layerFields = <String, String>{
 /// Extra day and night colours shown inside a layer row.
 const _lineOnly = <String>{
   'coastline',
+  'boundaries',
   'graticule',
   'equator',
   'meridian',
@@ -78,6 +80,17 @@ const _lineForFill = <String, String>{
   'sunCore': 'sunRim',
   'moonCore': 'moonRim',
   'seaBase': 'seaEdge',
+  'marina': 'marinaBorder',
+  'anchorage': 'anchorageBorder',
+  'fuel': 'fuelBorder',
+  'customs': 'customsBorder',
+  'port': 'portBorder',
+  'service': 'serviceBorder',
+  'dock': 'dockBorder',
+  'slipway': 'slipwayBorder',
+  'hazard': 'hazardBorder',
+  'platform': 'platformBorder',
+  'navLight': 'navLightBorder',
 };
 
 const _layerExtraColors = <String, List<String>>{
@@ -97,17 +110,41 @@ const _layerExtraColors = <String, List<String>>{
     'landBeach',
     'islandFill',
     'coastline',
+    'boundaries',
     'landContour',
     'landContourLabel',
     'hillshadeShadow',
     'hillshadeHighlight',
     'hillshadeAccent',
   ],
-  'contours': ['caution', 'coastal', 'shelf', 'deep', 'label'],
-  'marinas': ['anchorage'],
-  'places': ['fuel', 'customs', 'service'],
-  'ferries': ['ferry'],
-  'waterNames': ['labelStrong', 'labelFaint', 'labelHalo'],
+  'coast': [
+    'danger',
+    'caution',
+    'coastal',
+    'shelf',
+    'deep',
+    'label',
+    'ferryRoute',
+    'ferry',
+    'bridge',
+  ],
+  'marinas': [
+    'anchorage',
+    'port',
+    'fuel',
+    'customs',
+    'service',
+    'dock',
+    'slipway',
+    'hazard',
+    'platform',
+    'navLight',
+  ],
+  'waterNames': [
+    'labelStrong',
+    'labelFaint',
+    'labelHalo',
+  ],
 };
 
 const _swatchSize = 16.0;
@@ -121,10 +158,54 @@ const _themeWidth = _roleSlot * 2 + _roleGap;
 const _linePxFor = <String, List<String>>{};
 
 /// Detail tiles: Name (18), Zoom, Line type, Line width, Fill, Line.
-const _detailTiles = <String>{'land', 'graticule'};
+const _detailTiles = <String>{
+  'land',
+  'graticule',
+  'coast',
+  'marinas',
+  'waterNames',
+};
+
+/// Detail tiles that pick a Flutter icon instead of line type / width.
+const _iconTiles = <String>{'marinas'};
 
 /// Fixed title column width for every parameter name in a detail tile.
 const _detailTitleChars = 18;
+
+/// Width reserved for the Marine objects icon control (replaces both line DDs).
+double _iconSlotWidth(BuildContext context) =>
+    _lineTypeSlotWidth(context) + 8 + _lineWidthSlotWidth(context);
+
+/// Zoom-only rows inserted after a colour field in a detail tile.
+const _detailZoomAfter = <String, List<String>>{
+  'seaBase': ['rivers', 'streams'],
+};
+
+/// Short help under a colour name, keyed by palette field.
+const _colorBlurbs = <String, String>{
+  'marina': 'map_color_marina_blurb',
+  'anchorage': 'map_color_anchorage_blurb',
+  'fuel': 'map_color_fuel_blurb',
+  'customs': 'map_color_customs_blurb',
+  'port': 'map_color_port_blurb',
+  'service': 'map_color_service_blurb',
+  'dock': 'map_color_dock_blurb',
+  'slipway': 'map_color_slipway_blurb',
+  'boundaries': 'map_color_boundaries_blurb',
+  'hazard': 'map_color_hazard_blurb',
+  'platform': 'map_color_platform_blurb',
+  'navLight': 'map_color_nav_light_blurb',
+  'labelSoft': 'map_color_label_soft_blurb',
+  'labelStrong': 'map_color_label_strong_blurb',
+  'labelFaint': 'map_color_label_faint_blurb',
+  'labelHalo': 'map_color_label_halo_blurb',
+};
+
+/// Tile header title when it differs from the anchor layer name.
+const _tileTitles = <String, String>{
+  'marinas': 'map_tile_places',
+  'waterNames': 'map_tile_labels',
+};
 
 /// Fields that expose line type and line width menus.
 bool _hasLineStrokeControls(String field) =>
@@ -163,12 +244,33 @@ double _lineWidthSlotWidth(BuildContext context) {
 }
 
 /// An existing zoom that already belongs to this colour.
-String _rowZoomId(String field) => switch (field) {
+/// Null when the colour row has no zoom control (Strong / Faint / Halo labels).
+String? _rowZoomId(String field) => switch (field) {
   'roadMinor' => 'smallDetail',
   'roadLabel' => 'roadNames',
   'hillshadeShadow' || 'hillshadeHighlight' || 'hillshadeAccent' => 'hillshade',
+  'ferryRoute' => 'ferry',
+  'ferry' => 'ferryNames',
+  'bridge' => 'bridges',
+  'boundaries' => 'boundaries',
+  'marina' => 'marinaIcon',
+  'anchorage' => 'anchorageIcon',
+  'port' => 'portIcon',
+  'fuel' => 'fuelIcon',
+  'customs' => 'customsIcon',
+  'service' => 'serviceIcon',
+  'dock' => 'dockIcon',
+  'slipway' => 'slipwayIcon',
+  'labelSoft' => 'waterNames',
+  'labelStrong' || 'labelFaint' || 'labelHalo' => null,
+  'hazard' => 'seamarks',
+  'platform' => 'platformIcon',
+  'navLight' => 'lighthouseIcon',
   _ => field,
 };
+
+/// Marine object rows that use the 3-point (small / full+name / end) zoom.
+bool _isObjectZoom(String id) => MapChartSettings.objectZoomIds.contains(id);
 
 MapZoomSetting _zoomSetting(String id) {
   for (final zoom in MapChartSettings.zooms) {
@@ -182,45 +284,34 @@ const _layerZooms = <String, List<String>>{
   'waterways': ['streams', 'rivers'],
   'roads': ['smallDetail'],
   'roadNames': ['roadNames'],
-  'marinas': ['iconFull', 'marinaIcon', 'marinaName'],
-  'places': ['places'],
-  'slipways': ['slipway'],
+  'marinas': ['marinaIcon', 'anchorageIcon'],
+  'places': [
+    'portIcon',
+    'fuelIcon',
+    'customsIcon',
+    'serviceIcon',
+    'dockIcon',
+  ],
+  'slipways': ['slipwayIcon'],
   'bridges': ['bridges'],
   'ferries': ['ferry', 'ferryNames'],
   'waterNames': ['waterNames'],
   'seamarks': ['seamarks'],
-  'platforms': ['platformIcon', 'platformName'],
-  'platformZones': ['platformZone'],
-  'lighthouses': ['lighthouseIcon', 'lighthouseName'],
+  'platforms': ['platformIcon'],
+  'lighthouses': ['lighthouseIcon'],
 };
 
 /// Layers drawn inside another layer's tile instead of their own row.
-const _nestedLayers = <String, List<String>>{
-  'platforms': ['platformZones'],
-};
+const _nestedLayers = <String, List<String>>{};
 
 /// Several layer rows that share one tile. The first id is the anchor.
-const _sharedTiles = <String, List<String>>{
-  'coast': ['coast', 'waterways', 'contours', 'ferries', 'slipways', 'bridges'],
-  'marinas': [
-    'marinas',
-    'places',
-    'harbour',
-    'waterNames',
-    'seamarks',
-    'platforms',
-    'lighthouses',
-  ],
-};
+const _sharedTiles = <String, List<String>>{};
 
 /// Title shown on a shared tile. Single-layer tiles use their own row name.
-const _sharedTileTitles = <String, String>{
-  'coast': 'map_tile_sea',
-  'marinas': 'map_tile_places',
-};
+const _sharedTileTitles = <String, String>{};
 
-/// Shared tiles drawn immediately after another layer, not at the anchor.
-const _sharedTileAfter = <String, String>{'land': 'coast'};
+/// Tile drawn immediately after another layer (Sea after Land).
+const _tileAfter = <String, String>{'land': 'coast'};
 
 /// Single tiles drawn before the layer list.
 const _tilesFirst = <String>['graticule'];
@@ -229,7 +320,7 @@ const _tilesFirst = <String>['graticule'];
 const _tilesLast = <String>[];
 
 /// One header and one collapse, the same as a single layer tile.
-const _singleCollapseTiles = <String>{'coast', 'marinas'};
+const _singleCollapseTiles = <String>{};
 
 bool _followsSharedTile(String id) => _sharedTiles.values.any(
   (ids) => ids.length > 1 && ids.first != id && ids.contains(id),
@@ -241,6 +332,17 @@ const _absorbedLayers = <String, String>{
   'roads': 'land',
   'roadNames': 'land',
   'sky': 'graticule',
+  'waterways': 'coast',
+  'contours': 'coast',
+  'ferries': 'coast',
+  'slipways': 'marinas',
+  'bridges': 'coast',
+  'places': 'marinas',
+  'harbour': 'marinas',
+  'seamarks': 'marinas',
+  'platforms': 'marinas',
+  'platformZones': 'marinas',
+  'lighthouses': 'marinas',
 };
 
 bool _hidesOwnTile(String id) =>
@@ -263,7 +365,7 @@ String _elementIdForColor(String field) => switch (field) {
   'bridge' => 'bridges',
   'dock' => 'harbour',
   'ferryRoute' => 'ferries',
-  'labelSoft' => 'waterNames',
+  'labelSoft' || 'labelStrong' || 'labelFaint' || 'labelHalo' => 'waterNames',
   'hazard' => 'seamarks',
   'platform' => 'platforms',
   'navLight' => 'lighthouses',
@@ -337,7 +439,7 @@ IconData _getIcon(String id) {
     case 'contours':
       return Icons.trending_up;
     case 'marinas':
-      return Icons.terrain;
+      return Icons.anchor;
     case 'places':
       return Icons.location_on;
     case 'slipways':
@@ -420,14 +522,18 @@ class MapSettingsSection extends StatelessWidget {
               for (final layer in MapChartSettings.layers) ...[
                 if (!_hidesOwnTile(layer.id) &&
                     !_followsSharedTile(layer.id) &&
-                    !_sharedTileAfter.containsValue(layer.id) &&
+                    !_tileAfter.containsValue(layer.id) &&
                     !_tilesFirst.contains(layer.id) &&
                     !_tilesLast.contains(layer.id))
                   _sharedTiles[layer.id] == null
                       ? _LayerTile(layer: layer)
                       : _SharedTile(ids: _sharedTiles[layer.id]!),
-                if (_sharedTileAfter[layer.id] != null)
-                  _SharedTile(ids: _sharedTiles[_sharedTileAfter[layer.id]!]!),
+                if (_tileAfter[layer.id] != null)
+                  _LayerTile(
+                    layer: MapChartSettings.layers.firstWhere(
+                      (item) => item.id == _tileAfter[layer.id],
+                    ),
+                  ),
               ],
               for (final id in _tilesLast)
                 _LayerTile(
@@ -564,8 +670,6 @@ class _SharedTileState extends State<_SharedTile> {
     final name = AppLocalizations.of(
       context,
     )!.translate(_sharedTileTitles[anchor.id] ?? anchor.labelKey);
-    // Sea rows are a name and a switch. The header switch covers the tile.
-    final switchesOnly = anchor.id == 'coast';
     final iconColor = _layerTints[anchor.id] ?? Colors.grey;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -630,7 +734,6 @@ class _SharedTileState extends State<_SharedTile> {
               layer: layers[i],
               boxed: false,
               collapsible: false,
-              showIcon: !switchesOnly,
             ),
           ],
       ],
@@ -664,7 +767,9 @@ class _LayerTileState extends State<_LayerTile> {
 
   @override
   Widget build(BuildContext context) {
-    final name = AppLocalizations.of(context)!.translate(layer.labelKey);
+    final name = AppLocalizations.of(context)!.translate(
+      _tileTitles[layer.id] ?? layer.labelKey,
+    );
     final nested = [
       for (final id in _nestedLayers[layer.id] ?? const <String>[])
         MapChartSettings.layers.firstWhere((item) => item.id == id),
@@ -677,7 +782,12 @@ class _LayerTileState extends State<_LayerTile> {
     final detailTile = _detailTiles.contains(layer.id);
     final embeddedZooms = {
       ...lineIds,
-      if (detailTile) ...[for (final color in colors) _rowZoomId(color.field)],
+      if (detailTile) ...[
+        for (final color in colors)
+          if (_rowZoomId(color.field) != null) _rowZoomId(color.field)!,
+        for (final color in colors)
+          ..._detailZoomAfter[color.field] ?? const <String>[],
+      ],
     };
     final roadColors = [
       for (final color in colors)
@@ -760,7 +870,10 @@ class _LayerTileState extends State<_LayerTile> {
             _InputColumnHeaders(
               titleChars: detailTile ? _detailTitleChars : null,
               showZoom: detailTile || lineIds.isNotEmpty,
-              showLineMenus: detailTile || lineIds.isNotEmpty,
+              showLineMenus:
+                  (detailTile || lineIds.isNotEmpty) &&
+                  !_iconTiles.contains(layer.id),
+              showIconMenus: _iconTiles.contains(layer.id),
             ),
           for (final zoom in zoomSettings)
             if (!embeddedZooms.contains(zoom.id))
@@ -776,13 +889,21 @@ class _LayerTileState extends State<_LayerTile> {
                 if (color.field == id)
                   _ColorRow(setting: color, lineWidthId: id, zoomId: id),
           if (detailTile)
-            for (final color in colors)
+            for (final color in colors) ...[
               _ColorRow(
                 setting: color,
                 lineWidthId: color.field,
                 zoomId: _rowZoomId(color.field),
                 titleChars: _detailTitleChars,
-              )
+                iconMenus: _iconTiles.contains(layer.id),
+              ),
+              for (final zoomId in _detailZoomAfter[color.field] ?? const <String>[])
+                _ColorRow.zoomOnly(
+                  zoom: _zoomSetting(zoomId),
+                  titleChars: _detailTitleChars,
+                  iconMenus: _iconTiles.contains(layer.id),
+                ),
+            ]
           else
             ...roadColors.map((color) => _ColorRow(setting: color)),
           if (nested.isNotEmpty) ...[
@@ -898,11 +1019,13 @@ class _InputColumnHeaders extends StatelessWidget {
     this.titleChars,
     this.showZoom = false,
     this.showLineMenus = false,
+    this.showIconMenus = false,
   });
 
   final int? titleChars;
   final bool showZoom;
   final bool showLineMenus;
+  final bool showIconMenus;
 
   @override
   Widget build(BuildContext context) {
@@ -917,6 +1040,7 @@ class _InputColumnHeaders extends StatelessWidget {
     );
     final typeWidth = showLineMenus ? _lineTypeSlotWidth(context) : null;
     final widthWidth = showLineMenus ? _lineWidthSlotWidth(context) : null;
+    final iconWidth = showIconMenus ? _iconSlotWidth(context) : null;
     final name = Text(
       l.translate('map_column_name'),
       style: style,
@@ -1006,9 +1130,22 @@ class _InputColumnHeaders extends StatelessWidget {
             slotLabel('map_line_width', widthWidth),
             const SizedBox(width: 8),
           ],
-          pair(l.translate('map_color_fill')),
+          if (showIconMenus) ...[
+            // Shape picker; Icon / Border colour headers sit to the right.
+            SizedBox(width: iconWidth),
+            const SizedBox(width: 8),
+          ],
+          pair(
+            l.translate(
+              showIconMenus ? 'map_color_icon' : 'map_color_fill',
+            ),
+          ),
           const SizedBox(width: _themeGap),
-          pair(l.translate('map_color_line')),
+          pair(
+            l.translate(
+              showIconMenus ? 'map_color_border' : 'map_color_line',
+            ),
+          ),
         ],
       ),
     );
@@ -1066,6 +1203,9 @@ class _ZoomRangeState extends State<_ZoomRange> {
           overlayColor: scheme.primary.withValues(alpha: 0.16),
           rangeThumbShape: const RoundRangeSliderThumbShape(
             enabledThumbRadius: 6,
+          ),
+          rangeTickMarkShape: const RoundRangeSliderTickMarkShape(
+            tickMarkRadius: 1,
           ),
           overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
         ),
@@ -1167,6 +1307,327 @@ class _ZoomRangeState extends State<_ZoomRange> {
   }
 }
 
+/// Three thumbs: small icon, full icon + name, end of range.
+class _ZoomTriple extends StatefulWidget {
+  const _ZoomTriple({required this.id, this.barOnly = false});
+
+  final String id;
+  final bool barOnly;
+
+  @override
+  State<_ZoomTriple> createState() => _ZoomTripleState();
+}
+
+class _ZoomTripleState extends State<_ZoomTriple> {
+  ObjectZoomStops? _drag;
+
+  ObjectZoomStops get _stored =>
+      MapChartSettings.instance.objectZoomStops(widget.id);
+
+  @override
+  Widget build(BuildContext context) {
+    final stops = _drag ?? _stored;
+    final scheme = Theme.of(context).colorScheme;
+    // Small-icon zone and full-icon+name zone use distinct hues.
+    final smallZone = scheme.tertiary;
+    final fullZone = scheme.primary;
+    final label = '${stops.small} · ${stops.full} · ${stops.end}';
+    final bar = Expanded(
+      child: SliderTheme(
+        data: SliderThemeData(
+          trackHeight: 4,
+          activeTrackColor: fullZone,
+          inactiveTrackColor: scheme.outlineVariant,
+          thumbColor: fullZone,
+          overlayColor: fullZone.withValues(alpha: 0.16),
+          rangeThumbShape: const RoundRangeSliderThumbShape(
+            enabledThumbRadius: 6,
+          ),
+          overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+        ),
+        child: _ObjectZoomSlider(
+          small: stops.small.toDouble(),
+          full: stops.full.toDouble(),
+          end: stops.end.toDouble(),
+          min: 2,
+          max: 22,
+          smallZone: smallZone,
+          fullZone: fullZone,
+          onChanged: (small, full, end) {
+            setState(
+              () => _drag = (
+                small: small.round(),
+                full: full.round(),
+                end: end.round(),
+              ),
+            );
+          },
+          onChangeEnd: (small, full, end) async {
+            await MapChartSettings.instance.setObjectZoomStops(
+              widget.id,
+              small.round(),
+              full.round(),
+              end.round(),
+            );
+            if (mounted) setState(() => _drag = null);
+          },
+        ),
+      ),
+    );
+    final value = SizedBox(
+      width: 72,
+      child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+    );
+    return SizedBox(
+      height: 28,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [bar, const SizedBox(width: 12), value],
+      ),
+    );
+  }
+}
+
+/// Custom three-thumb slider for marine object zoom stops.
+class _ObjectZoomSlider extends StatefulWidget {
+  const _ObjectZoomSlider({
+    required this.small,
+    required this.full,
+    required this.end,
+    required this.min,
+    required this.max,
+    required this.smallZone,
+    required this.fullZone,
+    required this.onChanged,
+    required this.onChangeEnd,
+  });
+
+  final double small;
+  final double full;
+  final double end;
+  final double min;
+  final double max;
+  final Color smallZone;
+  final Color fullZone;
+  final void Function(double small, double full, double end) onChanged;
+  final void Function(double small, double full, double end) onChangeEnd;
+
+  @override
+  State<_ObjectZoomSlider> createState() => _ObjectZoomSliderState();
+}
+
+class _ObjectZoomSliderState extends State<_ObjectZoomSlider> {
+  late double _small = widget.small;
+  late double _full = widget.full;
+  late double _end = widget.end;
+
+  @override
+  void didUpdateWidget(covariant _ObjectZoomSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _small = widget.small;
+    _full = widget.full;
+    _end = widget.end;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = SliderTheme.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        double xFor(double value) {
+          if (widget.max <= widget.min) return 0;
+          return (value - widget.min) / (widget.max - widget.min) * width;
+        }
+
+        double valueFor(double dx) {
+          if (width <= 0) return widget.min;
+          final t = (dx / width).clamp(0.0, 1.0);
+          return (widget.min + t * (widget.max - widget.min))
+              .roundToDouble()
+              .clamp(widget.min, widget.max);
+        }
+
+        void move(int thumb, double dx, {required bool endDrag}) {
+          final next = valueFor(dx);
+          setState(() {
+            switch (thumb) {
+              case 0:
+                _small = next.clamp(widget.min, _full);
+              case 1:
+                _full = next.clamp(_small, _end);
+              default:
+                _end = next.clamp(_full, widget.max);
+            }
+          });
+          if (endDrag) {
+            widget.onChangeEnd(_small, _full, _end);
+          } else {
+            widget.onChanged(_small, _full, _end);
+          }
+        }
+
+        Widget thumb(int index, double value, Color color) {
+          return Positioned(
+            left: xFor(value) - 8,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onHorizontalDragUpdate: (details) {
+                final box = context.findRenderObject() as RenderBox?;
+                if (box == null) return;
+                move(
+                  index,
+                  box.globalToLocal(details.globalPosition).dx,
+                  endDrag: false,
+                );
+              },
+              onHorizontalDragEnd: (_) =>
+                  widget.onChangeEnd(_small, _full, _end),
+              child: Center(
+                child: Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return SizedBox(
+          height: constraints.maxHeight,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _ObjectZoomTrackPainter(
+                    small: _small,
+                    full: _full,
+                    end: _end,
+                    min: widget.min,
+                    max: widget.max,
+                    smallZone: widget.smallZone,
+                    fullZone: widget.fullZone,
+                    inactive: theme.inactiveTrackColor ??
+                        Theme.of(context).colorScheme.outlineVariant,
+                    // Match Material RangeSlider tick marks: coloured bots on
+                    // the idle track, light bots on the active zones.
+                    tickOnIdle: widget.fullZone.withValues(alpha: 0.7),
+                    tickOnSmall: Theme.of(context).colorScheme.onTertiary,
+                    tickOnFull: Theme.of(context).colorScheme.onPrimary,
+                    height: theme.trackHeight ?? 4,
+                  ),
+                ),
+              ),
+              thumb(0, _small, widget.smallZone),
+              thumb(1, _full, widget.fullZone),
+              thumb(2, _end, widget.fullZone),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ObjectZoomTrackPainter extends CustomPainter {
+  _ObjectZoomTrackPainter({
+    required this.small,
+    required this.full,
+    required this.end,
+    required this.min,
+    required this.max,
+    required this.smallZone,
+    required this.fullZone,
+    required this.inactive,
+    required this.tickOnIdle,
+    required this.tickOnSmall,
+    required this.tickOnFull,
+    required this.height,
+  });
+
+  final double small;
+  final double full;
+  final double end;
+  final double min;
+  final double max;
+  final Color smallZone;
+  final Color fullZone;
+  final Color inactive;
+  final Color tickOnIdle;
+  final Color tickOnSmall;
+  final Color tickOnFull;
+  final double height;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final y = size.height / 2;
+    final track = Paint()
+      ..color = inactive
+      ..strokeWidth = height
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(0, y), Offset(size.width, y), track);
+    if (max <= min) return;
+    double x(double v) => (v - min) / (max - min) * size.width;
+    // Zone 1: small icon. Zone 2: full icon + name.
+    canvas.drawLine(
+      Offset(x(small), y),
+      Offset(x(full), y),
+      Paint()
+        ..color = smallZone
+        ..strokeWidth = height
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawLine(
+      Offset(x(full), y),
+      Offset(x(end), y),
+      Paint()
+        ..color = fullZone
+        ..strokeWidth = height
+        ..strokeCap = StrokeCap.round,
+    );
+    // Division bots like Water names, kept small so the track stays clean.
+    final bot = Paint()..style = PaintingStyle.fill;
+    const radius = 1.0;
+    for (var level = min.round(); level <= max.round(); level++) {
+      final at = level.toDouble();
+      if (at >= full && at <= end) {
+        bot.color = tickOnFull;
+      } else if (at >= small && at < full) {
+        bot.color = tickOnSmall;
+      } else {
+        bot.color = tickOnIdle;
+      }
+      canvas.drawCircle(Offset(x(at), y), radius, bot);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ObjectZoomTrackPainter oldDelegate) =>
+      small != oldDelegate.small ||
+      full != oldDelegate.full ||
+      end != oldDelegate.end ||
+      smallZone != oldDelegate.smallZone ||
+      fullZone != oldDelegate.fullZone ||
+      inactive != oldDelegate.inactive ||
+      tickOnIdle != oldDelegate.tickOnIdle ||
+      tickOnSmall != oldDelegate.tickOnSmall ||
+      tickOnFull != oldDelegate.tickOnFull;
+}
+
 /// Width locked to [chars] character cells; short names keep the slot.
 Widget _charsTitle(BuildContext context, Widget label, int chars) {
   final painter = TextPainter(
@@ -1185,6 +1646,209 @@ String _lineWidthLabel(double px) {
       ? px.toStringAsFixed(0)
       : px.toStringAsFixed(1);
   return '$text px';
+}
+
+Color _objectColor(MarinePalette palette, String field) {
+  final objects = palette.objects;
+  return switch (field) {
+    'marina' => objects.marina,
+    'marinaBorder' => objects.marinaBorder,
+    'anchorage' => objects.anchorage,
+    'anchorageBorder' => objects.anchorageBorder,
+    'fuel' => objects.fuel,
+    'fuelBorder' => objects.fuelBorder,
+    'customs' => objects.customs,
+    'customsBorder' => objects.customsBorder,
+    'port' => objects.port,
+    'portBorder' => objects.portBorder,
+    'service' => objects.service,
+    'serviceBorder' => objects.serviceBorder,
+    'dock' => objects.dock,
+    'dockBorder' => objects.dockBorder,
+    'slipway' => objects.slipway,
+    'slipwayBorder' => objects.slipwayBorder,
+    'hazard' => objects.hazard,
+    'hazardBorder' => objects.hazardBorder,
+    'platform' => objects.platform,
+    'platformBorder' => objects.platformBorder,
+    'navLight' => objects.navLight,
+    'navLightBorder' => objects.navLightBorder,
+    _ => objects.marina,
+  };
+}
+
+/// Flutter icon picker for a Marine objects row.
+class _ObjectIconMenu extends StatelessWidget {
+  const _ObjectIconMenu({
+    required this.field,
+    required this.iconColor,
+    required this.borderColor,
+  });
+
+  final String field;
+  final Color iconColor;
+  final Color borderColor;
+
+  static const _box = 28.0;
+  static const _radius = 4.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final icon = MapChartSettings.instance.objectIcon(field);
+    final width = _iconSlotWidth(context);
+    return SizedBox(
+      width: width,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Tooltip(
+          message: l.translate('map_column_icon'),
+          child: InkWell(
+            onTap: () => _pick(context),
+            borderRadius: BorderRadius.circular(_radius),
+            child: _iconBox(icon),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _iconBox(IconData icon) {
+    return Container(
+      width: _box,
+      height: _box,
+      decoration: BoxDecoration(
+        border: Border.all(color: borderColor, width: 1.5),
+        borderRadius: BorderRadius.circular(_radius),
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, size: 18, color: iconColor),
+    );
+  }
+
+  Future<void> _pick(BuildContext context) async {
+    final chosen = await showDialog<IconData>(
+      context: context,
+      builder: (context) => _ObjectIconPicker(
+        field: field,
+        color: iconColor,
+        current: MapChartSettings.instance.objectIcon(field),
+      ),
+    );
+    if (chosen == null) return;
+    await MapChartSettings.instance.setObjectIcon(field, chosen);
+  }
+}
+
+class _ObjectIconPicker extends StatefulWidget {
+  const _ObjectIconPicker({
+    required this.field,
+    required this.color,
+    required this.current,
+  });
+
+  final String field;
+  final Color color;
+  final IconData current;
+
+  @override
+  State<_ObjectIconPicker> createState() => _ObjectIconPickerState();
+}
+
+class _ObjectIconPickerState extends State<_ObjectIconPicker> {
+  String _query = '';
+
+  List<NamedChartIcon> get _filtered {
+    final q = _query.trim().toLowerCase().replaceAll(' ', '_');
+    if (q.isNotEmpty) {
+      return [
+        for (final entry in mapObjectIconCatalog)
+          if (entry.name.contains(q)) entry,
+      ];
+    }
+    // Defaults first so marina / anchorage / fuel stay easy to find.
+    final defaults = {
+      for (final icon in mapObjectIconDefaults.values) icon.codePoint,
+    };
+    final preferred = <NamedChartIcon>[];
+    final rest = <NamedChartIcon>[];
+    for (final entry in mapObjectIconCatalog) {
+      if (defaults.contains(entry.icon.codePoint)) {
+        preferred.add(entry);
+      } else {
+        rest.add(entry);
+      }
+    }
+    return [...preferred, ...rest];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final icons = _filtered;
+    return AlertDialog(
+      title: Text(l.translate('map_column_icon')),
+      content: SizedBox(
+        width: 420,
+        height: 420,
+        child: Column(
+          children: [
+            TextField(
+              decoration: InputDecoration(
+                hintText: l.translate('map_icon_search'),
+                prefixIcon: const Icon(Icons.search),
+                isDense: true,
+              ),
+              onChanged: (value) => setState(() => _query = value),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 8,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                ),
+                itemCount: icons.length,
+                itemBuilder: (context, index) {
+                  final entry = icons[index];
+                  final icon = entry.icon;
+                  final selected = icon.codePoint == widget.current.codePoint &&
+                      icon.fontFamily == widget.current.fontFamily;
+                  return Tooltip(
+                    message: entry.name,
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).pop(icon),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: selected
+                                ? widget.color
+                                : Theme.of(context).colorScheme.outlineVariant,
+                            width: selected ? 2 : 1,
+                          ),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(icon, size: 22, color: widget.color),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l.translate('map_cancel')),
+        ),
+      ],
+    );
+  }
 }
 
 class _LineTypeMenu extends StatelessWidget {
@@ -1286,16 +1950,29 @@ class _LineWidthMenu extends StatelessWidget {
 
 class _ColorRow extends StatelessWidget {
   const _ColorRow({
-    required this.setting,
+    required MapColorSetting this.setting,
     this.swatchesOnly = false,
     this.lineWidthId,
     this.zoomId,
     this.titleChars,
-  });
+    this.iconMenus = false,
+  }) : zoomOnly = null;
+
+  /// Name + zoom + empty stroke/colour slots (Streams, Rivers, …).
+  _ColorRow.zoomOnly({
+    required MapZoomSetting zoom,
+    this.titleChars,
+    this.iconMenus = false,
+  }) : setting = null,
+       swatchesOnly = false,
+       lineWidthId = null,
+       zoomId = zoom.id,
+       zoomOnly = zoom;
 
   final bool swatchesOnly;
 
-  final MapColorSetting setting;
+  final MapColorSetting? setting;
+  final MapZoomSetting? zoomOnly;
 
   /// When set, the line-width menu sits beside this row's colours.
   final String? lineWidthId;
@@ -1307,79 +1984,95 @@ class _ColorRow extends StatelessWidget {
   /// names end in an ellipsis.
   final int? titleChars;
 
+  /// Marine objects: one icon control instead of line type / width.
+  final bool iconMenus;
+
   @override
   Widget build(BuildContext context) {
     final day = MarinePalette.of(Brightness.light);
     final night = MarinePalette.of(Brightness.dark);
-    final line = _linePartner(setting);
-    // Land detail rows always reserve line-type / line-width slots.
-    final reserveLineMenus = titleChars != null;
+    final color = setting;
+    final zoomRow = zoomOnly;
+    final labelKey = zoomRow?.labelKey ?? color!.labelKey;
+    final switchId = zoomRow != null
+        ? _elementIdForZoom(zoomRow.id)
+        : _elementIdForColor(color!.field);
+    final line = color == null ? null : _linePartner(color);
+    final reserveMenus = titleChars != null;
+    final showIconMenu =
+        iconMenus && color != null && mapObjectIconFields.contains(color.field);
     final showLineMenus =
-        lineWidthId != null && _hasLineStrokeControls(setting.field);
-    final typeWidth = reserveLineMenus || showLineMenus
+        !iconMenus &&
+        color != null &&
+        lineWidthId != null &&
+        _hasLineStrokeControls(color.field);
+    final typeWidth = !iconMenus && (reserveMenus || showLineMenus)
         ? _lineTypeSlotWidth(context)
         : null;
-    final widthWidth = reserveLineMenus || showLineMenus
+    final widthWidth = !iconMenus && (reserveMenus || showLineMenus)
         ? _lineWidthSlotWidth(context)
         : null;
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: swatchesOnly ? 0 : 1),
-      child: Row(
+    final iconWidth = iconMenus && reserveMenus
+        ? _iconSlotWidth(context)
+        : null;
+    final title = Text(
+      AppLocalizations.of(context)!.translate(labelKey),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    final blurbKey = color == null ? null : _colorBlurbs[color.field];
+    final blurb = blurbKey == null
+        ? null
+        : Text(
+            AppLocalizations.of(context)!.translate(blurbKey),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          );
+    final row = Row(
         children: [
           if (!swatchesOnly) ...[
-            _ElementSwitch(_elementIdForColor(setting.field)),
-            if (zoomId == null)
-              titleChars == null
-                  ? Expanded(
-                      child: Text(
-                        AppLocalizations.of(
-                          context,
-                        )!.translate(setting.labelKey),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    )
-                  : _charsTitle(
-                      context,
-                      Text(
-                        AppLocalizations.of(
-                          context,
-                        )!.translate(setting.labelKey),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      titleChars!,
-                    )
+            _ElementSwitch(switchId),
+            if (zoomId == null && titleChars == null)
+              Expanded(child: title)
             else ...[
               titleChars == null
-                  ? Text(
-                      AppLocalizations.of(context)!.translate(setting.labelKey),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    )
-                  : _charsTitle(
-                      context,
-                      Text(
-                        AppLocalizations.of(
-                          context,
-                        )!.translate(setting.labelKey),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      titleChars!,
-                    ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _ZoomRange(
-                  setting: _zoomSetting(zoomId!),
-                  showSwitch: false,
-                  barOnly: true,
+                  ? title
+                  : _charsTitle(context, title, titleChars!),
+              // Detail tiles keep the Zoom column even when a row has none.
+              if (zoomId != null || titleChars != null) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: zoomId == null
+                      ? const SizedBox.shrink()
+                      : _isObjectZoom(zoomId!)
+                      ? _ZoomTriple(id: zoomId!, barOnly: true)
+                      : _ZoomRange(
+                          setting: _zoomSetting(zoomId!),
+                          showSwitch: false,
+                          barOnly: true,
+                        ),
                 ),
-              ),
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
+              ],
             ],
           ],
-          if (reserveLineMenus || showLineMenus) ...[
+          if (iconMenus && reserveMenus) ...[
+            SizedBox(
+              width: iconWidth,
+              child: showIconMenu
+                  ? _ObjectIconMenu(
+                      field: color!.field,
+                      iconColor: _objectColor(day, color.field),
+                      borderColor: _objectColor(
+                        day,
+                        _lineForFill[color.field] ?? color.field,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 8),
+          ] else if (reserveMenus || showLineMenus) ...[
             SizedBox(
               width: typeWidth,
               child: showLineMenus
@@ -1395,12 +2088,27 @@ class _ColorRow extends StatelessWidget {
             ),
             const SizedBox(width: 8),
           ],
-          // Fill day/night always keep the same width; line-only rows stay empty.
-          _roleMarks(context, day, night, line, asLine: false),
+          // Fill day/night always keep the same width; empty when unused.
+          _roleMarks(context, day, night, color, line, asLine: false),
           const SizedBox(width: _themeGap),
-          _roleMarks(context, day, night, line, asLine: true),
+          _roleMarks(context, day, night, color, line, asLine: true),
         ],
-      ),
+    );
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: swatchesOnly ? 0 : 1),
+      child: blurb == null
+          ? row
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                row,
+                Padding(
+                  // Align under the name, past the 36+5 switch.
+                  padding: const EdgeInsets.only(left: 41, top: 0, bottom: 4),
+                  child: blurb,
+                ),
+              ],
+            ),
     );
   }
 
@@ -1417,10 +2125,12 @@ class _ColorRow extends StatelessWidget {
     BuildContext context,
     MarinePalette day,
     MarinePalette night,
+    MapColorSetting? color,
     MapColorSetting? line, {
     required bool asLine,
   }) {
-    final lineOnly = line == null && _lineOnly.contains(setting.field);
+    final lineOnly =
+        color != null && line == null && _lineOnly.contains(color.field);
     Widget slot(String theme, MarinePalette palette, MapColorSetting? item) {
       return SizedBox(
         width: _roleSlot,
@@ -1438,9 +2148,11 @@ class _ColorRow extends StatelessWidget {
       );
     }
 
-    final MapColorSetting? shown = asLine
-        ? (line ?? (lineOnly ? setting : null))
-        : (lineOnly ? null : setting);
+    final MapColorSetting? shown = color == null
+        ? null
+        : asLine
+            ? (line ?? (lineOnly ? color : null))
+            : (lineOnly ? null : color);
     return SizedBox(
       width: _themeWidth,
       child: Row(
@@ -1471,6 +2183,7 @@ class _ColorRow extends StatelessWidget {
       'seaBase' => chart.seaBase,
       'seaEdge' => chart.seaEdge,
       'coastline' => chart.coastline,
+      'boundaries' => chart.boundaries,
       'islandFill' => chart.islandFill,
       'islandEdge' => chart.islandEdge,
       'graticule' => chart.graticule,
@@ -1508,18 +2221,29 @@ class _ColorRow extends StatelessWidget {
     final objects = palette.objects;
     return switch (item.field) {
       'marina' => objects.marina,
+      'marinaBorder' => objects.marinaBorder,
       'anchorage' => objects.anchorage,
+      'anchorageBorder' => objects.anchorageBorder,
       'fuel' => objects.fuel,
+      'fuelBorder' => objects.fuelBorder,
       'customs' => objects.customs,
+      'customsBorder' => objects.customsBorder,
       'port' => objects.port,
+      'portBorder' => objects.portBorder,
       'service' => objects.service,
+      'serviceBorder' => objects.serviceBorder,
       'slipway' => objects.slipway,
+      'slipwayBorder' => objects.slipwayBorder,
       'ferry' => objects.ferry,
       'ferryRoute' => objects.ferryRoute,
       'dock' => objects.dock,
+      'dockBorder' => objects.dockBorder,
       'bridge' => objects.bridge,
       'hazard' => objects.hazard,
+      'hazardBorder' => objects.hazardBorder,
       'navLight' => objects.navLight,
+      'navLightBorder' => objects.navLightBorder,
+      'platformBorder' => objects.platformBorder,
       _ => objects.platform,
     };
   }
@@ -1544,7 +2268,13 @@ class _ColorRow extends StatelessWidget {
     bool line,
   ) {
     final l = AppLocalizations.of(context)!;
-    final role = l.translate(line ? 'map_color_line' : 'map_color_fill');
+    final iconRow =
+        setting != null && mapObjectIconFields.contains(setting!.field);
+    final role = l.translate(
+      line
+          ? (iconRow ? 'map_color_border' : 'map_color_line')
+          : (iconRow ? 'map_color_icon' : 'map_color_fill'),
+    );
     final when = l.translate(
       theme == 'day' ? 'map_color_day' : 'map_color_night',
     );
@@ -1563,37 +2293,41 @@ class _ColorRow extends StatelessWidget {
             child: const SizedBox(width: _swatchSize, height: _swatchSize),
           );
     return Tooltip(
-      message: '${l.translate(setting.labelKey)} · $role · $when',
+      message: '${l.translate(setting!.labelKey)} · $role · $when',
       child: GestureDetector(onTap: () => _edit(context, theme), child: mark),
     );
   }
 
   Future<void> _edit(BuildContext context, String theme) async {
-    final partner = _linePartner(setting);
+    final color = setting!;
+    final partner = _linePartner(color);
     final palette = MarinePalette.of(
       theme == 'day' ? Brightness.light : Brightness.dark,
     );
+    final iconRow = mapObjectIconFields.contains(color.field);
     final picked = await showDialog<_PaintColors>(
       context: context,
       builder: (context) => _PaintPicker(
-        title: AppLocalizations.of(context)!.translate(setting.labelKey),
-        fill: _read(palette, setting),
+        title: AppLocalizations.of(context)!.translate(color.labelKey),
+        fill: _read(palette, color),
         line: partner == null ? null : _read(palette, partner),
+        fillRole: iconRow ? 'map_color_icon' : 'map_color_fill',
+        lineRole: iconRow ? 'map_color_border' : 'map_color_line',
         singleRole: partner != null
             ? null
-            : _lineOnly.contains(setting.field)
-            ? 'map_color_line'
-            : _fills.contains(setting.field)
-            ? 'map_color_fill'
-            : null,
+            : _lineOnly.contains(color.field)
+                ? 'map_color_line'
+                : _fills.contains(color.field)
+                    ? (iconRow ? 'map_color_icon' : 'map_color_fill')
+                    : null,
       ),
     );
     if (picked == null) return;
     final settings = MapChartSettings.instance;
     await settings.setColor(
       theme,
-      setting.group,
-      setting.field,
+      color.group,
+      color.field,
       picked.fill.toARGB32(),
     );
     if (partner != null && picked.line != null) {
@@ -1618,12 +2352,16 @@ class _PaintPicker extends StatefulWidget {
     required this.title,
     required this.fill,
     required this.line,
+    this.fillRole = 'map_color_fill',
+    this.lineRole = 'map_color_line',
     this.singleRole,
   });
 
   final String title;
   final Color fill;
   final Color? line;
+  final String fillRole;
+  final String lineRole;
 
   /// Set when the element is only a fill or only a line.
   final String? singleRole;
@@ -1641,7 +2379,7 @@ class _PaintPickerState extends State<_PaintPicker> {
     final l = AppLocalizations.of(context)!;
     final fillName = _line == null
         ? (widget.singleRole == null ? null : l.translate(widget.singleRole!))
-        : l.translate('map_color_fill');
+        : l.translate(widget.fillRole);
     return AlertDialog(
       title: Text(widget.title),
       content: SizedBox(
@@ -1664,7 +2402,7 @@ class _PaintPickerState extends State<_PaintPicker> {
                 const SizedBox(height: 16),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(l.translate('map_color_line')),
+                  child: Text(l.translate(widget.lineRole)),
                 ),
                 _ToneEditor(
                   color: _line!,

@@ -16,7 +16,7 @@
 - `App` service persists user/session settings in `SharedPreferences` (theme, locale, country, endpoint id, connection mode, session id).
 - Chart layers, zooms, and day/night colours are saved by `MapChartSettings` and edited on Settings → Map. The defaults below are what a fresh install uses. The chart reloads its style when those values change.
 - Map settings always group related parameters near each other in the same tile and in the expanded list. Keep a zoom next to the colours and switches it controls (for example Local streets with Main roads, Minor roads, Road casing, and Road labels). Do not leave related road, land, water, or seamark controls scattered across the tile.
-- Detail map tiles (Land, Graticule, and any new tile in `_detailTiles`) use one standard row: 18-character Name, Zoom, Line type, Line width, Fill (Light/Dark), Line (Light/Dark). Empty slots stay reserved when a row has no fill or no stroke controls. Column titles sit under the tile header. Sun and Moon parameters live on Graticule with the grid and equator; there is no separate Sky tile.
+- Detail map tiles (Land, Graticule, Sea, Marine objects, and any new tile in `_detailTiles`) use one standard row: 18-character Name, Zoom, Line type, Line width, Fill (Light/Dark), Line (Light/Dark). Empty slots stay reserved when a row has no fill or no stroke controls. Column titles sit under the tile header. Sun and Moon parameters live on Graticule with the grid and equator; there is no separate Sky tile. Sea is one section (not Rivers / Depth / Ferries subsections): waterways, depth, ferries, and bridges are absorbed into the Sea tile. Marine objects is one section (not Marinas / Harbour places / Seamarks subsections): places, docks, slipways, seamarks, platforms, and lighthouses are absorbed into that tile. Marine objects replaces Line type / Line width with an Icon picker (Flutter Material icons in a square border with a small radius) and replaces Fill / Line colour headers with Icon / Border; the chosen icon is drawn on the chart with those colours. Marine object icon rows use one 3-point zoom (small icon, full icon + name, end) instead of separate icon / name / full-size rows. Water names, Object names, Island names, and Name outline live in their own Labels tile (`waterNames`), not under Marine objects. Land keeps Coastline and Boundaries with the other land lines (roads, contours, hillshade).
 - `Api` service (`lib/services/api.dart`) owns endpoint discovery and health checks:
   - probes static endpoint list,
   - chooses fastest reachable endpoint,
@@ -30,14 +30,14 @@
 ## Chart object labels
 Point objects on the chart (marinas, anchorages, fuel, ferries, docks, seamarks, offshore platforms, and any new icon of that kind) share one label standard in `MapService`:
 
-- The icon is half size until zoom 12, then full size (`objectIconFullZoom`, `_objectIconSize`). Zoom 12 and zoom 13 use the same full size.
+- Each marine object family uses one 3-point zoom (2 zones) in Settings → Map: small-icon start, full-icon+name start, and end. In the first zone every marine object uses the same icon size (70% of the default full size); from the middle stop each kind uses its own full size (0.8³ × 1.2 of the prior full) and the name appears with it at ~9.9 px, shifted 5 px right of the icon (`objectZoomStops`, `_objectIconSize`). Defaults: marinas and anchorages 11 / 13 / 22; port, fuel, customs, services, dock, and seamarks 12 / 14 / 22; slipways 14 / 15 / 22; platforms and lighthouses 6 / 12 / 22.
 - The name is the first line. The object type is the second line, at 0.75 of the name size (`objectTypeFontScale`, `_objectLabel`). A platform reads `DEVILS TOWER` / `Offshore oil platforms`.
 - If the object has no name, only the type line is shown.
 - Both lines are left-aligned (`text-anchor: left`, `text-justify: left`).
-- The name and the type appear together. An icon may show earlier; the label waits for that object's name zoom.
-- A slipway icon and its name are on past zoom 14. The icon is 90% of the marina icon and the same colour as the slipway name. The name stays 11 px. Chart tiles omit slipways until zoom 16, so the icon is loaded from OpenStreetMap for the view on screen.
-- An offshore platform icon is on past zoom 6 and its name from zoom 12. A 500 m protection circle, in the same dark orange as the icon, is on past zoom 12. Platforms are not in the chart tiles, so the icon is loaded from OpenStreetMap for the view on screen.
-- A lighthouse uses that same zoom rule: the icon is on past zoom 6, and the name plus the light description are on from zoom 12. The description is the character, colour, period, range, height, and sectors. Lighthouses are loaded from OpenStreetMap for the view on screen.
+- The name and the type appear together at the full-icon stop. An icon may show earlier at the shared small size.
+- A slipway uses the same 3-point rule (defaults 14 / 15 / 22). Chart tiles omit slipways until zoom 16, so the icon is loaded from OpenStreetMap for the view on screen.
+- An offshore platform uses the 3-point zoom above. A 500 m protection circle, in the same dark orange as the icon, is on past zoom 12 (hardcoded, not a settings row). Platforms are not in the chart tiles, so the icon is loaded from OpenStreetMap for the view on screen.
+- A lighthouse uses the same 3-point rule. The light description (character, colour, period, range, height, and sectors) appears with the name at the full stop. Lighthouses are loaded from OpenStreetMap for the view on screen.
 - Line labels (ferry tracks, bridges, water names, depth numbers, island groups) are not point objects and do not use this pattern.
 
 ## Project Conventions (Important)

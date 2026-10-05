@@ -95,6 +95,12 @@ void main() {
     expect(land, closeTo(mainRoads, 0.5));
     expect(beach, closeTo(mainRoads, 0.5));
     expect(accent, closeTo(mainRoads, 0.5));
+    expect(find.text('Boundaries'), findsOneWidget);
+    expect(
+      find.text('Country, state, and local administrative borders.'),
+      findsOneWidget,
+    );
+    expect(titleWidth('Boundaries'), closeTo(mainRoads, 0.5));
   });
 
   testWidgets('Land tile Fill columns keep the same width when empty', (
@@ -164,5 +170,154 @@ void main() {
     expect(titleWidth('Graticule'), closeTo(titleWidth('Equator'), 0.5));
     expect(titleWidth('Equator'), closeTo(titleWidth('Main roads'), 0.5));
     expect(titleWidth('Sun'), closeTo(titleWidth('Moon'), 0.5));
+  });
+
+  testWidgets('Sea is one detail section without subgroup headers', (tester) async {
+    await pumpMapSettings(tester);
+    await expandAll(tester);
+
+    expect(find.text('Rivers and streams'), findsNothing);
+    expect(find.text('Depth'), findsNothing);
+    expect(find.text('Streams'), findsOneWidget);
+    expect(find.text('Rivers'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Rivers')).dy,
+      lessThan(tester.getTopLeft(find.text('Streams')).dy),
+    );
+    expect(find.text('Shallow water'), findsOneWidget);
+    expect(find.text('Ferry track'), findsOneWidget);
+    expect(find.text('Bridge'), findsOneWidget);
+
+    double titleWidth(String label) {
+      final matches = find.text(label);
+      final boxes = matches.evaluate().toList();
+      final widths = [
+        for (final box in boxes)
+          tester.getSize(find.byWidget(box.widget)).width,
+      ]..sort();
+      return widths.first;
+    }
+
+    expect(titleWidth('Streams'), closeTo(titleWidth('Main roads'), 0.5));
+    expect(titleWidth('Shallow water'), closeTo(titleWidth('Bridge'), 0.5));
+  });
+
+  testWidgets('Marine objects is one detail section without subgroup headers', (
+    tester,
+  ) async {
+    await pumpMapSettings(tester);
+    await expandAll(tester);
+
+    expect(find.text('Marine objects'), findsOneWidget);
+    expect(find.text('Marinas'), findsNothing);
+    expect(find.text('Harbour places'), findsNothing);
+    expect(find.text('Docks and canals'), findsNothing);
+    expect(find.text('Offshore platforms'), findsNothing);
+    expect(find.text('Lighthouses'), findsNothing);
+    expect(find.text('Icon'), findsOneWidget);
+    expect(find.text('Border'), findsOneWidget);
+
+    expect(find.text('Marina'), findsOneWidget);
+    expect(find.text('Anchorage'), findsOneWidget);
+    expect(find.text('Port'), findsOneWidget);
+    expect(find.text('Fuel'), findsOneWidget);
+    expect(find.text('Dock'), findsOneWidget);
+    expect(find.text('Slipway'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Slipway')).dy,
+      greaterThan(tester.getTopLeft(find.text('Marine objects')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('Slipway')).dy,
+      lessThan(tester.getTopLeft(find.text('Hazard')).dy),
+    );
+    expect(find.text('Hazard'), findsOneWidget);
+    expect(find.text('Offshore platform'), findsOneWidget);
+    expect(find.text('Platform names'), findsNothing);
+    expect(find.text('Platform safety zones'), findsNothing);
+    expect(find.text('Navigation light'), findsOneWidget);
+    expect(find.text('Lighthouse names'), findsNothing);
+    expect(find.text('Yacht harbours and marina berths.'), findsOneWidget);
+    expect(
+      find.text('Designated and informal anchoring spots.'),
+      findsOneWidget,
+    );
+    expect(find.text('Fuel docks and water-fuel stations.'), findsOneWidget);
+    expect(find.text('Customs and immigration offices.'), findsOneWidget);
+    expect(
+      find.text('Harbourmaster, naval bases, and other port offices.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Boat repair, chandlers, storage, and related shore services.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Docks, piers, and canal basins.'), findsOneWidget);
+    expect(
+      find.text('Boat ramps for launching and hauling out.'),
+      findsOneWidget,
+    );
+    expect(find.text('Seamarks and other charted hazards.'), findsOneWidget);
+    expect(find.text('Oil and gas platforms.'), findsOneWidget);
+    expect(find.text('Lighthouses and beacons.'), findsOneWidget);
+
+    double titleWidth(String label) {
+      final matches = find.text(label);
+      final boxes = matches.evaluate().toList();
+      final widths = [
+        for (final box in boxes)
+          tester.getSize(find.byWidget(box.widget)).width,
+      ]..sort();
+      return widths.first;
+    }
+
+    expect(titleWidth('Marina'), closeTo(titleWidth('Main roads'), 0.5));
+    expect(
+      titleWidth('Offshore platform'),
+      closeTo(titleWidth('Navigation light'), 0.5),
+    );
+  });
+
+  testWidgets('Labels is its own detail tile', (tester) async {
+    await pumpMapSettings(tester);
+    await expandAll(tester);
+
+    expect(find.text('Labels'), findsOneWidget);
+    expect(find.text('Water names'), findsOneWidget);
+    expect(find.text('Object names'), findsOneWidget);
+    expect(find.text('Island names'), findsOneWidget);
+    expect(find.text('Name outline'), findsOneWidget);
+    expect(
+      find.text('Rivers, lakes, and other water names on the chart.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Marina, port, seamark, and other object names on the chart.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Island and island-group names.'), findsOneWidget);
+    expect(
+      find.text(
+        'Outline behind chart text so names stay readable on land and water.',
+      ),
+      findsOneWidget,
+    );
+
+    double titleWidth(String label) {
+      final matches = find.text(label);
+      final boxes = matches.evaluate().toList();
+      final widths = [
+        for (final box in boxes)
+          tester.getSize(find.byWidget(box.widget)).width,
+      ]..sort();
+      return widths.first;
+    }
+
+    expect(titleWidth('Water names'), closeTo(titleWidth('Main roads'), 0.5));
+    expect(titleWidth('Name outline'), closeTo(titleWidth('Water names'), 0.5));
   });
 }

@@ -62,6 +62,7 @@ class MarinePalette {
         seaBase: pick('chart', 'seaBase', chart.seaBase),
         seaEdge: pick('chart', 'seaEdge', chart.seaEdge),
         coastline: pick('chart', 'coastline', chart.coastline),
+        boundaries: pick('chart', 'boundaries', chart.boundaries),
         islandFill: pick('chart', 'islandFill', chart.islandFill),
         islandEdge: pick('chart', 'islandEdge', chart.islandEdge),
         graticule: pick('chart', 'graticule', chart.graticule),
@@ -107,19 +108,54 @@ class MarinePalette {
       ),
       objects: MarineObjects(
         marina: pick('objects', 'marina', objects.marina),
+        marinaBorder: pick('objects', 'marinaBorder', objects.marinaBorder),
         anchorage: pick('objects', 'anchorage', objects.anchorage),
+        anchorageBorder: pick(
+          'objects',
+          'anchorageBorder',
+          objects.anchorageBorder,
+        ),
         fuel: pick('objects', 'fuel', objects.fuel),
+        fuelBorder: pick('objects', 'fuelBorder', objects.fuelBorder),
         customs: pick('objects', 'customs', objects.customs),
+        customsBorder: pick(
+          'objects',
+          'customsBorder',
+          objects.customsBorder,
+        ),
         port: pick('objects', 'port', objects.port),
+        portBorder: pick('objects', 'portBorder', objects.portBorder),
         service: pick('objects', 'service', objects.service),
+        serviceBorder: pick(
+          'objects',
+          'serviceBorder',
+          objects.serviceBorder,
+        ),
         slipway: pick('objects', 'slipway', objects.slipway),
+        slipwayBorder: pick(
+          'objects',
+          'slipwayBorder',
+          objects.slipwayBorder,
+        ),
         ferry: pick('objects', 'ferry', objects.ferry),
         ferryRoute: pick('objects', 'ferryRoute', objects.ferryRoute),
         dock: pick('objects', 'dock', objects.dock),
+        dockBorder: pick('objects', 'dockBorder', objects.dockBorder),
         bridge: pick('objects', 'bridge', objects.bridge),
         hazard: pick('objects', 'hazard', objects.hazard),
+        hazardBorder: pick('objects', 'hazardBorder', objects.hazardBorder),
         navLight: pick('objects', 'navLight', objects.navLight),
+        navLightBorder: pick(
+          'objects',
+          'navLightBorder',
+          objects.navLightBorder,
+        ),
         platform: pick('objects', 'platform', objects.platform),
+        platformBorder: pick(
+          'objects',
+          'platformBorder',
+          objects.platformBorder,
+        ),
       ),
       sky: MarineSky(
         sunCore: pick('sky', 'sunCore', sky.sunCore),
@@ -161,6 +197,7 @@ class MarinePalette {
       seaBase: Color(0xFFA9D3E6),
       seaEdge: Color(0xFF5FA5C4),
       coastline: Color(0xFF536B78),
+      boundaries: Color(0xFF8A9AA3),
       islandFill: Color(0xFFEDE3D0),
       islandEdge: Color(0xFFB9A98C),
       graticule: Color(0xFF89A5B4),
@@ -190,19 +227,30 @@ class MarinePalette {
     ),
     objects: MarineObjects(
       marina: Color(0xFF0E6F8C),
+      marinaBorder: Color(0xFF0E6F8C),
       anchorage: Color(0xFF2C7F63),
+      anchorageBorder: Color(0xFF2C7F63),
       fuel: Color(0xFFD0762A),
+      fuelBorder: Color(0xFFD0762A),
       customs: Color(0xFF6F53A3),
+      customsBorder: Color(0xFF6F53A3),
       port: Color(0xFF3C5A6D),
+      portBorder: Color(0xFF3C5A6D),
       service: Color(0xFF547486),
+      serviceBorder: Color(0xFF547486),
       slipway: Color(0xFF7A6A55),
+      slipwayBorder: Color(0xFF7A6A55),
       ferry: Color(0xFF1F7A83),
       ferryRoute: Color(0xFF7FB3B8),
       dock: Color(0xFF1D4E6E),
+      dockBorder: Color(0xFF1D4E6E),
       bridge: Color(0xFF1D4E6E),
       hazard: Color(0xFFC8402C),
+      hazardBorder: Color(0xFFC8402C),
       navLight: Color(0xFFC9982B),
+      navLightBorder: Color(0xFFC9982B),
       platform: Color(0xFFC65A12),
+      platformBorder: Color(0xFFC65A12),
     ),
     sky: MarineSky(
       sunCore: Color(0xFFE8B231),
@@ -268,6 +316,7 @@ class MarinePalette {
       seaBase: Color(0xFF080F16),
       seaEdge: Color(0xFF1E3D50),
       coastline: Color(0xFF263C47),
+      boundaries: Color(0xFF3A4A54),
       islandFill: Color(0xFF191E1E),
       islandEdge: Color(0xFF2B3538),
       graticule: Color(0xFF243743),
@@ -297,19 +346,30 @@ class MarinePalette {
     ),
     objects: MarineObjects(
       marina: Color(0xFF3E8096),
+      marinaBorder: Color(0xFF3E8096),
       anchorage: Color(0xFF2F7561),
+      anchorageBorder: Color(0xFF2F7561),
       fuel: Color(0xFFA0702C),
+      fuelBorder: Color(0xFFA0702C),
       customs: Color(0xFF5B4A85),
+      customsBorder: Color(0xFF5B4A85),
       port: Color(0xFF42606F),
+      portBorder: Color(0xFF42606F),
       service: Color(0xFF4A6674),
+      serviceBorder: Color(0xFF4A6674),
       slipway: Color(0xFF6A5C48),
+      slipwayBorder: Color(0xFF6A5C48),
       ferry: Color(0xFF2A6A72),
       ferryRoute: Color(0xFF17383D),
       dock: Color(0xFF3E7290),
+      dockBorder: Color(0xFF3E7290),
       bridge: Color(0xFF3E7290),
       hazard: Color(0xFFB04434),
+      hazardBorder: Color(0xFFB04434),
       navLight: Color(0xFFA8862F),
+      navLightBorder: Color(0xFFA8862F),
       platform: Color(0xFFC65A12),
+      platformBorder: Color(0xFFC65A12),
     ),
     sky: MarineSky(
       sunCore: Color(0xFFA8822E),
@@ -397,6 +457,7 @@ class MarineChart {
     required this.seaBase,
     required this.seaEdge,
     required this.coastline,
+    required this.boundaries,
     required this.islandFill,
     required this.islandEdge,
     required this.graticule,
@@ -429,6 +490,9 @@ class MarineChart {
   /// The land/water boundary. Carries the coast at night, where the two
   /// fills are deliberately close in luminance.
   final Color coastline;
+
+  /// Country, state, and local administrative borders from the basemap.
+  final Color boundaries;
   final Color islandFill;
   final Color islandEdge;
   final Color graticule;
@@ -503,28 +567,46 @@ class MarineDepth {
 class MarineObjects {
   const MarineObjects({
     required this.marina,
+    required this.marinaBorder,
     required this.anchorage,
+    required this.anchorageBorder,
     required this.fuel,
+    required this.fuelBorder,
     required this.customs,
+    required this.customsBorder,
     required this.port,
+    required this.portBorder,
     required this.service,
+    required this.serviceBorder,
     required this.slipway,
+    required this.slipwayBorder,
     required this.ferry,
     required this.ferryRoute,
     required this.dock,
+    required this.dockBorder,
     required this.bridge,
     required this.hazard,
+    required this.hazardBorder,
     required this.navLight,
+    required this.navLightBorder,
     required this.platform,
+    required this.platformBorder,
   });
 
   final Color marina;
+  final Color marinaBorder;
   final Color anchorage;
+  final Color anchorageBorder;
   final Color fuel;
+  final Color fuelBorder;
   final Color customs;
+  final Color customsBorder;
   final Color port;
+  final Color portBorder;
   final Color service;
+  final Color serviceBorder;
   final Color slipway;
+  final Color slipwayBorder;
 
   /// Ferry terminals and the names of ferry routes.
   final Color ferry;
@@ -534,12 +616,16 @@ class MarineObjects {
   /// than compete with it.
   final Color ferryRoute;
   final Color dock;
+  final Color dockBorder;
   final Color bridge;
   final Color hazard;
+  final Color hazardBorder;
   final Color navLight;
+  final Color navLightBorder;
 
   /// Offshore platform mark and its protection circle.
   final Color platform;
+  final Color platformBorder;
 }
 
 /// Sun and moon positions on the wide chart.

@@ -32,6 +32,7 @@ int _topBarSerial = 0;
 
 /// Holds a submenu that has not been shown yet.
 Timer? _submenuDelay;
+Timer? _submenuRecheck;
 int _submenuToken = 0;
 String? _submenuOwner;
 TopBarData? _heldSubmenu;
@@ -39,9 +40,23 @@ TopBarData? _heldSubmenu;
 void _cancelSubmenuDelay() {
   _submenuDelay?.cancel();
   _submenuDelay = null;
+  _submenuRecheck?.cancel();
+  _submenuRecheck = null;
   _submenuToken++;
   _submenuOwner = null;
   _heldSubmenu = null;
+}
+
+/// Paints the submenu this page asked for, if it is still the current page.
+void _paintHeldSubmenu(int token, String? owner, {required bool onlyIfMissing}) {
+  if (token != _submenuToken) return;
+  final latest = _heldSubmenu;
+  if (latest == null || latest.ownerId != owner) return;
+  final current = topBarNotifier.value;
+  if (current.ownerId != null && current.ownerId != owner) return;
+  final painted = current.submenu != null && current.submenu!.isNotEmpty;
+  if (onlyIfMissing && painted && current.ownerId == owner) return;
+  topBarNotifier.value = latest;
 }
 
 /// Parks the page on the right third of a wide screen so the map can be used.
@@ -69,7 +84,12 @@ void _scheduleTopBar(void Function() update) {
 }
 
 /// Set top bar title and/or submenu. Use `submenu` as a list of small widgets (e.g. AppButton).
-void setTopBar({String? title, List<Widget>? submenu, String? ownerId}) {
+void setTopBar({
+  String? title,
+  List<Widget>? submenu,
+  String? ownerId,
+  bool showSubmenuNow = false,
+}) {
   // Merge with existing data so partial updates don't clear other fields.
   final current = topBarNotifier.value;
   final nextOwner = ownerId ?? current.ownerId;
@@ -87,21 +107,33 @@ void setTopBar({String? title, List<Widget>? submenu, String? ownerId}) {
   final holding =
       _submenuDelay?.isActive == true && _submenuOwner == nextOwner;
 
+  // A later pass, such as the settings check, paints the submenu at once.
+  if (incoming && showSubmenuNow) {
+    _cancelSubmenuDelay();
+    _scheduleTopBar(() {
+      if (serial != _topBarSerial) return;
+      topBarNotifier.value = merged;
+    });
+    return;
+  }
+
   // A submenu that is just being added waits one second. The title shows
   // at once, and a later edit on the same page does not wait again.
+  // Three seconds after the request, paint it again if it is still missing.
   if (incoming && !shown) {
     _heldSubmenu = merged;
     if (!holding) {
       _submenuOwner = nextOwner;
       final token = ++_submenuToken;
       _submenuDelay?.cancel();
+      _submenuRecheck?.cancel();
       _submenuDelay = Timer(const Duration(seconds: 1), () {
-        if (token != _submenuToken) return;
-        final latest = _heldSubmenu;
-        if (latest == null || latest.ownerId != nextOwner) return;
-        topBarNotifier.value = latest;
-        _heldSubmenu = null;
         _submenuDelay = null;
+        _paintHeldSubmenu(token, nextOwner, onlyIfMissing: false);
+      });
+      _submenuRecheck = Timer(const Duration(seconds: 3), () {
+        _submenuRecheck = null;
+        _paintHeldSubmenu(token, nextOwner, onlyIfMissing: true);
       });
     }
     _scheduleTopBar(() {
@@ -115,7 +147,8 @@ void setTopBar({String? title, List<Widget>? submenu, String? ownerId}) {
     return;
   }
 
-  _cancelSubmenuDelay();
+  if (incoming) _heldSubmenu = merged;
+  if (!incoming) _cancelSubmenuDelay();
   _scheduleTopBar(() {
     // A newer setTopBar wins. A clear from the page we just left must not
     // erase this one: that clear checks the owner again when it runs.
@@ -126,7 +159,11 @@ void setTopBar({String? title, List<Widget>? submenu, String? ownerId}) {
 
 /// Clear top bar content.
 void clearTopBar({String? ownerId}) {
-  _cancelSubmenuDelay();
+  // A page we already left must not cancel the submenu the new page is waiting
+  // to show.
+  if (ownerId == null || ownerId == _submenuOwner) {
+    _cancelSubmenuDelay();
+  }
   _scheduleTopBar(() {
     final current = topBarNotifier.value;
     // Checked at apply time. The page we left often disposes in the same

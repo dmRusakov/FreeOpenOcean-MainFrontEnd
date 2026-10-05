@@ -32,6 +32,17 @@ class MarineObjectInfo {
   final String? osmId;
   final String? layerId;
 
+  /// OpenStreetMap type and id, such as `node/12345`, when either is known.
+  String? get itemId {
+    final id = osmId;
+    if (id == null || id.isEmpty) return null;
+    final type = osmType;
+    if (type != null && type.isNotEmpty && !id.contains('/')) {
+      return '$type/$id';
+    }
+    return id;
+  }
+
   /// OpenStreetMap object page when [osmType] and [osmId] are known.
   String? get osmUrl {
     final type = osmType;
@@ -70,6 +81,12 @@ class MarineObjectInfo {
     }
     lat ??= _num(props['lat']);
 
+    final identity = _identity(
+      osmType: _string(props['osm_type']),
+      osmId: _string(props['osm_id']),
+      featureId: _string(feature['id']),
+    );
+
     return MarineObjectInfo(
       title: title,
       typeLabel: typeLabel,
@@ -82,10 +99,35 @@ class MarineObjectInfo {
       ref: _string(props['ref']),
       latitude: lat,
       longitude: lon,
-      osmType: _string(props['osm_type']),
-      osmId: _string(props['osm_id']),
+      osmType: identity.$1,
+      osmId: identity.$2,
       layerId: layerId,
     );
+  }
+
+  /// Property ids win. The feature id is `node/12345` for objects loaded
+  /// from OpenStreetMap, or the tile id when that is all the chart has.
+  static (String?, String?) splitFeatureId(String? featureId) {
+    return _identity(featureId: featureId);
+  }
+
+  static (String?, String?) _identity({
+    String? osmType,
+    String? osmId,
+    String? featureId,
+  }) {
+    if (osmId != null && osmId.isNotEmpty) {
+      return (osmType, osmId);
+    }
+    if (featureId == null || featureId.isEmpty) return (osmType, null);
+    final slash = featureId.indexOf('/');
+    if (slash > 0 && slash < featureId.length - 1) {
+      return (
+        osmType ?? featureId.substring(0, slash),
+        featureId.substring(slash + 1),
+      );
+    }
+    return (osmType, featureId);
   }
 
   static String defaultTypeLabel(String kind) {
@@ -197,15 +239,8 @@ class MarineObjectInfo {
   }
 
   static String _sourceLabel(String source, Map<String, dynamic> props) {
-    final osmType = _string(props['osm_type']);
-    final osmId = _string(props['osm_id']);
-    if (source == 'protomaps') {
-      return 'OpenStreetMap';
-    }
-    if (osmType != null && osmId != null) {
-      return 'OpenStreetMap ($osmType/$osmId)';
-    }
-    if (source == 'seamark-names' ||
+    if (source == 'protomaps' ||
+        source == 'seamark-names' ||
         source == 'slipways' ||
         source == 'oil-platforms' ||
         source == 'lighthouses') {

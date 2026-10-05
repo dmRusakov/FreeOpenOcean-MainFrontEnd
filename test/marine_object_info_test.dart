@@ -28,7 +28,8 @@ void main() {
     expect(info.typeLabel, 'Lighthouse');
     expect(info.detail, 'Fl W 10s');
     expect(info.operator, 'USCG');
-    expect(info.sourceLabel, 'OpenStreetMap (node/12345)');
+    expect(info.sourceLabel, 'OpenStreetMap');
+    expect(info.itemId, 'node/12345');
     expect(info.osmUrl, 'https://www.openstreetmap.org/node/12345');
     expect(info.latitude, closeTo(33.88, 0.0001));
   });
@@ -52,5 +53,24 @@ void main() {
     expect(info, isNotNull);
     expect(info!.sourceLabel, 'OpenStreetMap');
     expect(info.typeLabel, 'Marina');
+  });
+
+  test('reads an item id from the feature id', () {
+    final info = MarineObjectInfo.fromFeature(
+      {
+        'id': 'way/987',
+        'source': 'oil-platforms',
+        'geometry': {
+          'type': 'Point',
+          'coordinates': [-78.00329, 33.90196],
+        },
+        'properties': {'kind': 'offshore_platform'},
+      },
+      layerId: 'oil-platforms',
+    );
+
+    expect(info, isNotNull);
+    expect(info!.itemId, 'way/987');
+    expect(info.osmUrl, 'https://www.openstreetmap.org/way/987');
   });
 }

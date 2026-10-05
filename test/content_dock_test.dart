@@ -81,6 +81,8 @@ void main() {
     final bar = tester.getRect(find.byType(AppBar));
     expect(guide.left, greaterThan(title.right));
     expect(bar.right - guide.right, lessThan(80));
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Style Guide'), findsOneWidget);
   });
 
   testWidgets('phones do not show the map button', (tester) async {

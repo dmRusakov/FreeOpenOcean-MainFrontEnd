@@ -115,11 +115,29 @@ Future<void> showMarineObjectInfoDialog(
                 const Divider(height: 1),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
-                  child: Text(
-                    '${l10n.translate('marine_object_source')}: ${info.sourceLabel}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${l10n.translate('marine_object_source')}: ${info.sourceLabel}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.7,
+                          ),
+                        ),
+                      ),
+                      if (info.itemId != null) ...[
+                        const SizedBox(height: 2),
+                        SelectableText(
+                          '${l10n.translate('marine_object_id')}: ${info.itemId}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.7,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],

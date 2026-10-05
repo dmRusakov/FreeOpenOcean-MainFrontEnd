@@ -185,7 +185,11 @@ const _detailZoomAfter = <String, List<String>>{
   'seaBase': ['rivers', 'streams'],
 };
 
-/// Short help under a colour name, keyed by palette field.
+/// Short help under a zoom-only row, keyed by zoom id.
+const _zoomBlurbs = <String, String>{
+  'rivers': 'map_zoom_rivers_blurb',
+  'streams': 'map_zoom_streams_blurb',
+};
 const _colorBlurbs = <String, String>{
   'marina': 'map_color_marina_blurb',
   'anchorage': 'map_color_anchorage_blurb',
@@ -195,6 +199,36 @@ const _colorBlurbs = <String, String>{
   'service': 'map_color_service_blurb',
   'dock': 'map_color_dock_blurb',
   'slipway': 'map_color_slipway_blurb',
+  'seaBase': 'map_color_sea_blurb',
+  'danger': 'map_color_depth_danger_blurb',
+  'caution': 'map_color_depth_caution_blurb',
+  'coastal': 'map_color_depth_coastal_blurb',
+  'shelf': 'map_color_depth_shelf_blurb',
+  'deep': 'map_color_depth_deep_blurb',
+  'label': 'map_color_depth_label_blurb',
+  'ferryRoute': 'map_color_ferry_route_blurb',
+  'ferry': 'map_color_ferry_blurb',
+  'bridge': 'map_color_bridge_blurb',
+  'landBase': 'map_color_land_blurb',
+  'roadTrunk': 'map_color_road_blurb',
+  'roadMinor': 'map_color_road_minor_blurb',
+  'roadCasing': 'map_color_road_casing_blurb',
+  'roadLabel': 'map_color_road_label_blurb',
+  'landBeach': 'map_color_beach_blurb',
+  'islandFill': 'map_color_island_blurb',
+  'coastline': 'map_color_coast_blurb',
+  'landContour': 'map_color_contour_blurb',
+  'landContourLabel': 'map_color_contour_label_blurb',
+  'hillshadeShadow': 'map_color_hillshade_shadow_blurb',
+  'hillshadeHighlight': 'map_color_hillshade_highlight_blurb',
+  'hillshadeAccent': 'map_color_hillshade_accent_blurb',
+  'graticule': 'map_color_graticule_blurb',
+  'equator': 'map_color_equator_blurb',
+  'sunCore': 'map_color_sun_blurb',
+  'sunTrack': 'map_color_sun_track_blurb',
+  'meridian': 'map_color_meridian_blurb',
+  'moonCore': 'map_color_moon_blurb',
+  'moonTrack': 'map_color_moon_track_blurb',
   'boundaries': 'map_color_boundaries_blurb',
   'hazard': 'map_color_hazard_blurb',
   'platform': 'map_color_platform_blurb',
@@ -2044,7 +2078,9 @@ class _ColorRow extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
-    final blurbKey = color == null ? null : _colorBlurbs[color.field];
+    final blurbKey = color == null
+        ? (zoomRow == null ? null : _zoomBlurbs[zoomRow.id])
+        : _colorBlurbs[color.field];
     final blurb = blurbKey == null
         ? null
         : Text(

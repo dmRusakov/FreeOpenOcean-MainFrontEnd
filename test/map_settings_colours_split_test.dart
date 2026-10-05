@@ -65,6 +65,25 @@ void main() {
     expect(find.text('Minor roads'), findsOneWidget);
     expect(find.text('Road casing'), findsOneWidget);
     expect(find.text('Road labels'), findsOneWidget);
+    expect(find.text('The land fill.'), findsOneWidget);
+    expect(find.text('Highways and other main roads.'), findsOneWidget);
+    expect(find.text('Smaller roads, including local streets.'), findsOneWidget);
+    expect(find.text('The darker edge under a road.'), findsOneWidget);
+    expect(find.text('Names written on the roads.'), findsOneWidget);
+    expect(find.text('Sand along the shore.'), findsOneWidget);
+    expect(
+      find.text('Island fill, and the dots for islands too small to see.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('The shore. Dam fills and pier lines use this colour.'),
+      findsOneWidget,
+    );
+    expect(find.text('Elevation lines on land.'), findsOneWidget);
+    expect(find.text('Height numbers on the land contours.'), findsOneWidget);
+    expect(find.text('The shaded side of the land relief.'), findsOneWidget);
+    expect(find.text('The lit side of the land relief.'), findsOneWidget);
+    expect(find.text('The mid-tone of the land relief.'), findsOneWidget);
     // Land colour row sits with the other Land titles, above hillshade.
     expect(
       tester.getTopLeft(find.text('Main roads')).dy,
@@ -155,6 +174,22 @@ void main() {
     expect(find.text('Sun latitude'), findsOneWidget);
     expect(find.text('Moon'), findsOneWidget);
     expect(find.text('Moon track'), findsOneWidget);
+    expect(find.text('Latitude and longitude every 10 degrees.'), findsOneWidget);
+    expect(
+      find.text('Latitude 0, drawn apart from the 10° grid.'),
+      findsOneWidget,
+    );
+    expect(find.text('Where the sun is overhead right now.'), findsOneWidget);
+    expect(find.text('The sun\'s path across the wide chart.'), findsOneWidget);
+    expect(
+      find.text('The line of the sun\'s current latitude.'),
+      findsOneWidget,
+    );
+    expect(find.text('Where the moon is overhead right now.'), findsOneWidget);
+    expect(
+      find.text('The moon\'s path for one pass around the Earth.'),
+      findsOneWidget,
+    );
 
     double titleWidth(String label) {
       final matches = find.text(label);
@@ -187,6 +222,27 @@ void main() {
     expect(find.text('Shallow water'), findsOneWidget);
     expect(find.text('Ferry track'), findsOneWidget);
     expect(find.text('Bridge'), findsOneWidget);
+    expect(
+      find.text('The water fill. The line is where the sea meets the land.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('River centre lines, drawn in the sea colour.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Stream centre lines, drawn in the coastline colour.'),
+      findsOneWidget,
+    );
+    expect(find.text('Depth contours shallower than 5 m.'), findsOneWidget);
+    expect(find.text('Depth contours from 5 m to 20 m.'), findsOneWidget);
+    expect(find.text('Depth contours from 20 m to 50 m.'), findsOneWidget);
+    expect(find.text('Depth contours from 50 m to 200 m.'), findsOneWidget);
+    expect(find.text('Depth contours of 200 m and deeper.'), findsOneWidget);
+    expect(find.text('Sounding numbers on the depth contours.'), findsOneWidget);
+    expect(find.text('The line of a ferry route.'), findsOneWidget);
+    expect(find.text('Names along the ferry routes.'), findsOneWidget);
+    expect(find.text('Names of bridges.'), findsOneWidget);
 
     double titleWidth(String label) {
       final matches = find.text(label);

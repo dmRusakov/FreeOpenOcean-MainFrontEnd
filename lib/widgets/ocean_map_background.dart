@@ -97,13 +97,14 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
       return;
     }
     if (!MapService.marineObjectLayers.contains(layerId)) return;
-    await _openMarineObjectInfo(point, layerId, coordinates);
+    await _openMarineObjectInfo(point, layerId, coordinates, id);
   }
 
   Future<void> _openMarineObjectInfo(
     Point<double> point,
     String layerId,
     LatLng coordinates,
+    String featureId,
   ) async {
     if (_showingMarineInfo || !mounted) return;
     final controller = _controller;
@@ -126,6 +127,7 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
       }
       if (!mounted) return;
       final l10n = AppLocalizations.of(context);
+      final tapped = MarineObjectInfo.splitFeatureId(featureId);
       final info = feature == null
           ? MarineObjectInfo(
               title: MarineObjectInfo.defaultTypeLabel(layerId),
@@ -133,6 +135,8 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
               sourceLabel: _sourceForLayer(layerId),
               latitude: coordinates.latitude,
               longitude: coordinates.longitude,
+              osmType: tapped.$1,
+              osmId: tapped.$2,
               layerId: layerId,
             )
           : MarineObjectInfo.fromFeature(

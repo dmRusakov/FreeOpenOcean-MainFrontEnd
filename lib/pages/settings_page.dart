@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:free_open_ocean/pages/page_template.dart';
 import 'package:free_open_ocean/core/provider/app_theme_provider.dart';
@@ -23,6 +25,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   SettingSection _selectedSection = SettingSection.general;
+  Timer? _submenuPaintCheck;
 
   void _readSection() {
     _selectedSection = switch (widget.params?['section']) {
@@ -50,10 +53,27 @@ class _SettingsPageState extends State<SettingsPage> {
     super.didChangeDependencies();
     // Schedule top bar update after the first frame so localization delegates are ready
     WidgetsBinding.instance.addPostFrameCallback((_) => _updateTopBar());
+    _scheduleSubmenuPaintCheck();
+  }
+
+  /// The header waits one second before painting the submenu. This looks
+  /// again after three seconds and paints it if Settings still has none.
+  void _scheduleSubmenuPaintCheck() {
+    if (_submenuPaintCheck != null) return;
+    _submenuPaintCheck = Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      final bar = topBarNotifier.value;
+      final painted =
+          bar.ownerId == 'settings' &&
+          bar.submenu != null &&
+          bar.submenu!.isNotEmpty;
+      if (!painted) _updateTopBar(showNow: true);
+    });
   }
 
   @override
   void dispose() {
+    _submenuPaintCheck?.cancel();
     clearTopBar(ownerId: 'settings');
     super.dispose();
   }
@@ -70,12 +90,13 @@ class _SettingsPageState extends State<SettingsPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _updateTopBar());
   }
 
-  void _updateTopBar() {
+  void _updateTopBar({bool showNow = false}) {
     if (!mounted) return;
     final localizations = AppLocalizations.of(context)!;
     setTopBar(
       title: localizations.translate('settings'),
       ownerId: 'settings',
+      showSubmenuNow: showNow,
       submenu: [
         AppButton(
           icon: Icons.settings,

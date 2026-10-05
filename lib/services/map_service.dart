@@ -2373,7 +2373,9 @@ class MapService {
           on: 1,
           off: 0,
         ),
-        iconImage: mapObjectImageId('hazard'),
+        // A seamark harbour is a marina. Use the marina icon and colour,
+        // not the hazard mark.
+        iconImage: mapObjectImageId('marina'),
         iconSize: _objectIconSize(1.15, 'seamarks'),
         iconAllowOverlap: true,
         iconIgnorePlacement: true,
@@ -2712,7 +2714,7 @@ class MapService {
         if (!seen.add(key)) continue;
         features.add({
           'type': 'Feature',
-          'id': features.length,
+          'id': _osmFeatureId(raw),
           'geometry': {'type': 'Point', 'coordinates': point},
           'properties': _osmFeatureProperties(
             raw,
@@ -2724,6 +2726,17 @@ class MapService {
       }
     }
     return {'type': 'FeatureCollection', 'features': features};
+  }
+
+  /// GeoJSON id the chart reports on tap: `node/12345`.
+  static String _osmFeatureId(Map raw) {
+    final type = raw['type'];
+    final id = raw['id'];
+    if (type is String && type.isNotEmpty && id != null && '$id'.isNotEmpty) {
+      return '$type/$id';
+    }
+    if (id != null && '$id'.isNotEmpty) return '$id';
+    return '';
   }
 
   /// Shared OSM fields for Overpass-backed marine objects (source, id, contact).
@@ -2947,7 +2960,7 @@ class MapService {
         indexByKey[key] = features.length;
         features.add({
           'type': 'Feature',
-          'id': features.length,
+          'id': _osmFeatureId(raw),
           'geometry': {'type': 'Point', 'coordinates': point},
           'properties': _osmFeatureProperties(
             raw,
@@ -3099,7 +3112,7 @@ class MapService {
         indexByKey[key] = features.length;
         features.add({
           'type': 'Feature',
-          'id': features.length,
+          'id': _osmFeatureId(raw),
           'geometry': {'type': 'Point', 'coordinates': point},
           'properties': _osmFeatureProperties(
             raw,
@@ -3228,7 +3241,7 @@ class MapService {
         indexByKey[key] = features.length;
         features.add({
           'type': 'Feature',
-          'id': features.length,
+          'id': _osmFeatureId(raw),
           'geometry': {'type': 'Point', 'coordinates': point},
           'properties': _osmFeatureProperties(
             raw,

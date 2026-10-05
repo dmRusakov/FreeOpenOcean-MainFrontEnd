@@ -5,11 +5,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
+import '../core/localization/app_localizations.dart';
 import '../services/map_chart_settings.dart';
 import '../services/map_service.dart';
+import '../services/marine_object_info.dart';
 import '../web_setup_stub.dart'
     if (dart.library.html) '../web_setup.dart'
     as web_setup;
+import 'marine_object_sheet.dart';
 
 /// Full-bleed MapLibre map used as the app background (and ocean charts surface).
 class OceanMapBackground extends StatefulWidget {
@@ -47,6 +50,7 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
   String? _language;
   Timer? _moonOrbitTimer;
   Timer? _sunOrbitTimer;
+  bool _showingMarineInfo = false;
 
   @override
   void initState() {
@@ -77,18 +81,103 @@ class _OceanMapBackgroundState extends State<OceanMapBackground> {
     }
   }
 
-  void _onFeatureTapped(
+  Future<void> _onFeatureTapped(
     Point<double> point,
     LatLng coordinates,
     String id,
     String layerId,
     Annotation? annotation,
-  ) {
+  ) async {
     if (layerId == 'moon-hit') {
       _showOrbit('moon-orbit', false);
-    } else if (layerId == 'sun-hit') {
-      _showOrbit('equator', true);
+      return;
     }
+    if (layerId == 'sun-hit') {
+      _showOrbit('equator', true);
+      return;
+    }
+    if (!MapService.marineObjectLayers.contains(layerId)) return;
+    await _openMarineObjectInfo(point, layerId, coordinates);
+  }
+
+  Future<void> _openMarineObjectInfo(
+    Point<double> point,
+    String layerId,
+    LatLng coordinates,
+  ) async {
+    if (_showingMarineInfo || !mounted) return;
+    final controller = _controller;
+    if (controller == null) return;
+    _showingMarineInfo = true;
+    try {
+      final hits = await controller.queryRenderedFeatures(
+        point,
+        [layerId],
+        null,
+      );
+      Map<String, dynamic>? feature;
+      for (final hit in hits) {
+        if (hit is Map) {
+          feature = {
+            for (final entry in hit.entries) entry.key.toString(): entry.value,
+          };
+          break;
+        }
+      }
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
+      final info = feature == null
+          ? MarineObjectInfo(
+              title: MarineObjectInfo.defaultTypeLabel(layerId),
+              typeLabel: _localizedType(l10n, layerId),
+              sourceLabel: _sourceForLayer(layerId),
+              latitude: coordinates.latitude,
+              longitude: coordinates.longitude,
+              layerId: layerId,
+            )
+          : MarineObjectInfo.fromFeature(
+              feature,
+              layerId: layerId,
+              typeLabelOf: (kind) => _localizedType(l10n, kind),
+            );
+      if (info == null || !mounted) return;
+      await showMarineObjectInfoDialog(context, info);
+    } finally {
+      _showingMarineInfo = false;
+    }
+  }
+
+  String _localizedType(AppLocalizations? l10n, String kind) {
+    if (l10n == null) return MarineObjectInfo.defaultTypeLabel(kind);
+    const keys = {
+      'marina': 'map_color_marina',
+      'harbour': 'map_color_marina',
+      'anchorage': 'map_color_anchorage',
+      'fuel': 'map_color_fuel',
+      'customs': 'map_color_customs',
+      'harbourmaster': 'map_color_port',
+      'naval_base': 'map_color_port',
+      'slipway': 'map_color_slipway',
+      'dock': 'map_color_dock',
+      'ferry': 'map_color_ferry_route',
+      'ferry_terminal': 'map_color_ferry',
+      'lighthouse': 'map_color_nav_light',
+      'light_major': 'map_color_nav_light',
+      'offshore_platform': 'map_color_platform',
+      'small_craft_facility': 'map_color_hazard',
+      'boat': 'map_color_service',
+      'boat_rental': 'map_color_service',
+      'boat_repair': 'map_color_service',
+      'boat_storage': 'map_color_service',
+      'ship_chandler': 'map_color_service',
+    };
+    final key = keys[kind];
+    if (key != null) return l10n.translate(key);
+    return MarineObjectInfo.defaultTypeLabel(kind);
+  }
+
+  String _sourceForLayer(String layerId) {
+    return 'OpenStreetMap';
   }
 
   @override

@@ -72,6 +72,14 @@ class MarinePalette {
         labelSoft: pick('chart', 'labelSoft', chart.labelSoft),
         labelFaint: pick('chart', 'labelFaint', chart.labelFaint),
         labelHalo: pick('chart', 'labelHalo', chart.labelHalo),
+        labelCountry: pick('chart', 'labelCountry', chart.labelCountry),
+        labelRegion: pick('chart', 'labelRegion', chart.labelRegion),
+        labelLocality: pick('chart', 'labelLocality', chart.labelLocality),
+        labelTileIsland: pick(
+          'chart',
+          'labelTileIsland',
+          chart.labelTileIsland,
+        ),
         landContour: pick('chart', 'landContour', chart.landContour),
         landContourLabel: pick(
           'chart',
@@ -207,6 +215,10 @@ class MarinePalette {
       labelSoft: Color(0xFF3E5C6E),
       labelFaint: Color(0xFF6C8494),
       labelHalo: Color(0xFFF7FAFB),
+      labelCountry: Color(0xFF123243),
+      labelRegion: Color(0xFF3E5C6E),
+      labelLocality: Color(0xFF3E5C6E),
+      labelTileIsland: Color(0xFF6C8494),
       landContour: Color(0xFFB6A489),
       landContourLabel: Color(0xFF7E6E56),
       roadTrunk: Color(0xFFE8DEC7),
@@ -326,6 +338,10 @@ class MarinePalette {
       labelSoft: Color(0xFF7F8E99),
       labelFaint: Color(0xFF5C6B75),
       labelHalo: Color(0xFF04080B),
+      labelCountry: Color(0xFFA9B7C1),
+      labelRegion: Color(0xFF7F8E99),
+      labelLocality: Color(0xFF7F8E99),
+      labelTileIsland: Color(0xFF5C6B75),
       landContour: Color(0xFF3A4348),
       landContourLabel: Color(0xFF6E7B82),
       roadTrunk: Color(0xFF1F2427),
@@ -467,6 +483,10 @@ class MarineChart {
     required this.labelSoft,
     required this.labelFaint,
     required this.labelHalo,
+    required this.labelCountry,
+    required this.labelRegion,
+    required this.labelLocality,
+    required this.labelTileIsland,
     required this.landContour,
     required this.landContourLabel,
     required this.roadTrunk,
@@ -506,6 +526,19 @@ class MarineChart {
   final Color labelSoft;
   final Color labelFaint;
   final Color labelHalo;
+
+  /// Country names from the basemap (`places_country`).
+  final Color labelCountry;
+
+  /// Region / state names from the basemap (`places_region`).
+  final Color labelRegion;
+
+  /// City / town names from the basemap (`places_locality`).
+  final Color labelLocality;
+
+  /// Island names from basemap tiles (`earth_label_islands`), separate from
+  /// the custom island-name overlay that uses [labelFaint].
+  final Color labelTileIsland;
   final Color landContour;
   final Color landContourLabel;
 

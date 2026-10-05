@@ -74,6 +74,7 @@ void main() {
     );
     await tester.pumpWidget(_harness(api));
     await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     final title = tester.getRect(find.text('Settings'));
     final guide = tester.getRect(find.text('Style Guide'));

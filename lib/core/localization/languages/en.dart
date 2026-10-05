@@ -116,6 +116,10 @@ const Map<String, String> enTranslations = {
   'map_layer_harbour': 'Docks and canals',
   'map_layer_ferries': 'Ferry tracks',
   'map_layer_water_names': 'Water names',
+  'map_layer_country_names': 'Country names',
+  'map_layer_region_names': 'Region names',
+  'map_layer_locality_names': 'City names',
+  'map_layer_tile_island_names': 'Basemap island names',
   'map_layer_seamarks': 'Seamarks',
   'map_layer_platforms': 'Offshore platforms',
   'map_layer_platform_zones': 'Platform safety zones',
@@ -139,6 +143,10 @@ const Map<String, String> enTranslations = {
   'map_zoom_ferry': 'Ferry tracks',
   'map_zoom_ferry_names': 'Ferry names',
   'map_zoom_water_names': 'Water names',
+  'map_zoom_country_names': 'Country names',
+  'map_zoom_region_names': 'Region names',
+  'map_zoom_locality_names': 'City names',
+  'map_zoom_tile_island_names': 'Basemap island names',
   'map_zoom_streams': 'Streams',
   'map_zoom_rivers': 'Rivers',
   'map_zoom_seamarks': 'Seamarks',
@@ -173,13 +181,25 @@ const Map<String, String> enTranslations = {
   'map_color_label_soft': 'Water names',
   'map_color_label_faint': 'Island names',
   'map_color_label_halo': 'Name outline',
+  'map_color_label_country': 'Country names',
+  'map_color_label_region': 'Region names',
+  'map_color_label_locality': 'City names',
+  'map_color_label_tile_island': 'Basemap island names',
   'map_color_label_strong_blurb':
       'Marina, port, seamark, and other object names on the chart.',
   'map_color_label_soft_blurb':
       'Rivers, lakes, and other water names on the chart.',
-  'map_color_label_faint_blurb': 'Island and island-group names.',
+  'map_color_label_faint_blurb':
+      'Custom island and island-group names, separate from basemap tile labels.',
   'map_color_label_halo_blurb':
       'Outline behind chart text so names stay readable on land and water.',
+  'map_color_label_country_blurb': 'Country names from the basemap tiles.',
+  'map_color_label_region_blurb':
+      'Region and state names from the basemap tiles.',
+  'map_color_label_locality_blurb':
+      'City and town names. When Local streets are off, only larger cities stay.',
+  'map_color_label_tile_island_blurb':
+      'Island names from basemap tiles, separate from Islands and Island names.',
   'map_color_contour': 'Land contours',
   'map_color_contour_label': 'Land contour labels',
   'map_color_hillshade_shadow': 'Hillshade shadow',
@@ -227,4 +247,14 @@ const Map<String, String> enTranslations = {
   'map_color_moon': 'Moon',
   'map_color_moon_rim': 'Moon rim',
   'map_color_moon_track': 'Moon track',
+  'marine_object_type': 'Type',
+  'marine_object_category': 'Category',
+  'marine_object_ref': 'Reference',
+  'marine_object_operator': 'Operator',
+  'marine_object_phone': 'Phone',
+  'marine_object_website': 'Website',
+  'marine_object_details': 'Details',
+  'marine_object_position': 'Position',
+  'marine_object_source': 'Data source',
+  'marine_object_copy_link': 'Copy OpenStreetMap link',
 };

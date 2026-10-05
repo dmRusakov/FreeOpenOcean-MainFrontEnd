@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show ImageFilter;
 
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -29,6 +30,20 @@ final ValueNotifier<TopBarData> topBarNotifier = ValueNotifier(
 
 int _topBarSerial = 0;
 
+/// Holds a submenu that has not been shown yet.
+Timer? _submenuDelay;
+int _submenuToken = 0;
+String? _submenuOwner;
+TopBarData? _heldSubmenu;
+
+void _cancelSubmenuDelay() {
+  _submenuDelay?.cancel();
+  _submenuDelay = null;
+  _submenuToken++;
+  _submenuOwner = null;
+  _heldSubmenu = null;
+}
+
 /// Parks the page on the right third of a wide screen so the map can be used.
 final ValueNotifier<bool> contentDockedRight = ValueNotifier(false);
 
@@ -57,12 +72,50 @@ void _scheduleTopBar(void Function() update) {
 void setTopBar({String? title, List<Widget>? submenu, String? ownerId}) {
   // Merge with existing data so partial updates don't clear other fields.
   final current = topBarNotifier.value;
+  final nextOwner = ownerId ?? current.ownerId;
   final merged = TopBarData(
     title: title ?? current.title,
     submenu: submenu ?? current.submenu,
-    ownerId: ownerId ?? current.ownerId,
+    ownerId: nextOwner,
   );
   final serial = ++_topBarSerial;
+  final incoming = submenu != null && submenu.isNotEmpty;
+  final shown =
+      current.ownerId == nextOwner &&
+      current.submenu != null &&
+      current.submenu!.isNotEmpty;
+  final holding =
+      _submenuDelay?.isActive == true && _submenuOwner == nextOwner;
+
+  // A submenu that is just being added waits one second. The title shows
+  // at once, and a later edit on the same page does not wait again.
+  if (incoming && !shown) {
+    _heldSubmenu = merged;
+    if (!holding) {
+      _submenuOwner = nextOwner;
+      final token = ++_submenuToken;
+      _submenuDelay?.cancel();
+      _submenuDelay = Timer(const Duration(seconds: 1), () {
+        if (token != _submenuToken) return;
+        final latest = _heldSubmenu;
+        if (latest == null || latest.ownerId != nextOwner) return;
+        topBarNotifier.value = latest;
+        _heldSubmenu = null;
+        _submenuDelay = null;
+      });
+    }
+    _scheduleTopBar(() {
+      if (serial != _topBarSerial) return;
+      topBarNotifier.value = TopBarData(
+        title: merged.title,
+        submenu: const [],
+        ownerId: nextOwner,
+      );
+    });
+    return;
+  }
+
+  _cancelSubmenuDelay();
   _scheduleTopBar(() {
     // A newer setTopBar wins. A clear from the page we just left must not
     // erase this one: that clear checks the owner again when it runs.
@@ -73,6 +126,7 @@ void setTopBar({String? title, List<Widget>? submenu, String? ownerId}) {
 
 /// Clear top bar content.
 void clearTopBar({String? ownerId}) {
+  _cancelSubmenuDelay();
   _scheduleTopBar(() {
     final current = topBarNotifier.value;
     // Checked at apply time. The page we left often disposes in the same

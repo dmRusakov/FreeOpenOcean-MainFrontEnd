@@ -141,8 +141,12 @@ const _layerExtraColors = <String, List<String>>{
     'navLight',
   ],
   'waterNames': [
+    'labelCountry',
+    'labelRegion',
+    'labelLocality',
     'labelStrong',
     'labelFaint',
+    'labelTileIsland',
     'labelHalo',
   ],
 };
@@ -199,6 +203,10 @@ const _colorBlurbs = <String, String>{
   'labelStrong': 'map_color_label_strong_blurb',
   'labelFaint': 'map_color_label_faint_blurb',
   'labelHalo': 'map_color_label_halo_blurb',
+  'labelCountry': 'map_color_label_country_blurb',
+  'labelRegion': 'map_color_label_region_blurb',
+  'labelLocality': 'map_color_label_locality_blurb',
+  'labelTileIsland': 'map_color_label_tile_island_blurb',
 };
 
 /// Tile header title when it differs from the anchor layer name.
@@ -262,6 +270,10 @@ String? _rowZoomId(String field) => switch (field) {
   'dock' => 'dockIcon',
   'slipway' => 'slipwayIcon',
   'labelSoft' => 'waterNames',
+  'labelCountry' => 'countryNames',
+  'labelRegion' => 'regionNames',
+  'labelLocality' => 'localityNames',
+  'labelTileIsland' => 'tileIslandNames',
   'labelStrong' || 'labelFaint' || 'labelHalo' => null,
   'hazard' => 'seamarks',
   'platform' => 'platformIcon',
@@ -296,6 +308,10 @@ const _layerZooms = <String, List<String>>{
   'bridges': ['bridges'],
   'ferries': ['ferry', 'ferryNames'],
   'waterNames': ['waterNames'],
+  'countryNames': ['countryNames'],
+  'regionNames': ['regionNames'],
+  'localityNames': ['localityNames'],
+  'tileIslandNames': ['tileIslandNames'],
   'seamarks': ['seamarks'],
   'platforms': ['platformIcon'],
   'lighthouses': ['lighthouseIcon'],
@@ -343,6 +359,10 @@ const _absorbedLayers = <String, String>{
   'platforms': 'marinas',
   'platformZones': 'marinas',
   'lighthouses': 'marinas',
+  'countryNames': 'waterNames',
+  'regionNames': 'waterNames',
+  'localityNames': 'waterNames',
+  'tileIslandNames': 'waterNames',
 };
 
 bool _hidesOwnTile(String id) =>
@@ -366,6 +386,10 @@ String _elementIdForColor(String field) => switch (field) {
   'dock' => 'harbour',
   'ferryRoute' => 'ferries',
   'labelSoft' || 'labelStrong' || 'labelFaint' || 'labelHalo' => 'waterNames',
+  'labelCountry' => 'countryNames',
+  'labelRegion' => 'regionNames',
+  'labelLocality' => 'localityNames',
+  'labelTileIsland' => 'tileIslandNames',
   'hazard' => 'seamarks',
   'platform' => 'platforms',
   'navLight' => 'lighthouses',
@@ -618,7 +642,7 @@ class _SharedTile extends StatefulWidget {
 }
 
 class _SharedTileState extends State<_SharedTile> {
-  bool _expanded = false;
+  bool _expanded = true;
 
   @override
   Widget build(BuildContext context) {
@@ -762,7 +786,7 @@ class _LayerTile extends StatefulWidget {
 }
 
 class _LayerTileState extends State<_LayerTile> {
-  bool _expanded = false;
+  bool _expanded = true;
   MapLayerSetting get layer => widget.layer;
 
   @override
@@ -2193,6 +2217,10 @@ class _ColorRow extends StatelessWidget {
       'labelSoft' => chart.labelSoft,
       'labelFaint' => chart.labelFaint,
       'labelHalo' => chart.labelHalo,
+      'labelCountry' => chart.labelCountry,
+      'labelRegion' => chart.labelRegion,
+      'labelLocality' => chart.labelLocality,
+      'labelTileIsland' => chart.labelTileIsland,
       'landContour' => chart.landContour,
       'landContourLabel' => chart.landContourLabel,
       'hillshadeShadow' => chart.hillshadeShadow,

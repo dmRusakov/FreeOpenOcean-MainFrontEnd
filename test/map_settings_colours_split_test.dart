@@ -286,11 +286,29 @@ void main() {
 
     expect(find.text('Labels'), findsOneWidget);
     expect(find.text('Water names'), findsOneWidget);
+    expect(find.text('Country names'), findsOneWidget);
+    expect(find.text('Region names'), findsOneWidget);
+    expect(find.text('City names'), findsOneWidget);
     expect(find.text('Object names'), findsOneWidget);
     expect(find.text('Island names'), findsOneWidget);
+    expect(find.text('Basemap island names'), findsOneWidget);
     expect(find.text('Name outline'), findsOneWidget);
     expect(
       find.text('Rivers, lakes, and other water names on the chart.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Country names from the basemap tiles.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Region and state names from the basemap tiles.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'City and town names. When Local streets are off, only larger cities stay.',
+      ),
       findsOneWidget,
     );
     expect(
@@ -299,7 +317,18 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Island and island-group names.'), findsOneWidget);
+    expect(
+      find.text(
+        'Custom island and island-group names, separate from basemap tile labels.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Island names from basemap tiles, separate from Islands and Island names.',
+      ),
+      findsOneWidget,
+    );
     expect(
       find.text(
         'Outline behind chart text so names stay readable on land and water.',
@@ -319,5 +348,9 @@ void main() {
 
     expect(titleWidth('Water names'), closeTo(titleWidth('Main roads'), 0.5));
     expect(titleWidth('Name outline'), closeTo(titleWidth('Water names'), 0.5));
+    expect(
+      titleWidth('Basemap island names'),
+      closeTo(titleWidth('Water names'), 0.5),
+    );
   });
 }

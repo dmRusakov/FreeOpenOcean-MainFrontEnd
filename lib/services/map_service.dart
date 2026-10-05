@@ -36,6 +36,26 @@ class MapService {
   static final _islandNames = _loadGeoJson('island_names');
   static final _graticule = _loadGeoJson('graticule');
 
+  /// Symbol / line layers that open the marine-object info dialog on tap.
+  static const marineObjectLayers = <String>[
+    'boat-marinas',
+    'boat-anchorages',
+    'boat-fuel',
+    'boat-port',
+    'boat-customs',
+    'boat-service',
+    'boat-dock',
+    'boat-places',
+    'slipways',
+    'seamark-marinas',
+    'seamark-names',
+    'oil-platforms',
+    'oil-platform-zone',
+    'lighthouses',
+    'chart-ferry',
+    'chart-ferry-labels',
+  ];
+
   static Future<Object> _loadGeoJson(String name) async {
     final asset = 'assets/maps/$name.geojson';
     // Fetch plain JSON on web: the plugin converts inline maps to objects
@@ -733,7 +753,10 @@ class MapService {
     }
 
     final settings = MapChartSettings.instance;
-    await patch('background', {'background-color': chart.backdrop.hex});
+    await patch('background', {
+      // Chart backdrop is palette-only; it has no Settings colour row.
+      'background-color': chart.backdrop.hex,
+    });
     if (settings.layerOn('land')) {
       await patch('earth', {
         'fill-color': chart.landBase.hex,
@@ -782,6 +805,8 @@ class MapService {
         }
       }
     }
+    // Dam fills and pier lines take the coastline colour and follow the
+    // Coastline switch. They have no Settings row of their own.
     if (settings.layerOn('coastline')) {
       await patch('landuse_pier', {'fill-color': chart.coastline.hex});
       await patch('roads_pier', {'line-color': chart.coastline.hex});
@@ -804,11 +829,45 @@ class MapService {
         'text-halo-color': chart.labelHalo.hex,
       });
     }
-    for (final id in [
-      'earth_label_islands',
+    Future<void> patchPlaceLabel(
+      String layerId,
+      String settingId,
+      String textColor,
+    ) async {
+      if (!layers.contains(layerId)) return;
+      if (!settings.layerOn(settingId)) {
+        await controller.setLayerVisibility(layerId, false);
+        return;
+      }
+      await controller.setLayerVisibility(layerId, true);
+      await patch(layerId, {
+        'text-color': textColor,
+        'text-halo-color': chart.labelHalo.hex,
+        'text-opacity': settings.zoomExpression(settingId, 1, 0),
+      });
+    }
+
+    await patchPlaceLabel(
       'places_country',
+      'countryNames',
+      chart.labelCountry.hex,
+    );
+    await patchPlaceLabel(
       'places_region',
+      'regionNames',
+      chart.labelRegion.hex,
+    );
+    await patchPlaceLabel(
       'places_locality',
+      'localityNames',
+      chart.labelLocality.hex,
+    );
+    await patchPlaceLabel(
+      'earth_label_islands',
+      'tileIslandNames',
+      chart.labelTileIsland.hex,
+    );
+    for (final id in [
       'places_subplace',
       'roads_labels_major',
       'roads_labels_minor',
@@ -819,9 +878,14 @@ class MapService {
 
     await _redrawWaterways(controller, palette, layers);
 
-    if (layers.contains('chart-coastline')) return;
+    if (layers.contains('chart-coastline')) {
+      await controller.removeLayer('chart-coastline');
+    }
     if (!MapChartSettings.instance.layerOn('coastline')) return;
     final coastZoom = settings.zoomRange('coastline');
+    // Outline the earth polygons for a drawn shore. Sit under the water
+    // fill so tile-clip edges that cut straight across open water stay
+    // hidden; the real shore still shows where land meets the sea.
     await controller.addLineLayer(
       'protomaps',
       'chart-coastline',
@@ -834,9 +898,7 @@ class MapService {
         lineJoin: 'round',
       ),
       sourceLayer: 'earth',
-      // Straight after the ocean fill, so the hillshade and the depth
-      // contours below it do not smear the coast.
-      belowLayerId: layers.contains('water_stream') ? 'water_stream' : null,
+      belowLayerId: layers.contains('water') ? 'water' : null,
       filter: const ['==', '\$type', 'Polygon'],
       minzoom: coastZoom.$1.toDouble(),
       maxzoom: coastZoom.$2 >= 22 ? 24.0 : (coastZoom.$2 + 1).toDouble(),
@@ -1151,28 +1213,34 @@ class MapService {
     }
     if (epoch != _smallDetailEpoch) return;
     if (ids.contains('places_locality')) {
-      await controller.setFilter(
-        'places_locality',
-        show
-            ? const [
-                '==',
-                ['get', 'kind'],
-                'locality',
-              ]
-            : const [
-                'all',
-                [
+      final localityOn = MapChartSettings.instance.layerOn('localityNames');
+      await controller.setLayerVisibility('places_locality', localityOn);
+      if (localityOn) {
+        // When Local streets are off, only high-rank cities stay. The City /
+        // town names switch can still hide the whole layer.
+        await controller.setFilter(
+          'places_locality',
+          show
+              ? const [
                   '==',
                   ['get', 'kind'],
                   'locality',
+                ]
+              : const [
+                  'all',
+                  [
+                    '==',
+                    ['get', 'kind'],
+                    'locality',
+                  ],
+                  [
+                    '>=',
+                    ['get', 'population_rank'],
+                    10,
+                  ],
                 ],
-                [
-                  '>=',
-                  ['get', 'population_rank'],
-                  10,
-                ],
-              ],
-      );
+        );
+      }
     }
     final showNames =
         MapChartSettings.instance.layerOn('roadNames') &&
@@ -1274,6 +1342,10 @@ class MapService {
       await hide('ferryNames', const ['chart-ferry-labels']);
     }
     await hide('waterNames', const ['chart-water-names']);
+    await hide('countryNames', const ['places_country']);
+    await hide('regionNames', const ['places_region']);
+    await hide('localityNames', const ['places_locality']);
+    await hide('tileIslandNames', const ['earth_label_islands']);
     await hide('seamarks', const ['seamark-marinas', 'seamark-names']);
     await hide('platforms', const ['oil-platforms', 'oil-platform-zone']);
     await hide('lighthouses', const ['lighthouses']);
@@ -1836,7 +1908,7 @@ class MapService {
         'marina',
       ],
       minzoom: MapChartSettings.instance.zoom('marinaIcon'),
-      enableInteraction: false,
+      enableInteraction: true,
     );
     if (!isCurrent()) return;
     await controller.addSymbolLayer(
@@ -1886,7 +1958,7 @@ class MapService {
         'anchorage',
       ],
       minzoom: MapChartSettings.instance.zoom('anchorageIcon'),
-      enableInteraction: false,
+      enableInteraction: true,
     );
     if (!isCurrent()) return;
     Future<void> addKindLayer({
@@ -1969,7 +2041,7 @@ class MapService {
                 ['literal', kinds],
               ],
         minzoom: MapChartSettings.instance.zoom(zoomId),
-        enableInteraction: false,
+        enableInteraction: true,
       );
     }
 
@@ -1983,6 +2055,9 @@ class MapService {
       if (!isCurrent()) return;
     }
     final leftoverKinds = [
+      // Beacon, mooring, lock, life ring, ferry/cruise terminal, and any
+      // other harbour kind without its own Settings row. They follow the
+      // Harbour places (Places) switch only.
       for (final kind in _boatKinds)
         if (!_boatOwnLayerKinds.contains(kind)) kind,
     ];
@@ -2047,7 +2122,7 @@ class MapService {
       ),
       belowLayerId: below,
       minzoom: MapChartSettings.instance.zoom('slipwayIcon'),
-      enableInteraction: false,
+      enableInteraction: true,
     );
     if (!isCurrent()) return;
     unawaited(syncSlipways(controller));
@@ -2197,7 +2272,7 @@ class MapService {
         'ferry',
       ],
       minzoom: MapChartSettings.instance.zoom('ferry'),
-      enableInteraction: false,
+      enableInteraction: true,
     );
     if (!isCurrent()) return;
     await controller.addSymbolLayer(
@@ -2231,7 +2306,7 @@ class MapService {
         ['has', 'name'],
       ],
       minzoom: MapChartSettings.instance.zoom('ferryNames'),
-      enableInteraction: false,
+      enableInteraction: true,
     );
     if (!isCurrent()) return;
     await controller.addSymbolLayer(
@@ -2330,7 +2405,7 @@ class MapService {
         'harbour',
       ],
       minzoom: MapChartSettings.instance.zoom('seamarks'),
-      enableInteraction: false,
+      enableInteraction: true,
     );
     if (!isCurrent()) return;
     await controller.addSymbolLayer(
@@ -2377,7 +2452,7 @@ class MapService {
         'harbour',
       ],
       minzoom: MapChartSettings.instance.zoom('seamarks'),
-      enableInteraction: false,
+      enableInteraction: true,
     );
     if (!isCurrent()) return;
     // Platform image is registered with the other Marine objects icons.
@@ -2430,7 +2505,7 @@ class MapService {
       ),
       belowLayerId: belowLabels,
       minzoom: MapChartSettings.instance.zoom('platformIcon') + 0.001,
-      enableInteraction: false,
+      enableInteraction: true,
     );
     if (!isCurrent()) return;
     await controller.addCircleLayer(
@@ -2459,7 +2534,7 @@ class MapService {
       ),
       belowLayerId: 'oil-platforms',
       minzoom: _oilPlatformZoneZoom,
-      enableInteraction: false,
+      enableInteraction: true,
     );
     if (!isCurrent()) return;
     // Lighthouse image is registered with the other Marine objects icons.
@@ -2511,7 +2586,7 @@ class MapService {
       ),
       belowLayerId: belowLabels,
       minzoom: MapChartSettings.instance.zoom('lighthouseIcon') + 0.001,
-      enableInteraction: false,
+      enableInteraction: true,
     );
     if (!isCurrent()) return;
     unawaited(syncSeamarkNames(controller));
@@ -2639,11 +2714,49 @@ class MapService {
           'type': 'Feature',
           'id': features.length,
           'geometry': {'type': 'Point', 'coordinates': point},
-          'properties': {'name': label, 'kind': tags['seamark:type']},
+          'properties': _osmFeatureProperties(
+            raw,
+            tags,
+            name: label,
+            kind: '${tags['seamark:type']}',
+          ),
         });
       }
     }
     return {'type': 'FeatureCollection', 'features': features};
+  }
+
+  /// Shared OSM fields for Overpass-backed marine objects (source, id, contact).
+  static Map<String, dynamic> _osmFeatureProperties(
+    Map raw,
+    Map tags, {
+    required String name,
+    required String kind,
+    String? detail,
+    double? lat,
+  }) {
+    final props = <String, dynamic>{
+      'name': name,
+      'kind': kind,
+      'source': 'OpenStreetMap',
+      'osm_type': '${raw['type'] ?? ''}',
+      'osm_id': '${raw['id'] ?? ''}',
+    };
+    if (detail != null && detail.isNotEmpty) props['detail'] = detail;
+    if (lat != null) props['lat'] = lat;
+    for (final entry in {
+      'operator': tags['operator'],
+      'website': tags['website'] ?? tags['contact:website'],
+      'phone': tags['phone'] ?? tags['contact:phone'],
+      'ref': tags['ref'],
+      'category': tags['seamark:small_craft_facility:category'],
+    }.entries) {
+      final value = entry.value;
+      if (value is String && value.trim().isNotEmpty) {
+        props[entry.key] = value.trim();
+      }
+    }
+    return props;
   }
 
   /// Nodes use their own position. Harbour areas use the polygon center so
@@ -2836,7 +2949,12 @@ class MapService {
           'type': 'Feature',
           'id': features.length,
           'geometry': {'type': 'Point', 'coordinates': point},
-          'properties': {'name': name, 'kind': 'slipway'},
+          'properties': _osmFeatureProperties(
+            raw,
+            tags,
+            name: name,
+            kind: 'slipway',
+          ),
         });
       }
     }
@@ -2983,11 +3101,13 @@ class MapService {
           'type': 'Feature',
           'id': features.length,
           'geometry': {'type': 'Point', 'coordinates': point},
-          'properties': {
-            'name': name,
-            'kind': 'offshore_platform',
-            'lat': point[1],
-          },
+          'properties': _osmFeatureProperties(
+            raw,
+            tags,
+            name: name,
+            kind: 'offshore_platform',
+            lat: point[1],
+          ),
         });
       }
     }
@@ -3110,7 +3230,13 @@ class MapService {
           'type': 'Feature',
           'id': features.length,
           'geometry': {'type': 'Point', 'coordinates': point},
-          'properties': {'name': name, 'kind': kind, 'detail': detail},
+          'properties': _osmFeatureProperties(
+            raw,
+            tags,
+            name: name,
+            kind: kind,
+            detail: detail,
+          ),
         });
       }
     }

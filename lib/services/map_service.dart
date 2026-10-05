@@ -242,6 +242,7 @@ class MapService {
       }
       final palette = MarinePalette.of(brightness);
       final chart = palette.chart;
+      final settings = MapChartSettings.instance;
       final islandColor = chart.islandFill.hex;
       final islandOutline = chart.islandEdge.hex;
       await _addLandElevation(controller, palette, layers, isCurrent);
@@ -383,10 +384,11 @@ class MapService {
         enableInteraction: false,
       );
       if (!isCurrent()) return;
-      // Latitude and longitude every 10 degrees. The solid line is the
-      // latitude where the sun is overhead right now, not latitude 0.
+      // Latitude and longitude every 10 degrees. Latitude 0 is its own line.
       final gridColor = chart.graticule.hex;
-      final equatorColor = chart.meridian.hex;
+      final equatorColor = chart.equator.hex;
+      final gridZoom = settings.zoomRange('graticule');
+      final equatorZoom = settings.zoomRange('equator');
       await controller.addSource(
         'graticule',
         GeojsonSourceProperties(data: graticule),
@@ -397,11 +399,40 @@ class MapService {
         'graticule',
         LineLayerProperties(
           lineColor: gridColor,
-          lineWidth: 0.7,
+          lineWidth: settings.linePx('graticule').toDouble(),
           lineOpacity: 0.85,
-          lineDasharray: const [1, 2],
+          lineCap: settings.lineCap('graticule'),
+          lineDasharray: settings.lineDash('graticule'),
         ),
         belowLayerId: 'water_stream',
+        filter: const [
+          '!=',
+          ['get', 'kind'],
+          'equator',
+        ],
+        minzoom: gridZoom.$1.toDouble(),
+        maxzoom: gridZoom.$2 >= 22 ? 24.0 : (gridZoom.$2 + 1).toDouble(),
+        enableInteraction: false,
+      );
+      if (!isCurrent()) return;
+      await controller.addLineLayer(
+        'graticule',
+        'chart-equator',
+        LineLayerProperties(
+          lineColor: equatorColor,
+          lineWidth: settings.linePx('equator').toDouble(),
+          lineOpacity: 1,
+          lineCap: settings.lineCap('equator'),
+          lineDasharray: settings.lineDash('equator'),
+        ),
+        belowLayerId: 'water_stream',
+        filter: const [
+          '==',
+          ['get', 'kind'],
+          'equator',
+        ],
+        minzoom: equatorZoom.$1.toDouble(),
+        maxzoom: equatorZoom.$2 >= 22 ? 24.0 : (equatorZoom.$2 + 1).toDouble(),
         enableInteraction: false,
       );
       if (!isCurrent()) return;
@@ -415,7 +446,7 @@ class MapService {
         'sun-equator',
         'equator',
         LineLayerProperties(
-          lineColor: equatorColor,
+          lineColor: chart.meridian.hex,
           lineWidth: 0.8,
           lineOpacity: 0.95,
         ),
@@ -481,7 +512,7 @@ class MapService {
           textField: const ['get', 'name'],
           textFont: const ['Noto Sans Italic'],
           textSize: 11,
-          textColor: equatorColor,
+          textColor: chart.meridian.hex,
           textHaloColor: labelHalo,
           textHaloWidth: 1.2,
           textAllowOverlap: true,
@@ -703,12 +734,18 @@ class MapService {
     final settings = MapChartSettings.instance;
     await patch('background', {'background-color': chart.backdrop.hex});
     if (settings.layerOn('land')) {
-      await patch('earth', {'fill-color': chart.landBase.hex});
+      await patch('earth', {
+        'fill-color': chart.landBase.hex,
+        'fill-opacity': settings.zoomExpression('landBase', 1, 0),
+      });
     } else if (layers.contains('earth')) {
       await controller.setLayerVisibility('earth', false);
     }
     if (settings.layerOn('landBeach')) {
-      await patch('landuse_beach', {'fill-color': chart.landBeach.hex});
+      await patch('landuse_beach', {
+        'fill-color': chart.landBeach.hex,
+        'fill-opacity': settings.zoomExpression('landBeach', 1, 0),
+      });
     } else if (layers.contains('landuse_beach')) {
       await controller.setLayerVisibility('landuse_beach', false);
     }
@@ -759,24 +796,15 @@ class MapService {
 
     if (layers.contains('chart-coastline')) return;
     if (!MapChartSettings.instance.layerOn('coastline')) return;
+    final coastZoom = settings.zoomRange('coastline');
     await controller.addLineLayer(
       'protomaps',
       'chart-coastline',
       LineLayerProperties(
         lineColor: chart.coastline.hex,
-        lineWidth: const [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          2,
-          0.5,
-          6,
-          0.8,
-          10,
-          1.2,
-          14,
-          1.7,
-        ],
+        lineWidth: settings.linePx('coastline'),
+        lineCap: settings.lineCap('coastline'),
+        lineDasharray: settings.lineDash('coastline'),
         lineOpacity: 0.95,
         lineJoin: 'round',
       ),
@@ -785,6 +813,8 @@ class MapService {
       // contours below it do not smear the coast.
       belowLayerId: layers.contains('water_stream') ? 'water_stream' : null,
       filter: const ['==', '\$type', 'Polygon'],
+      minzoom: coastZoom.$1.toDouble(),
+      maxzoom: coastZoom.$2 >= 22 ? 24.0 : (coastZoom.$2 + 1).toDouble(),
       enableInteraction: false,
     );
   }
@@ -858,23 +888,41 @@ class MapService {
       });
     }
 
+    Future<void> paintLine(String layerId, String settingId) async {
+      await patch(layerId, {
+        'line-color': switch (settingId) {
+          'roadMinor' => chart.roadMinor.hex,
+          'roadCasing' => chart.roadCasing.hex,
+          _ => chart.roadTrunk.hex,
+        },
+        'line-width': settings.linePx(settingId),
+        'line-cap': settings.lineCap(settingId),
+        'line-dasharray': ?settings.lineDash(settingId),
+        'line-opacity': settings.zoomExpression(
+          settingId == 'roadMinor' ? 'smallDetail' : settingId,
+          1,
+          0,
+        ),
+      });
+    }
+
     for (final id in _trunkRoadLayers) {
       if (settings.layerOn('roadTrunk')) {
-        await patch(id, {'line-color': chart.roadTrunk.hex});
+        await paintLine(id, 'roadTrunk');
       } else {
         await hide(id);
       }
     }
     for (final id in _minorRoadLayers) {
       if (settings.layerOn('roadMinor')) {
-        await patch(id, {'line-color': chart.roadMinor.hex});
+        await paintLine(id, 'roadMinor');
       } else {
         await hide(id);
       }
     }
     for (final id in _roadCasingLayers) {
       if (settings.layerOn('roadCasing')) {
-        await patch(id, {'line-color': chart.roadCasing.hex});
+        await paintLine(id, 'roadCasing');
       } else {
         await hide(id);
       }
@@ -1143,7 +1191,10 @@ class MapService {
       'island-names-9',
       'island-names-10',
     ]);
-    await hide('graticule', const ['graticule']);
+    await hide('graticule', const ['graticule', 'chart-equator']);
+    if (chart.layerOn('graticule')) {
+      await hide('equator', const ['chart-equator']);
+    }
     await hide('sky', const [
       'equator',
       'sun-positions',
@@ -2983,13 +3034,15 @@ class MapService {
       );
       if (!isCurrent()) return;
       if (shadeOn) {
-        // From zoom 11 up, only land shows through holes in the ocean polygon.
+        final shadeZoom = MapChartSettings.instance.zoomRange('hillshade');
+        // From the chosen zoom up, only land shows through holes in the ocean polygon.
         await controller.addHillshadeLayer(
           'land-elevation-dem',
           landLayerId,
           shade,
           belowLayerId: layers.contains('water') ? 'water' : 'water_stream',
-          minzoom: 11,
+          minzoom: shadeZoom.$1.toDouble(),
+          maxzoom: shadeZoom.$2 >= 22 ? 24.0 : (shadeZoom.$2 + 1).toDouble(),
         );
         if (!isCurrent()) return;
         // Through zoom 11 the same shade sits on the water as well.
@@ -3037,23 +3090,21 @@ class MapService {
       ),
     );
     if (settings.layerOn('landContour')) {
+      final contourZoom = settings.zoomRange('landContour');
       await controller.addLineLayer(
         sourceId,
         'land-contour-lines',
         LineLayerProperties(
           lineColor: lineColor,
-          lineWidth: const [
-            'match',
-            ['get', 'level'],
-            1,
-            1.15,
-            0.55,
-          ],
+          lineWidth: settings.linePx('landContour'),
+          lineCap: settings.lineCap('landContour'),
+          lineDasharray: settings.lineDash('landContour'),
           lineOpacity: 0.4,
         ),
         sourceLayer: 'contours',
         belowLayerId: belowWater,
-        minzoom: 7,
+        minzoom: contourZoom.$1.toDouble(),
+        maxzoom: contourZoom.$2 >= 22 ? 24.0 : (contourZoom.$2 + 1).toDouble(),
         filter: const [
           '>',
           ['get', 'ele'],
@@ -3063,6 +3114,7 @@ class MapService {
       );
     }
     if (settings.layerOn('landContourLabel')) {
+      final labelZoom = settings.zoomRange('landContourLabel');
       await controller.addSymbolLayer(
         sourceId,
         'land-contour-labels',
@@ -3088,7 +3140,8 @@ class MapService {
         ),
         sourceLayer: 'contours',
         belowLayerId: belowWater,
-        minzoom: 7,
+        minzoom: labelZoom.$1.toDouble(),
+        maxzoom: labelZoom.$2 >= 22 ? 24.0 : (labelZoom.$2 + 1).toDouble(),
         filter: const [
           'all',
           [

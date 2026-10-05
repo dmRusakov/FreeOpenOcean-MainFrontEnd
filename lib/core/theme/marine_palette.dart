@@ -65,6 +65,7 @@ class MarinePalette {
         islandFill: pick('chart', 'islandFill', chart.islandFill),
         islandEdge: pick('chart', 'islandEdge', chart.islandEdge),
         graticule: pick('chart', 'graticule', chart.graticule),
+        equator: pick('chart', 'equator', chart.equator),
         meridian: pick('chart', 'meridian', chart.meridian),
         labelStrong: pick('chart', 'labelStrong', chart.labelStrong),
         labelSoft: pick('chart', 'labelSoft', chart.labelSoft),
@@ -163,6 +164,7 @@ class MarinePalette {
       islandFill: Color(0xFFEDE3D0),
       islandEdge: Color(0xFFB9A98C),
       graticule: Color(0xFF89A5B4),
+      equator: Color(0xFF3E6F86),
       meridian: Color(0xFF5E7C8C),
       labelStrong: Color(0xFF123243),
       labelSoft: Color(0xFF3E5C6E),
@@ -269,6 +271,7 @@ class MarinePalette {
       islandFill: Color(0xFF191E1E),
       islandEdge: Color(0xFF2B3538),
       graticule: Color(0xFF243743),
+      equator: Color(0xFF102436),
       meridian: Color(0xFF3A5260),
       labelStrong: Color(0xFFA9B7C1),
       labelSoft: Color(0xFF7F8E99),
@@ -397,6 +400,7 @@ class MarineChart {
     required this.islandFill,
     required this.islandEdge,
     required this.graticule,
+    required this.equator,
     required this.meridian,
     required this.labelStrong,
     required this.labelSoft,
@@ -428,6 +432,9 @@ class MarineChart {
   final Color islandFill;
   final Color islandEdge;
   final Color graticule;
+
+  /// Latitude 0, drawn apart from the 10° grid.
+  final Color equator;
 
   /// The line of the sun's current latitude.
   final Color meridian;
@@ -584,7 +591,18 @@ class MarineStop {
 }
 
 extension MarineColorHex on Color {
-  /// `#rrggbb`, the form MapLibre paint properties take.
-  String get hex =>
-      '#${(toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+  /// `#rrggbb`, or `rgba(...)` when the colour is partly transparent.
+  /// MapLibre paint properties accept both.
+  String get hex {
+    final argb = toARGB32();
+    final a = (argb >> 24) & 0xFF;
+    if (a == 0xFF) {
+      return '#${(argb & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+    }
+    final r = (argb >> 16) & 0xFF;
+    final g = (argb >> 8) & 0xFF;
+    final b = argb & 0xFF;
+    final opacity = (a / 255).toStringAsFixed(3);
+    return 'rgba($r, $g, $b, $opacity)';
+  }
 }

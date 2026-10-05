@@ -3,6 +3,39 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// How a chart line is broken. [dasharray] is a MapLibre `line-dasharray`.
+enum ChartLineType {
+  solid,
+  dashed,
+  dotted,
+  dashDot;
+
+  static const choices = <ChartLineType>[solid, dashed, dotted, dashDot];
+
+  static ChartLineType? named(String? name) {
+    for (final type in choices) {
+      if (type.name == name) return type;
+    }
+    return null;
+  }
+
+  String get labelKey => switch (this) {
+    solid => 'map_line_solid',
+    dashed => 'map_line_dashed',
+    dotted => 'map_line_dotted',
+    dashDot => 'map_line_dash_dot',
+  };
+
+  List<double>? get dasharray => switch (this) {
+    solid => null,
+    dashed => const [1, 2],
+    dotted => const [0, 1.6],
+    dashDot => const [2.5, 1.4, 0, 1.4],
+  };
+
+  String get cap => this == dotted || this == dashDot ? 'round' : 'butt';
+}
+
 /// One zoom the chart uses. The stored value replaces the built-in default.
 class MapZoomSetting {
   const MapZoomSetting(this.id, this.labelKey, this.fallback);
@@ -57,6 +90,17 @@ class MapChartSettings extends ChangeNotifier {
     MapZoomSetting('platformZone', 'map_zoom_platform_zone', 12),
     MapZoomSetting('lighthouseIcon', 'map_zoom_lighthouse_icon', 6),
     MapZoomSetting('lighthouseName', 'map_zoom_lighthouse_name', 12),
+    MapZoomSetting('graticule', 'map_zoom_graticule', 2),
+    MapZoomSetting('equator', 'map_zoom_equator', 2),
+    MapZoomSetting('landBase', 'map_color_land', 2),
+    MapZoomSetting('landBeach', 'map_color_beach', 2),
+    MapZoomSetting('islandFill', 'map_color_island', 4),
+    MapZoomSetting('coastline', 'map_color_coast', 2),
+    MapZoomSetting('landContour', 'map_color_contour', 7),
+    MapZoomSetting('landContourLabel', 'map_color_contour_label', 7),
+    MapZoomSetting('roadTrunk', 'map_color_road', 2),
+    MapZoomSetting('roadCasing', 'map_color_road_casing', 2),
+    MapZoomSetting('hillshade', 'map_color_hillshade_shadow', 11),
   ];
 
   static const layers = <MapLayerSetting>[
@@ -91,6 +135,7 @@ class MapChartSettings extends ChangeNotifier {
     MapColorSetting('chart', 'islandFill', 'map_color_island'),
     MapColorSetting('chart', 'islandEdge', 'map_color_island_edge'),
     MapColorSetting('chart', 'graticule', 'map_color_graticule'),
+    MapColorSetting('chart', 'equator', 'map_color_equator'),
     MapColorSetting('chart', 'meridian', 'map_color_meridian'),
     MapColorSetting('chart', 'labelStrong', 'map_color_label_strong'),
     MapColorSetting('chart', 'labelSoft', 'map_color_label_soft'),
@@ -141,6 +186,39 @@ class MapChartSettings extends ChangeNotifier {
   final Map<String, double> _zooms = {};
   final Map<String, bool> _layers = {};
   final Map<String, int> _colors = {};
+  final Map<String, double> _linePx = {};
+  final Map<String, ChartLineType> _lineType = {};
+
+  /// Built-in line thickness, in pixels.
+  static const linePxFallback = <String, double>{
+    'graticule': 1,
+    'equator': 2,
+    'coastline': 1.2,
+    'landContour': 0.6,
+    'roadTrunk': 1.5,
+    'roadMinor': 0.8,
+    'roadCasing': 1,
+  };
+
+  /// Built-in stroke. The grid is broken; the equator is continuous.
+  static const lineTypeFallback = <String, ChartLineType>{
+    'graticule': ChartLineType.dashed,
+    'equator': ChartLineType.solid,
+  };
+
+  /// Choices offered for a chart line, half a pixel through 5 px.
+  static const lineWidthChoices = <double>[
+    0.5,
+    1,
+    1.5,
+    2,
+    2.5,
+    3,
+    3.5,
+    4,
+    4.5,
+    5,
+  ];
 
   Map<String, int> get colorOverrides => Map.unmodifiable(_colors);
 
@@ -221,6 +299,44 @@ class MapChartSettings extends ChangeNotifier {
 
   bool layerOn(String id) => _layers[id] ?? true;
 
+  /// Line thickness in pixels, snapped to the half-pixel choices.
+  double linePx(String id) {
+    final saved = _linePx[id];
+    return snapLinePx(saved ?? linePxFallback[id] ?? 1);
+  }
+
+  static double snapLinePx(double px) {
+    var nearest = lineWidthChoices.first;
+    var gap = (px - nearest).abs();
+    for (final choice in lineWidthChoices) {
+      final next = (px - choice).abs();
+      if (next < gap) {
+        nearest = choice;
+        gap = next;
+      }
+    }
+    return nearest;
+  }
+
+  Future<void> setLinePx(String id, double px) async {
+    _linePx[id] = snapLinePx(px);
+    await _save();
+  }
+
+  ChartLineType lineType(String id) =>
+      _lineType[id] ?? lineTypeFallback[id] ?? ChartLineType.solid;
+
+  /// MapLibre `line-dasharray`. Null is a solid stroke.
+  List<double>? lineDash(String id) => lineType(id).dasharray;
+
+  /// Round caps turn a zero-length dash into a dot.
+  String lineCap(String id) => lineType(id).cap;
+
+  Future<void> setLineType(String id, ChartLineType type) async {
+    _lineType[id] = type;
+    await _save();
+  }
+
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_storageKey);
@@ -261,6 +377,22 @@ class MapChartSettings extends ChangeNotifier {
           if (value is int) _colors[entry.key.toString()] = value;
         }
       }
+      final lines = decoded['linePx'];
+      if (lines is Map) {
+        for (final entry in lines.entries) {
+          final value = entry.value;
+          if (value is num) {
+            _linePx[entry.key.toString()] = snapLinePx(value.toDouble());
+          }
+        }
+      }
+      final strokes = decoded['lineType'];
+      if (strokes is Map) {
+        for (final entry in strokes.entries) {
+          final type = ChartLineType.named(entry.value?.toString());
+          if (type != null) _lineType[entry.key.toString()] = type;
+        }
+      }
     } catch (error) {
       debugPrint('Unable to read map settings: $error');
     }
@@ -292,6 +424,8 @@ class MapChartSettings extends ChangeNotifier {
     _zooms.clear();
     _layers.clear();
     _colors.clear();
+    _linePx.clear();
+    _lineType.clear();
     await _save();
   }
 
@@ -306,6 +440,8 @@ class MapChartSettings extends ChangeNotifier {
         'zooms': _zooms,
         'layers': _layers,
         'colors': _colors,
+        'linePx': _linePx,
+        'lineType': _lineType.map((id, type) => MapEntry(id, type.name)),
       }),
     );
     notifyListeners();

@@ -16,6 +16,7 @@
 - `App` service persists user/session settings in `SharedPreferences` (theme, locale, country, endpoint id, connection mode, session id).
 - Chart layers, zooms, and day/night colours are saved by `MapChartSettings` and edited on Settings → Map. The defaults below are what a fresh install uses. The chart reloads its style when those values change.
 - Map settings always group related parameters near each other in the same tile and in the expanded list. Keep a zoom next to the colours and switches it controls (for example Local streets with Main roads, Minor roads, Road casing, and Road labels). Do not leave related road, land, water, or seamark controls scattered across the tile.
+- Detail map tiles (Land, Graticule, and any new tile in `_detailTiles`) use one standard row: 18-character Name, Zoom, Line type, Line width, Fill (Light/Dark), Line (Light/Dark). Empty slots stay reserved when a row has no fill or no stroke controls. Column titles sit under the tile header. Sun and Moon parameters live on Graticule with the grid and equator; there is no separate Sky tile.
 - `Api` service (`lib/services/api.dart`) owns endpoint discovery and health checks:
   - probes static endpoint list,
   - chooses fastest reachable endpoint,

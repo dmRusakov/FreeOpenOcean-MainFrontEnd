@@ -238,8 +238,10 @@ class PageTemplate extends StatelessWidget {
                     width,
                     fullScreen: fullScreen,
                   );
-              // Right third of the screen. The left stays an open chart.
-              final slotLeft = docked ? width * 2 / 3 : inset;
+              // Right third of the screen, and never narrower than 500px.
+              // The left stays an open chart.
+              final panelWidth = width / 3 < 500 ? 500.0 : width / 3;
+              final slotLeft = docked ? width - panelWidth : inset;
               final slotRight = docked ? 0.0 : inset;
               return Stack(
             children: [
@@ -247,7 +249,7 @@ class PageTemplate extends StatelessWidget {
                 child: OceanMapBackground(
                   interactive: fullScreen || docked,
                   showCompass: showCompass,
-                  controlRightInset: docked ? width / 3 : 0,
+                  controlRightInset: docked ? panelWidth : 0,
                   initialCamera: initialCamera,
                   onMapCreated: onMapCreated,
                   onCameraMove: onCameraMove,
@@ -281,11 +283,11 @@ class PageTemplate extends StatelessWidget {
                   ),
                   ),
                 ),
-              // Header stays with the content column.
+              // The page can park on the right. The header stays in place.
               Positioned(
                 top: 0,
-                left: slotLeft,
-                right: slotRight,
+                left: inset,
+                right: inset,
                 child: PointerInterceptor(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

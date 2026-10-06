@@ -59,6 +59,7 @@ class MarinePalette {
         backdrop: chart.backdrop,
         landBase: pick('chart', 'landBase', chart.landBase),
         landBeach: pick('chart', 'landBeach', chart.landBeach),
+        buildings: pick('chart', 'buildings', chart.buildings),
         seaBase: pick('chart', 'seaBase', chart.seaBase),
         seaEdge: pick('chart', 'seaEdge', chart.seaEdge),
         coastline: pick('chart', 'coastline', chart.coastline),
@@ -202,6 +203,7 @@ class MarinePalette {
       backdrop: Color(0xFFCBDFE8),
       landBase: Color(0xFFF2EADA),
       landBeach: Color(0xFFF5E7C6),
+      buildings: Color(0xFFD8CBB4),
       seaBase: Color(0xFFA9D3E6),
       seaEdge: Color(0xFF5FA5C4),
       coastline: Color(0xFF536B78),
@@ -325,6 +327,7 @@ class MarinePalette {
       backdrop: Color(0xFF04080B),
       landBase: Color(0xFF15191A),
       landBeach: Color(0xFF1C1D18),
+      buildings: Color(0xFF22282B),
       seaBase: Color(0xFF080F16),
       seaEdge: Color(0xFF1E3D50),
       coastline: Color(0xFF263C47),
@@ -470,6 +473,7 @@ class MarineChart {
     required this.backdrop,
     required this.landBase,
     required this.landBeach,
+    required this.buildings,
     required this.seaBase,
     required this.seaEdge,
     required this.coastline,
@@ -502,6 +506,9 @@ class MarineChart {
   final Color backdrop;
   final Color landBase;
   final Color landBeach;
+
+  /// Houses and other building footprints from the basemap tiles.
+  final Color buildings;
   final Color seaBase;
 
   /// Streams and rivers.

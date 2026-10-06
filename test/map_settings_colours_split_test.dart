@@ -15,7 +15,10 @@ void main() {
     await MapChartSettings.instance.reset();
   });
 
-  Future<void> pumpMapSettings(WidgetTester tester) async {
+  Future<void> pumpMapSettings(
+    WidgetTester tester, {
+    double width = 800,
+  }) async {
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('en'),
@@ -26,11 +29,11 @@ void main() {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        home: const Scaffold(
+        home: Scaffold(
           body: SizedBox(
-            width: 800,
+            width: width,
             height: 2400,
-            child: MapSettingsSection(),
+            child: const MapSettingsSection(),
           ),
         ),
       ),
@@ -71,6 +74,8 @@ void main() {
     expect(find.text('The darker edge under a road.'), findsOneWidget);
     expect(find.text('Names written on the roads.'), findsOneWidget);
     expect(find.text('Sand along the shore.'), findsOneWidget);
+    expect(find.text('Buildings'), findsOneWidget);
+    expect(find.text('Houses and other buildings.'), findsOneWidget);
     expect(
       find.text('Island fill, and the dots for islands too small to see.'),
       findsOneWidget,
@@ -341,6 +346,8 @@ void main() {
     await expandAll(tester);
 
     expect(find.text('Labels'), findsOneWidget);
+    expect(find.text('Font size'), findsOneWidget);
+    expect(find.text('Capitalize'), findsOneWidget);
     expect(find.text('Water names'), findsOneWidget);
     expect(find.text('Country names'), findsOneWidget);
     expect(find.text('Region names'), findsOneWidget);
@@ -408,5 +415,27 @@ void main() {
       titleWidth('Basemap island names'),
       closeTo(titleWidth('Water names'), 0.5),
     );
+  });
+
+  testWidgets('narrow panels put the zoom under the name', (tester) async {
+    await pumpMapSettings(tester, width: 480);
+    await expandAll(tester);
+
+    expect(find.text('Zoom'), findsNothing);
+    final name = tester.getRect(find.text('Water names'));
+    final blurb = tester.getRect(
+      find.text('Rivers, lakes, and other water names on the chart.'),
+    );
+    Rect? zoom;
+    for (final element in find.text('12 - 22').evaluate()) {
+      final rect = tester.getRect(find.byWidget(element.widget));
+      if (rect.top >= name.bottom - 1 &&
+          (zoom == null || rect.top < zoom.top)) {
+        zoom = rect;
+      }
+    }
+    expect(zoom, isNotNull);
+    expect(zoom!.top, greaterThan(name.bottom));
+    expect(zoom.bottom, lessThan(blurb.top + 1));
   });
 }

@@ -51,6 +51,7 @@ const _lineOnly = <String>{
 const _fills = <String>{
   'landBase',
   'landBeach',
+  'buildings',
   'seaBase',
   'islandFill',
   'danger',
@@ -107,6 +108,7 @@ const _layerExtraColors = <String, List<String>>{
     'roadMinor',
     'roadCasing',
     'roadLabel',
+    'buildings',
     'landBeach',
     'islandFill',
     'coastline',
@@ -173,8 +175,28 @@ const _detailTiles = <String>{
 /// Detail tiles that pick a Flutter icon instead of line type / width.
 const _iconTiles = <String>{'marinas'};
 
+/// Detail tiles that set font size and capitals instead of line type / width.
+const _textTiles = <String>{'waterNames'};
+
+/// Labels colour field to the chart text it sizes and capitalises.
+String? _labelStyleId(String field) => switch (field) {
+  'labelSoft' => 'waterNames',
+  'labelCountry' => 'countryNames',
+  'labelRegion' => 'regionNames',
+  'labelLocality' => 'localityNames',
+  'labelStrong' => 'objectNames',
+  'labelFaint' => 'islandNames',
+  'labelTileIsland' => 'tileIslandNames',
+  _ => null,
+};
+
 /// Fixed title column width for every parameter name in a detail tile.
 const _detailTitleChars = 18;
+
+/// Below this width the zoom slider drops under the name instead of sharing the row.
+const _zoomInlineMinWidth = 700.0;
+
+bool _stackZoom(double width) => width < _zoomInlineMinWidth;
 
 /// Width reserved for the Marine objects icon control (replaces both line DDs).
 double _iconSlotWidth(BuildContext context) =>
@@ -215,6 +237,7 @@ const _colorBlurbs = <String, String>{
   'roadCasing': 'map_color_road_casing_blurb',
   'roadLabel': 'map_color_road_label_blurb',
   'landBeach': 'map_color_beach_blurb',
+  'buildings': 'map_color_buildings_blurb',
   'islandFill': 'map_color_island_blurb',
   'coastline': 'map_color_coast_blurb',
   'landContour': 'map_color_contour_blurb',
@@ -286,7 +309,6 @@ double _lineWidthSlotWidth(BuildContext context) {
 }
 
 /// An existing zoom that already belongs to this colour.
-/// Null when the colour row has no zoom control (Strong / Faint / Halo labels).
 String? _rowZoomId(String field) => switch (field) {
   'roadMinor' => 'smallDetail',
   'roadLabel' => 'roadNames',
@@ -308,7 +330,9 @@ String? _rowZoomId(String field) => switch (field) {
   'labelRegion' => 'regionNames',
   'labelLocality' => 'localityNames',
   'labelTileIsland' => 'tileIslandNames',
-  'labelStrong' || 'labelFaint' || 'labelHalo' => null,
+  'labelStrong' => 'objectNames',
+  'labelFaint' => 'islandNames',
+  'labelHalo' => 'nameHalo',
   'hazard' => 'seamarks',
   'platform' => 'platformIcon',
   'navLight' => 'lighthouseIcon',
@@ -346,6 +370,9 @@ const _layerZooms = <String, List<String>>{
   'regionNames': ['regionNames'],
   'localityNames': ['localityNames'],
   'tileIslandNames': ['tileIslandNames'],
+  'objectNames': ['objectNames'],
+  'islandNames': ['islandNames'],
+  'nameHalo': ['nameHalo'],
   'seamarks': ['seamarks'],
   'platforms': ['platformIcon'],
   'lighthouses': ['lighthouseIcon'],
@@ -381,6 +408,7 @@ const _absorbedLayers = <String, String>{
   'islands': 'land',
   'roads': 'land',
   'roadNames': 'land',
+  'buildings': 'land',
   'sky': 'graticule',
   'waterways': 'coast',
   'contours': 'coast',
@@ -397,6 +425,9 @@ const _absorbedLayers = <String, String>{
   'regionNames': 'waterNames',
   'localityNames': 'waterNames',
   'tileIslandNames': 'waterNames',
+  'objectNames': 'waterNames',
+  'islandNames': 'waterNames',
+  'nameHalo': 'waterNames',
 };
 
 bool _hidesOwnTile(String id) =>
@@ -419,7 +450,10 @@ String _elementIdForColor(String field) => switch (field) {
   'bridge' => 'bridges',
   'dock' => 'harbour',
   'ferryRoute' => 'ferries',
-  'labelSoft' || 'labelStrong' || 'labelFaint' || 'labelHalo' => 'waterNames',
+  'labelSoft' => 'waterNames',
+  'labelStrong' => 'objectNames',
+  'labelFaint' => 'islandNames',
+  'labelHalo' => 'nameHalo',
   'labelCountry' => 'countryNames',
   'labelRegion' => 'regionNames',
   'labelLocality' => 'localityNames',
@@ -930,7 +964,9 @@ class _LayerTileState extends State<_LayerTile> {
               showZoom: detailTile || lineIds.isNotEmpty,
               showLineMenus:
                   (detailTile || lineIds.isNotEmpty) &&
-                  !_iconTiles.contains(layer.id),
+                  !_iconTiles.contains(layer.id) &&
+                  !_textTiles.contains(layer.id),
+              showTextMenus: _textTiles.contains(layer.id),
               showIconMenus: _iconTiles.contains(layer.id),
             ),
           for (final zoom in zoomSettings)
@@ -954,6 +990,7 @@ class _LayerTileState extends State<_LayerTile> {
                 zoomId: _rowZoomId(color.field),
                 titleChars: _detailTitleChars,
                 iconMenus: _iconTiles.contains(layer.id),
+                textMenus: _textTiles.contains(layer.id),
               ),
               for (final zoomId in _detailZoomAfter[color.field] ?? const <String>[])
                 _ColorRow.zoomOnly(
@@ -1077,12 +1114,14 @@ class _InputColumnHeaders extends StatelessWidget {
     this.titleChars,
     this.showZoom = false,
     this.showLineMenus = false,
+    this.showTextMenus = false,
     this.showIconMenus = false,
   });
 
   final int? titleChars;
   final bool showZoom;
   final bool showLineMenus;
+  final bool showTextMenus;
   final bool showIconMenus;
 
   @override
@@ -1098,6 +1137,8 @@ class _InputColumnHeaders extends StatelessWidget {
     );
     final typeWidth = showLineMenus ? _lineTypeSlotWidth(context) : null;
     final widthWidth = showLineMenus ? _lineWidthSlotWidth(context) : null;
+    final fontWidth = showTextMenus ? _lineTypeSlotWidth(context) : null;
+    final capsWidth = showTextMenus ? _lineWidthSlotWidth(context) : null;
     final iconWidth = showIconMenus ? _iconSlotWidth(context) : null;
     final name = Text(
       l.translate('map_column_name'),
@@ -1158,19 +1199,20 @@ class _InputColumnHeaders extends StatelessWidget {
       );
     }
 
-    return Padding(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inlineZoom = showZoom && !_stackZoom(constraints.maxWidth);
+        return Padding(
       padding: const EdgeInsets.only(top: 4, bottom: 2),
       child: Row(
         children: [
           // Matches _ElementSwitch: 36 wide + 5 right padding.
           const SizedBox(width: 41),
-          if (titleChars != null)
+          if (titleChars != null && inlineZoom)
             _charsTitle(context, name, titleChars!)
-          else if (showZoom)
-            name
           else
             Expanded(child: name),
-          if (showZoom) ...[
+          if (inlineZoom) ...[
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -1186,6 +1228,12 @@ class _InputColumnHeaders extends StatelessWidget {
             slotLabel('map_line_type', typeWidth),
             const SizedBox(width: 8),
             slotLabel('map_line_width', widthWidth),
+            const SizedBox(width: 8),
+          ],
+          if (showTextMenus) ...[
+            slotLabel('map_column_font_size', fontWidth),
+            const SizedBox(width: 8),
+            slotLabel('map_column_capitalize', capsWidth),
             const SizedBox(width: 8),
           ],
           if (showIconMenus) ...[
@@ -1206,6 +1254,8 @@ class _InputColumnHeaders extends StatelessWidget {
           ),
         ],
       ),
+    );
+      },
     );
   }
 }
@@ -2006,6 +2056,109 @@ class _LineWidthMenu extends StatelessWidget {
   }
 }
 
+class _FontSizeMenu extends StatelessWidget {
+  const _FontSizeMenu({required this.id, this.width});
+
+  final String id;
+  final double? width;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final value = MapChartSettings.instance.labelFontSize(id);
+    final style = Theme.of(context).textTheme.bodySmall;
+    final label = value.toStringAsFixed(0);
+    final button = PopupMenuButton<double>(
+      tooltip: l.translate('map_column_font_size'),
+      padding: EdgeInsets.zero,
+      initialValue: value,
+      onSelected: (next) => MapChartSettings.instance.setLabelFontSize(id, next),
+      itemBuilder: (context) => [
+        for (final px in MapChartSettings.labelFontChoices)
+          PopupMenuItem<double>(
+            value: px,
+            height: 32,
+            child: Text(px.toStringAsFixed(0), style: style),
+          ),
+      ],
+      child: Row(
+        mainAxisSize: width == null ? MainAxisSize.min : MainAxisSize.max,
+        children: [
+          if (width == null)
+            Text(label, style: style)
+          else
+            Expanded(
+              child: Text(
+                label,
+                style: style,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          const Icon(Icons.arrow_drop_down, size: 18),
+        ],
+      ),
+    );
+    final slot = width;
+    if (slot == null) return button;
+    return SizedBox(width: slot, child: button);
+  }
+}
+
+class _CapitalizeMenu extends StatelessWidget {
+  const _CapitalizeMenu({required this.id, this.width});
+
+  final String id;
+  final double? width;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final on = MapChartSettings.instance.labelCapitalize(id);
+    final style = Theme.of(context).textTheme.bodySmall;
+    final label = on ? 'ABC' : 'Aa';
+    final button = PopupMenuButton<bool>(
+      tooltip: l.translate('map_column_capitalize'),
+      padding: EdgeInsets.zero,
+      initialValue: on,
+      onSelected: (next) =>
+          MapChartSettings.instance.setLabelCapitalize(id, next),
+      itemBuilder: (context) => [
+        PopupMenuItem<bool>(
+          value: false,
+          height: 32,
+          child: Text('Aa', style: style),
+        ),
+        PopupMenuItem<bool>(
+          value: true,
+          height: 32,
+          child: Text('ABC', style: style),
+        ),
+      ],
+      child: Row(
+        mainAxisSize: width == null ? MainAxisSize.min : MainAxisSize.max,
+        children: [
+          if (width == null)
+            Text(label, style: style)
+          else
+            Expanded(
+              child: Text(
+                label,
+                style: style,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          const Icon(Icons.arrow_drop_down, size: 18),
+        ],
+      ),
+    );
+    final slot = width;
+    if (slot == null) return button;
+    return SizedBox(width: slot, child: button);
+  }
+}
+
 class _ColorRow extends StatelessWidget {
   const _ColorRow({
     required MapColorSetting this.setting,
@@ -2014,6 +2167,7 @@ class _ColorRow extends StatelessWidget {
     this.zoomId,
     this.titleChars,
     this.iconMenus = false,
+    this.textMenus = false,
   }) : zoomOnly = null;
 
   /// Name + zoom + empty stroke/colour slots (Streams, Rivers, …).
@@ -2022,6 +2176,7 @@ class _ColorRow extends StatelessWidget {
     this.titleChars,
     this.iconMenus = false,
   }) : setting = null,
+       textMenus = false,
        swatchesOnly = false,
        lineWidthId = null,
        zoomId = zoom.id,
@@ -2045,6 +2200,9 @@ class _ColorRow extends StatelessWidget {
   /// Marine objects: one icon control instead of line type / width.
   final bool iconMenus;
 
+  /// Labels: font size and capitalize instead of line type / width.
+  final bool textMenus;
+
   @override
   Widget build(BuildContext context) {
     final day = MarinePalette.of(Brightness.light);
@@ -2061,15 +2219,21 @@ class _ColorRow extends StatelessWidget {
         iconMenus && color != null && mapObjectIconFields.contains(color.field);
     final showLineMenus =
         !iconMenus &&
+        !textMenus &&
         color != null &&
         lineWidthId != null &&
         _hasLineStrokeControls(color.field);
-    final typeWidth = !iconMenus && (reserveMenus || showLineMenus)
+    final labelStyle = textMenus && color != null
+        ? _labelStyleId(color.field)
+        : null;
+    final typeWidth = !iconMenus && !textMenus && (reserveMenus || showLineMenus)
         ? _lineTypeSlotWidth(context)
         : null;
-    final widthWidth = !iconMenus && (reserveMenus || showLineMenus)
+    final widthWidth = !iconMenus && !textMenus && (reserveMenus || showLineMenus)
         ? _lineWidthSlotWidth(context)
         : null;
+    final fontWidth = textMenus ? _lineTypeSlotWidth(context) : null;
+    final capsWidth = textMenus ? _lineWidthSlotWidth(context) : null;
     final iconWidth = iconMenus && reserveMenus
         ? _iconSlotWidth(context)
         : null;
@@ -2089,30 +2253,34 @@ class _ColorRow extends StatelessWidget {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           );
-    final row = Row(
+    Widget zoomBar() {
+      if (zoomId == null) return const SizedBox.shrink();
+      if (_isObjectZoom(zoomId!)) {
+        return _ZoomTriple(id: zoomId!, barOnly: true);
+      }
+      return _ZoomRange(
+        setting: _zoomSetting(zoomId!),
+        showSwitch: false,
+        barOnly: true,
+      );
+    }
+
+    Widget nameRow({required bool inlineZoom}) {
+      return Row(
         children: [
           if (!swatchesOnly) ...[
             _ElementSwitch(switchId),
             if (zoomId == null && titleChars == null)
               Expanded(child: title)
             else ...[
-              titleChars == null
-                  ? title
-                  : _charsTitle(context, title, titleChars!),
-              // Detail tiles keep the Zoom column even when a row has none.
-              if (zoomId != null || titleChars != null) ...[
+              if (titleChars != null && inlineZoom)
+                _charsTitle(context, title, titleChars!)
+              else
+                Expanded(child: title),
+              // Wide rows keep the Zoom column even when a row has none.
+              if (inlineZoom && (zoomId != null || titleChars != null)) ...[
                 const SizedBox(width: 8),
-                Expanded(
-                  child: zoomId == null
-                      ? const SizedBox.shrink()
-                      : _isObjectZoom(zoomId!)
-                      ? _ZoomTriple(id: zoomId!, barOnly: true)
-                      : _ZoomRange(
-                          setting: _zoomSetting(zoomId!),
-                          showSwitch: false,
-                          barOnly: true,
-                        ),
-                ),
+                Expanded(child: zoomBar()),
                 const SizedBox(width: 12),
               ],
             ],
@@ -2130,6 +2298,21 @@ class _ColorRow extends StatelessWidget {
                       ),
                     )
                   : null,
+            ),
+            const SizedBox(width: 8),
+          ] else if (textMenus) ...[
+            SizedBox(
+              width: fontWidth,
+              child: labelStyle == null
+                  ? null
+                  : _FontSizeMenu(id: labelStyle, width: fontWidth),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: capsWidth,
+              child: labelStyle == null
+                  ? null
+                  : _CapitalizeMenu(id: labelStyle, width: capsWidth),
             ),
             const SizedBox(width: 8),
           ] else if (reserveMenus || showLineMenus) ...[
@@ -2153,22 +2336,42 @@ class _ColorRow extends StatelessWidget {
           const SizedBox(width: _themeGap),
           _roleMarks(context, day, night, color, line, asLine: true),
         ],
-    );
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: swatchesOnly ? 0 : 1),
-      child: blurb == null
-          ? row
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                row,
-                Padding(
-                  // Align under the name, past the 36+5 switch.
-                  padding: const EdgeInsets.only(left: 41, top: 0, bottom: 4),
-                  child: blurb,
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inlineZoom = !_stackZoom(constraints.maxWidth);
+        final row = nameRow(inlineZoom: inlineZoom);
+        final zoomBelow = !inlineZoom && zoomId != null
+            ? Padding(
+                padding: const EdgeInsets.only(left: 41, top: 2),
+                child: zoomBar(),
+              )
+            : null;
+        return Padding(
+          padding: EdgeInsets.symmetric(vertical: swatchesOnly ? 0 : 1),
+          child: zoomBelow == null && blurb == null
+              ? row
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    row,
+                    ?zoomBelow,
+                    if (blurb != null)
+                      Padding(
+                        // Align under the name, past the 36+5 switch.
+                        padding: const EdgeInsets.only(
+                          left: 41,
+                          top: 0,
+                          bottom: 4,
+                        ),
+                        child: blurb,
+                      ),
+                  ],
                 ),
-              ],
-            ),
+        );
+      },
     );
   }
 
@@ -2240,6 +2443,7 @@ class _ColorRow extends StatelessWidget {
     return switch (item.field) {
       'landBase' => chart.landBase,
       'landBeach' => chart.landBeach,
+      'buildings' => chart.buildings,
       'seaBase' => chart.seaBase,
       'seaEdge' => chart.seaEdge,
       'coastline' => chart.coastline,

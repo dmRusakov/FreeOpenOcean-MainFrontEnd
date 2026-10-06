@@ -150,6 +150,9 @@ class MapChartSettings extends ChangeNotifier {
     MapZoomSetting('regionNames', 'map_zoom_region_names', 4),
     MapZoomSetting('localityNames', 'map_zoom_locality_names', 8),
     MapZoomSetting('tileIslandNames', 'map_zoom_tile_island_names', 4),
+    MapZoomSetting('objectNames', 'map_zoom_object_names', 12),
+    MapZoomSetting('islandNames', 'map_zoom_island_names', 2),
+    MapZoomSetting('nameHalo', 'map_zoom_name_outline', 2),
     MapZoomSetting('streams', 'map_zoom_streams', 14),
     MapZoomSetting('rivers', 'map_zoom_rivers', 9),
     MapZoomSetting('seamarks', 'map_zoom_seamarks', 12),
@@ -162,6 +165,7 @@ class MapChartSettings extends ChangeNotifier {
     MapZoomSetting('equator', 'map_zoom_equator', 2),
     MapZoomSetting('landBase', 'map_color_land', 2),
     MapZoomSetting('landBeach', 'map_color_beach', 2),
+    MapZoomSetting('buildings', 'map_color_buildings', 15),
     MapZoomSetting('islandFill', 'map_color_island', 4),
     MapZoomSetting('coastline', 'map_color_coast', 2),
     MapZoomSetting('boundaries', 'map_color_boundaries', 8),
@@ -174,6 +178,7 @@ class MapChartSettings extends ChangeNotifier {
 
   static const layers = <MapLayerSetting>[
     MapLayerSetting('land', 'map_layer_land'),
+    MapLayerSetting('buildings', 'map_layer_buildings'),
     MapLayerSetting('islands', 'map_layer_islands'),
     MapLayerSetting('graticule', 'map_layer_graticule'),
     MapLayerSetting('sky', 'map_layer_sky'),
@@ -193,6 +198,9 @@ class MapChartSettings extends ChangeNotifier {
     MapLayerSetting('regionNames', 'map_layer_region_names'),
     MapLayerSetting('localityNames', 'map_layer_locality_names'),
     MapLayerSetting('tileIslandNames', 'map_layer_tile_island_names'),
+    MapLayerSetting('objectNames', 'map_layer_object_names'),
+    MapLayerSetting('islandNames', 'map_layer_island_names'),
+    MapLayerSetting('nameHalo', 'map_layer_name_outline'),
     MapLayerSetting('seamarks', 'map_layer_seamarks'),
     MapLayerSetting('platforms', 'map_layer_platforms'),
     MapLayerSetting('platformZones', 'map_layer_platform_zones'),
@@ -202,6 +210,7 @@ class MapChartSettings extends ChangeNotifier {
   static const colors = <MapColorSetting>[
     MapColorSetting('chart', 'landBase', 'map_color_land'),
     MapColorSetting('chart', 'landBeach', 'map_color_beach'),
+    MapColorSetting('chart', 'buildings', 'map_color_buildings'),
     MapColorSetting('chart', 'seaBase', 'map_color_sea'),
     MapColorSetting('chart', 'seaEdge', 'map_color_sea_edge'),
     MapColorSetting('chart', 'coastline', 'map_color_coast'),
@@ -278,7 +287,45 @@ class MapChartSettings extends ChangeNotifier {
   final Map<String, int> _colors = {};
   final Map<String, double> _linePx = {};
   final Map<String, ChartLineType> _lineType = {};
+  final Map<String, double> _labelFont = {};
+  final Map<String, bool> _labelCaps = {};
   final Map<String, ChartObjectIcon> _objectIcons = {};
+
+  /// Point sizes offered for a Labels row.
+  static const labelFontChoices = <double>[
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    16,
+    18,
+    20,
+  ];
+
+  /// Built-in size for each Labels row, in pixels.
+  static const labelFontFallback = <String, double>{
+    'waterNames': 12,
+    'countryNames': 12,
+    'regionNames': 12,
+    'localityNames': 11,
+    'objectNames': 10,
+    'islandNames': 10,
+    'tileIslandNames': 11,
+  };
+
+  /// Rows that start in capitals. Country, region, and water names already do.
+  static const labelCapsFallback = <String, bool>{
+    'waterNames': true,
+    'countryNames': true,
+    'regionNames': true,
+    'localityNames': false,
+    'objectNames': false,
+    'islandNames': false,
+    'tileIslandNames': false,
+  };
 
   /// Built-in line thickness, in pixels.
   static const linePxFallback = <String, double>{
@@ -549,6 +596,44 @@ class MapChartSettings extends ChangeNotifier {
   ChartLineType lineType(String id) =>
       _lineType[id] ?? lineTypeFallback[id] ?? ChartLineType.solid;
 
+  static double snapLabelFont(double px) {
+    var nearest = labelFontChoices.first;
+    var gap = (px - nearest).abs();
+    for (final choice in labelFontChoices) {
+      final next = (px - choice).abs();
+      if (next < gap) {
+        nearest = choice;
+        gap = next;
+      }
+    }
+    return nearest;
+  }
+
+  double labelFontSize(String id) =>
+      _labelFont[id] ?? labelFontFallback[id] ?? 12;
+
+  bool labelCapitalize(String id) =>
+      _labelCaps[id] ?? labelCapsFallback[id] ?? false;
+
+  /// MapLibre `text-transform` for a Labels row.
+  String labelTextTransform(String id) =>
+      labelCapitalize(id) ? 'uppercase' : 'none';
+
+  Map<String, Object> labelTextLayout(String id) => {
+    'text-size': labelFontSize(id),
+    'text-transform': labelTextTransform(id),
+  };
+
+  Future<void> setLabelFontSize(String id, double px) async {
+    _labelFont[id] = snapLabelFont(px);
+    await _save();
+  }
+
+  Future<void> setLabelCapitalize(String id, bool on) async {
+    _labelCaps[id] = on;
+    await _save();
+  }
+
   /// MapLibre `line-dasharray`. Null is a solid stroke.
   List<double>? lineDash(String id) => lineType(id).dasharray;
 
@@ -621,6 +706,23 @@ class MapChartSettings extends ChangeNotifier {
           }
         }
       }
+      final fonts = decoded['labelFont'];
+      if (fonts is Map) {
+        for (final entry in fonts.entries) {
+          final value = entry.value;
+          if (value is num) {
+            _labelFont[entry.key.toString()] = snapLabelFont(value.toDouble());
+          }
+        }
+      }
+      final caps = decoded['labelCaps'];
+      if (caps is Map) {
+        for (final entry in caps.entries) {
+          if (entry.value is bool) {
+            _labelCaps[entry.key.toString()] = entry.value as bool;
+          }
+        }
+      }
       final strokes = decoded['lineType'];
       if (strokes is Map) {
         for (final entry in strokes.entries) {
@@ -683,6 +785,8 @@ class MapChartSettings extends ChangeNotifier {
     _colors.clear();
     _linePx.clear();
     _lineType.clear();
+    _labelFont.clear();
+    _labelCaps.clear();
     _objectIcons.clear();
     await _save();
   }
@@ -701,6 +805,8 @@ class MapChartSettings extends ChangeNotifier {
         'colors': _colors,
         'linePx': _linePx,
         'lineType': _lineType.map((id, type) => MapEntry(id, type.name)),
+        'labelFont': _labelFont,
+        'labelCaps': _labelCaps,
         'objectIcons': _objectIcons.map(
           (field, icon) => MapEntry(field, icon.toJson()),
         ),

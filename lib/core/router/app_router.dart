@@ -6,6 +6,7 @@ import 'package:free_open_ocean/pages/about_page.dart';
 import 'package:free_open_ocean/pages/contact_page.dart';
 import 'package:free_open_ocean/pages/ocean_charts.dart';
 import 'package:free_open_ocean/pages/settings_page.dart';
+import 'package:free_open_ocean/pages/storage_page.dart';
 import 'package:free_open_ocean/pages/user_page.dart';
 
 class AppRouter {
@@ -39,6 +40,10 @@ class AppRouter {
       _buildRoute(
         '/:country/:language/user',
         (params) => UserPage(params: params),
+      ),
+      _buildRoute(
+        '/:country/:language/storage',
+        (params) => StoragePage(params: params),
       ),
       _buildRoute(
         '/:country/:language/settings',

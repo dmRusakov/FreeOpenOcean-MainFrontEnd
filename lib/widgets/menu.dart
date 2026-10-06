@@ -58,6 +58,13 @@ class AppMenu extends StatelessWidget {
                       ),
                       const Spacer(),
                       ListTile(
+                        leading: const Icon(Icons.storage),
+                        title: Text(localizations.translate('storage')),
+                        onTap: () {
+                          context.routerGoTo('storage');
+                        },
+                      ),
+                      ListTile(
                         leading: const Icon(Icons.settings),
                         title: Text(localizations.translate('settings')),
                         onTap: () {
